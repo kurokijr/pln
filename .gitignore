@@ -201,4 +201,6 @@ temp/
 .env.local
 .env.production
 secrets.json
-credentials.json .env
+credentials.json
+*.env
+.env
