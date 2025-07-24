@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG-Demo - Ambiente Educacional</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    
+    <!-- Marked.js para renderização de Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Highlight.js para syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <style>
+        /* Animações e estilos customizados */
+        .chat-message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading-dots {
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0%, 20% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        .markdown-content {
+            line-height: 1.6;
+        }
+        
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 1rem;
+        }
+        
+        .markdown-content code {
+            background-color: #f3f4f6;
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .markdown-content pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        
+        /* Estilos para o menu lateral */
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .sidebar-item.active {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+            border-right: 3px solid #1d4ed8;
+        }
+        
+        /* Layout responsivo */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 40;
+            }
+            
+            .sidebar-overlay.open {
+                display: block;
+            }
+        }
+        
+        /* Esconder toggle mobile em desktop */
+        .mobile-menu-toggle {
+            display: none;
+        }
+        
+        /* Estilos para upload de arquivo */
+        .upload-zone-active {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+        
+        .file-preview-enter {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Estilos para drag and drop */
+        .upload-zone.dragover {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+            transform: scale(1.02);
+        }
+        
+        .upload-zone.dragover .upload-placeholder {
+            transform: scale(1.05);
+        }
+        
+        /* Animação de hover para elementos decorativos */
+        .upload-zone:hover .absolute.opacity-5 > div {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        /* Estilo para o botão de seleção de arquivo */
+        .file-input-label {
+            transition: all 0.2s ease;
+        }
+        
+        .file-input-label:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Layout Principal com Menu Lateral -->
+    <div class="flex h-screen">
+        <!-- Overlay para mobile -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+        
+        <!-- Menu Lateral Fixo -->
+        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
+            <!-- Logo/Header do Sidebar -->
+            <div class="p-6 border-b border-gray-200">
+                    <h1 class="text-xl font-semibold text-gray-900">
+                    RAG-Demo
+                    </h1>
+                <p class="text-sm text-gray-600 mt-1">Ambiente Educacional</p>
+                </div>
+            
+            <!-- Menu de Navegação -->
+            <nav class="p-4 space-y-2">
+                <button id="upload-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="upload" class="w-5 h-5"></i>
+                    <span>Upload</span>
+                    </button>
+                
+                <button id="databases-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="database" class="w-5 h-5"></i>
+                    <span>Databases</span>
+                    </button>
+                
+                <button id="collections-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="folder-open" class="w-5 h-5"></i>
+                    <span>Collections</span>
+                    </button>
+                
+                <button id="editor-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                    <span>Editor</span>
+                    </button>
+                
+                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                    <span>Chat</span>
+                    </button>
+                
+                <button id="history-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                    <span>Histórico</span>
+                    </button>
+            </nav>
+            
+            <!-- Status de Conexão -->
+            <div class="absolute bottom-4 left-4 right-4">
+                <div id="status-indicator" class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span class="text-sm text-gray-600">Conectado</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Área de Trabalho Principal -->
+        <main class="main-content flex-1 flex flex-col ml-0 lg:ml-0">
+                        <!-- Cabeçalho -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex justify-between items-center">
+                    <!-- Mobile menu toggle -->
+                    <button id="mobile-menu-toggle" class="mobile-menu-toggle lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                    
+                    <div>
+                        <h2 id="page-title" class="text-xl font-semibold text-gray-900">Upload de Documento</h2>
+                        <p id="page-subtitle" class="text-sm text-gray-600">Faça upload de documentos para processamento</p>
+                    </div>
+                    
+                    <!-- Status de Vetorização -->
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-gray-700">Status:</span>
+                            <div id="vectorization-status" class="text-sm text-gray-600">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                    <span>Aguardando...</span>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+            </header>
+                    
+            <!-- Conteúdo Principal -->
+            <div class="flex-1 overflow-auto p-6">
+                <!-- Tela de Upload -->
+                <div id="upload-content" class="content-section">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="space-y-6">
+                            <!-- File Upload -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Selecione um arquivo PDF, DOCX, TXT ou MD
+                                </label>
+                                <div id="upload-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-all duration-200 hover:border-blue-400 hover:bg-blue-50 relative overflow-hidden">
+                                    <!-- Background decoration -->
+                                    <div class="absolute inset-0 opacity-5">
+                                        <div class="absolute top-4 left-4 w-16 h-16 bg-blue-500 rounded-full"></div>
+                                        <div class="absolute bottom-4 right-4 w-12 h-12 bg-green-500 rounded-full"></div>
+                                        <div class="absolute top-1/2 left-1/4 w-8 h-8 bg-purple-500 rounded-full"></div>
+                                        <div class="absolute top-1/3 right-1/3 w-10 h-10 bg-yellow-500 rounded-full"></div>
+                                    </div>
+                                    
+                                    <input type="file" id="file-input" class="hidden" accept=".pdf,.docx,.txt,.md">
+                                    <div id="upload-placeholder" class="space-y-4 relative z-10">
+                                        <div class="flex flex-col items-center space-y-3">
+                                            <div class="relative">
+                                                <i data-lucide="upload-cloud" class="mx-auto h-16 w-16 text-gray-400"></i>
+                                                <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                                    <i data-lucide="plus" class="w-3 h-3 text-white"></i>
+                                                </div>
+                                            </div>
+                                            <div class="text-center space-y-2">
+                                                <label for="file-input" class="file-input-label relative cursor-pointer bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-flex items-center space-x-2">
+                                                    <i data-lucide="file-plus" class="w-4 h-4"></i>
+                                                    <span>Selecionar arquivo</span>
+                                                </label>
+                                                <p class="text-sm text-gray-500">ou arraste e solte aqui</p>
+                                                <p class="text-xs text-gray-400">PDF, DOCX, TXT ou MD (máx. 10MB)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="file-preview" class="hidden relative z-10">
+                                        <div class="flex items-center justify-between p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                            <div class="flex items-center space-x-4">
+                                                <div class="flex-shrink-0">
+                                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                        <i data-lucide="file-text" class="h-6 w-6 text-blue-600"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div id="file-name" class="text-sm font-semibold text-gray-900 truncate"></div>
+                                                    <div id="file-size" class="text-xs text-gray-500 mt-1"></div>
+                                                    <div class="flex items-center space-x-2 mt-2">
+                                                        <div class="w-full bg-gray-200 rounded-full h-1">
+                                                            <div class="bg-blue-600 h-1 rounded-full" style="width: 100%"></div>
+                                                        </div>
+                                                        <span class="text-xs text-green-600 font-medium">Pronto</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button id="remove-file" class="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                                                <i data-lucide="x" class="h-5 w-5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="file-info" class="mt-2 text-sm text-gray-600 hidden"></div>
+                                
+                                <!-- Lista de arquivos preparados para processamento -->
+                                <div id="files-queue" class="hidden mt-4">
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div class="flex items-center space-x-2 mb-3">
+                                            <i data-lucide="clock" class="w-5 h-5 text-blue-600"></i>
+                                            <h4 class="text-sm font-semibold text-blue-800">Arquivos Preparados para Processamento</h4>
+                                        </div>
+                                        <div id="files-list" class="space-y-2">
+                                            <!-- Arquivos serão adicionados dinamicamente aqui -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Collection Selection and LLM Enhancement -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                    <select id="upload-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="">Carregando collections...</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Selecione a collection para armazenar os documentos</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Melhorar com LLM:</label>
+                                    <select id="upload-enhance" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="true">Sim</option>
+                                        <option value="false">Não</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Usa LLM para melhorar o conteúdo</p>
+                                </div>
+                            </div>
+
+                            <!-- Upload Button -->
+                            <button id="upload-btn" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Processar Documento
+                            </button>
+
+                            <!-- Progress -->
+                            <div id="upload-progress" class="hidden">
+                                <div class="bg-gray-100 rounded-lg p-4 border border-gray-200">
+                                    <div class="flex items-center space-x-3 mb-3">
+                                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                        <span class="text-sm font-medium text-gray-700">Processando documento...</span>
+                                    </div>
+                                    <div class="bg-gray-200 rounded-full h-2">
+                                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                    <div id="progress-text" class="text-sm text-gray-600 mt-2">Iniciando processamento...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- Dashboard de Collections -->
+                <div id="collections-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">Collections</h2>
+                        </div>
+                        
+                        <!-- Filters and Actions -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Filtro por Modelo:</label>
+                                <select id="model-filter" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todos os modelos</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por modelo de embedding</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Filtro por Tema:</label>
+                                <select id="topic-filter" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todos os temas</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por tema</p>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="new-collection-btn" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                                    Nova Collection
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Lista de Collections -->
+                        <div id="collections-list" class="space-y-4">
+                            <!-- Collections serão carregadas aqui -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor de Conteúdo -->
+                <div id="editor-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Editor de Perguntas e Respostas</h2>
+                        
+                        <div class="space-y-6">
+                            <!-- Database and Collection Selection -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Database:</label>
+                                    <select id="editor-database-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="">Selecione um database...</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Selecione o database para vetorização</p>
+                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                    <select id="editor-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required disabled>
+                                        <option value="">Selecione uma collection...</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Selecione a collection para o conteúdo</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tema:</label>
+                                    <input type="text" id="editor-topic" class="w-full border border-gray-300 rounded-md px-3 py-2" value="default">
+                                    <p class="text-xs text-gray-500 mt-1">Tema para categorização</p>
+                                </div>
+                            </div>
+
+                            <!-- Editor Markdown com Preview -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Conteúdo Markdown:</label>
+                                    <textarea id="markdown-editor" rows="15" class="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm" placeholder="Digite seu conteúdo em Markdown aqui..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Pré-visualização:</label>
+                                    <div id="markdown-preview" class="w-full border border-gray-300 rounded-md px-3 py-2 min-h-[400px] overflow-y-auto bg-gray-50">
+                                        <p class="text-gray-500 text-sm">Pré-visualização aparecerá aqui...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex space-x-4">
+                                <button id="generate-qa-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                                    Gerar Q&A
+                                </button>
+                                <button id="vectorize-content-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                    Vetorizar Conteúdo
+                                </button>
+                            </div>
+
+                            <!-- Generated Q&A -->
+                            <div id="qa-results" class="hidden">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">Q&A Gerados:</h3>
+                                <div id="qa-list" class="space-y-4"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div id="chat-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col h-[600px]">
+                        <!-- Chat Header -->
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">Chat RAG</h2>
+                                <div class="flex items-center space-x-4">
+                                    <span id="current-session" class="text-sm text-gray-600">Sessão: Nova</span>
+                                    <button id="new-session-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                        Nova Sessão
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Database and Collection Selection for Chat -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Database:</label>
+                                    <select id="chat-database-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="">Todos os databases</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Filtrar por database</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                    <select id="chat-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="">Todas as collections</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chat Messages -->
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                            <div class="text-center text-gray-500 text-sm">
+                                Inicie uma conversa fazendo uma pergunta...
+                            </div>
+                        </div>
+
+                        <!-- Chat Input -->
+                        <div class="border-t px-6 py-4">
+                            <div class="flex space-x-4">
+                                <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua pergunta...">
+                                <button id="send-message-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                    Enviar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Histórico -->
+                <div id="history-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Histórico de Sessões</h2>
+                        
+                        <div id="sessions-list" class="space-y-4">
+                            <!-- Sessões serão carregadas aqui -->
+            </div>
+        </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+            <!-- Toast Notifications -->
+        <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Modal para Nova Collection -->
+    <div id="collection-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div class="px-6 py-4 border-b">
+                    <h3 class="text-lg font-medium text-gray-900">Nova Collection</h3>
+                </div>
+                
+                <div class="px-6 py-4">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Collection:</label>
+                            <input type="text" id="collection-name-input" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="ex: aula_pln_2024" required>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Descrição:</label>
+                            <textarea id="collection-description-input" class="w-full border border-gray-300 rounded-md px-3 py-2" rows="2" placeholder="Descrição da collection..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Modelo de Embedding:</label>
+                            <select id="collection-embedding-model-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
+                                <option value="">Selecione um modelo...</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Modelo de embedding para esta collection</p>
+                        </div>
+                        
+                        <div id="collection-model-info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <h4 class="text-sm font-medium text-blue-900 mb-2">Informações do Modelo</h4>
+                            <div class="space-y-1 text-sm text-blue-800">
+                                <div><span class="font-medium">Nome:</span> <span id="collection-model-name">-</span></div>
+                                <div><span class="font-medium">Dimensão:</span> <span id="collection-model-dimension">-</span></div>
+                                <div><span class="font-medium">Provider:</span> <span id="collection-model-provider">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="px-6 py-4 border-t flex justify-end space-x-3">
+                    <button id="cancel-collection-btn" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        Cancelar
+                    </button>
+                    <button id="create-collection-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Criar Collection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- JavaScript -->
+    <script>
+        // Socket.IO connection
+        const socket = io();
+        
+        // Global variables
+        let currentSessionId = null;
+        let isProcessing = false;
+        let collections = [];
+        let embeddingModels = [];
+        
+        // DOM elements
+        const navButtons = document.querySelectorAll('.sidebar-item');
+        const contentSections = document.querySelectorAll('.content-section');
+        const statusIndicator = document.getElementById('status-indicator');
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        
+        // Navigation functionality
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const navId = button.id.replace('-nav', '');
+                
+                // Update active nav
+                navButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Show content
+                contentSections.forEach(section => section.classList.add('hidden'));
+                document.getElementById(`${navId}-content`).classList.remove('hidden');
+                
+                // Update page title and subtitle
+                updatePageHeader(navId);
+                
+                // Close mobile menu if open
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                }
+            });
+        });
+        
+        // Mobile menu toggle
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('open');
+        });
+        
+        // Close mobile menu when clicking overlay
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('open');
+        });
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('open');
+            }
+        });
+        
+        function updatePageHeader(navId) {
+            const pageTitle = document.getElementById('page-title');
+            const pageSubtitle = document.getElementById('page-subtitle');
+            
+            const headers = {
+                'upload': {
+                    title: 'Upload de Documento',
+                    subtitle: 'Faça upload de documentos para processamento'
+                },
+                'collections': {
+                    title: 'Collections',
+                    subtitle: 'Gerencie suas collections de documentos'
+                },
+                'editor': {
+                    title: 'Editor de Conteúdo',
+                    subtitle: 'Crie e edite perguntas e respostas'
+                },
+                'chat': {
+                    title: 'Chat RAG',
+                    subtitle: 'Converse com seus documentos'
+                },
+                'history': {
+                    title: 'Histórico',
+                    subtitle: 'Visualize sessões anteriores'
+                }
+            };
+            
+            if (headers[navId]) {
+                pageTitle.textContent = headers[navId].title;
+                pageSubtitle.textContent = headers[navId].subtitle;
+            }
+        }
+        
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg transform translate-x-full transition-all duration-300`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => {
+                        if (toast.parentElement) {
+                            toast.remove();
+                        }
+                    }, 300);
+                }
+            }, 5000);
+            
+            // Reinitialize icons
+            lucide.createIcons();
+        }
+        
+        // Socket.IO events
+        socket.on('connect', () => {
+            statusIndicator.innerHTML = '<div class="w-2 h-2 bg-green-500 rounded-full"></div><span class="text-sm text-gray-600">Conectado</span>';
+        });
+        
+        socket.on('disconnect', () => {
+            statusIndicator.innerHTML = '<div class="w-2 h-2 bg-red-500 rounded-full"></div><span class="text-sm text-gray-600">Desconectado</span>';
+        });
+        
+        socket.on('chat_response', (data) => {
+            addChatMessage('assistant', data.response, data);
+            isProcessing = false;
+            updateSendButton();
+        });
+        
+        socket.on('chat_error', (data) => {
+            addChatMessage('error', `Erro: ${data.error}`);
+            isProcessing = false;
+            updateSendButton();
+        });
+        
+        // File upload functionality - will be initialized in DOMContentLoaded
+        let fileInput, fileInfo, uploadBtn, uploadProgress, progressBar, progressText;
+        let uploadZone, uploadPlaceholder, filePreview, fileName, fileSize, removeFileBtn;
+        let filesQueue, filesList;
+        let selectedFiles = []; // Array para armazenar arquivos selecionados
+        
+        // Initialize upload functionality
+        function initializeUpload() {
+            // Get DOM elements
+            fileInput = document.getElementById('file-input');
+            fileInfo = document.getElementById('file-info');
+            uploadBtn = document.getElementById('upload-btn');
+            console.log('🔍 DEBUG: uploadBtn encontrado?', !!uploadBtn, uploadBtn);
+            uploadProgress = document.getElementById('upload-progress');
+            progressBar = document.getElementById('progress-bar');
+            progressText = document.getElementById('progress-text');
+            uploadZone = document.getElementById('upload-zone');
+            uploadPlaceholder = document.getElementById('upload-placeholder');
+            filePreview = document.getElementById('file-preview');
+            fileName = document.getElementById('file-name');
+            fileSize = document.getElementById('file-size');
+            removeFileBtn = document.getElementById('remove-file');
+            filesQueue = document.getElementById('files-queue');
+            filesList = document.getElementById('files-list');
+            
+
+            
+
+            
+
+            
+            // Drag and drop functionality
+            if (uploadZone) {
+                uploadZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.add('dragover');
+                });
+                
+                uploadZone.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.remove('dragover');
+                });
+                
+                uploadZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadZone.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && fileInput) {
+                        fileInput.files = files;
+                        handleFileSelection(files[0]);
+                    }
+                });
+            }
+            
+            // File input change event
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    handleFileSelection(file);
+                });
+            }
+            
+            // Remove file button event
+            if (removeFileBtn) {
+                removeFileBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    clearFileSelection();
+                    showToast('Arquivo removido com sucesso', 'success');
+                });
+            }
+        }
+        
+        function handleFileSelection(file) {
+            console.log('📁 Arquivo selecionado:', file ? file.name : 'null');
+            console.log('🎯 Elementos UI:', {
+                fileName: !!fileName,
+                fileSize: !!fileSize,
+                uploadPlaceholder: !!uploadPlaceholder,
+                filePreview: !!filePreview
+            });
+            
+            if (file && fileName && fileSize && uploadPlaceholder && filePreview) {
+                
+                // Show file preview
+                fileName.textContent = file.name;
+                fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+                
+                // Update file icon based on type
+                const fileIcon = filePreview.querySelector('i[data-lucide]');
+                const extension = file.name.split('.').pop().toLowerCase();
+                
+                // Set appropriate icon and color based on file type
+                let iconName = 'file-text';
+                let iconColor = 'text-blue-600';
+                let bgColor = 'bg-blue-100';
+                
+                // Only update if icon exists
+                if (fileIcon) {
+                    fileIcon.className = '';
+                }
+                
+                switch(extension) {
+                    case 'pdf':
+                        iconName = 'file-text';
+                        iconColor = 'text-red-600';
+                        bgColor = 'bg-red-100';
+                        break;
+                    case 'docx':
+                        iconName = 'file-text';
+                        iconColor = 'text-blue-600';
+                        bgColor = 'bg-blue-100';
+                        break;
+                    case 'txt':
+                        iconName = 'file-text';
+                        iconColor = 'text-gray-600';
+                        bgColor = 'bg-gray-100';
+                        break;
+                    case 'md':
+                        iconName = 'file-text';
+                        iconColor = 'text-purple-600';
+                        bgColor = 'bg-purple-100';
+                        break;
+                    default:
+                        iconName = 'file-text';
+                        iconColor = 'text-gray-600';
+                        bgColor = 'bg-gray-100';
+                }
+                
+                // Update icon container background
+                const iconContainer = filePreview.querySelector('.w-12.h-12');
+                if (iconContainer) {
+                    iconContainer.className = `w-12 h-12 ${bgColor} rounded-lg flex items-center justify-center`;
+                }
+                
+                // Update icon
+                if (fileIcon) {
+                    fileIcon.className = `h-6 w-6 ${iconColor}`;
+                    fileIcon.setAttribute('data-lucide', iconName);
+                }
+                
+                // Reinitialize Lucide icons (removed due to CSP)
+                // lucide.createIcons();
+                
+
+                
+
+                
+                uploadPlaceholder.classList.add('hidden');
+                filePreview.classList.remove('hidden');
+                filePreview.classList.add('file-preview-enter');
+                
+                // Add success animation
+                if (uploadZone) {
+                    uploadZone.classList.add('border-green-400', 'bg-green-50');
+                    setTimeout(() => {
+                        uploadZone.classList.remove('border-green-400', 'bg-green-50');
+                    }, 1000);
+                }
+                
+                // Update file info for backward compatibility
+                if (fileInfo) {
+                    fileInfo.textContent = `Arquivo selecionado: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    fileInfo.classList.remove('hidden');
+                }
+                
+                // Add file to queue
+                console.log('📝 Adicionando arquivo à fila...');
+                addFileToQueue(file);
+            }
+        }
+        
+        function clearFileSelection() {
+            if (fileInput) fileInput.value = '';
+            if (uploadPlaceholder) uploadPlaceholder.classList.remove('hidden');
+            if (filePreview) filePreview.classList.add('hidden');
+            if (fileInfo) fileInfo.classList.add('hidden');
+            
+            // Clear the current file preview but keep the queue
+        }
+        
+        function addFileToQueue(file) {
+            console.log('📋 Adicionando à fila:', file.name);
+            
+            // Create unique ID for file
+            const fileId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Add to selectedFiles array
+            selectedFiles.push({
+                id: fileId,
+                file: file,
+                name: file.name,
+                size: file.size,
+                status: 'ready' // ready, processing, completed, error
+            });
+            
+            console.log('📊 Total de arquivos na fila:', selectedFiles.length);
+            updateFilesQueue();
+        }
+        
+        // Make this function globally available
+        window.removeFileFromQueue = function(fileId) {
+            selectedFiles = selectedFiles.filter(f => f.id !== fileId);
+            updateFilesQueue();
+
+        }
+        
+        function updateFilesQueue() {
+            console.log('🔄 Atualizando fila de arquivos...');
+            console.log('🎯 Elementos fila:', {
+                filesQueue: !!filesQueue,
+                filesList: !!filesList
+            });
+            console.log('📊 Arquivos na fila:', selectedFiles.length);
+            
+            if (!filesQueue || !filesList) {
+                console.log('❌ Elementos da fila não encontrados!');
+                return;
+            }
+            
+            if (selectedFiles.length === 0) {
+                console.log('📭 Fila vazia, ocultando...');
+                filesQueue.classList.add('hidden');
+                return;
+            }
+            
+            console.log('📋 Mostrando fila com arquivos...');
+            filesQueue.classList.remove('hidden');
+            filesList.innerHTML = '';
+            
+            selectedFiles.forEach(fileItem => {
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200';
+                
+                const statusColor = {
+                    'ready': 'text-blue-600 bg-blue-100',
+                    'processing': 'text-yellow-600 bg-yellow-100',
+                    'completed': 'text-green-600 bg-green-100',
+                    'error': 'text-red-600 bg-red-100'
+                };
+                
+                const statusText = {
+                    'ready': 'Pronto',
+                    'processing': 'Processando',
+                    'completed': 'Completo',
+                    'error': 'Erro'
+                };
+                
+                fileDiv.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <i data-lucide="file-text" class="w-5 h-5 text-gray-500"></i>
+                        <div>
+                            <div class="text-sm font-medium text-gray-900">${fileItem.name}</div>
+                            <div class="text-xs text-gray-500">${(fileItem.size / 1024 / 1024).toFixed(2)} MB</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor[fileItem.status]}">
+                            ${statusText[fileItem.status]}
+                        </span>
+                        <button onclick="removeFileFromQueue('${fileItem.id}')" class="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                
+                filesList.appendChild(fileDiv);
+            });
+            
+            // Reinitialize Lucide icons (removed due to CSP)
+            // lucide.createIcons();
+            
+            // Upload button event
+            console.log('🔍 DEBUG: Verificando uploadBtn para event listener...', !!uploadBtn);
+            if (uploadBtn) {
+                console.log('✅ Botão upload encontrado, adicionando event listener');
+                uploadBtn.addEventListener('click', async () => {
+                    console.log('🚀 Botão upload clicado!');
+                    console.log('📊 Estado atual:', {
+                        fileInput: !!fileInput,
+                        files: fileInput?.files?.length || 0,
+                        selectedFiles: selectedFiles.length
+                    });
+                    
+                    // Usar arquivo da fila em vez de fileInput
+                    const file = selectedFiles.length > 0 ? selectedFiles[0].file : fileInput.files[0];
+                    const collectionSelect = document.getElementById('upload-collection-select');
+                    
+                    console.log('📁 Arquivo para upload:', file ? file.name : 'nenhum');
+                    console.log('📋 Collection selecionada:', collectionSelect.value);
+                    
+                    if (!file) {
+                        console.log('❌ Nenhum arquivo encontrado');
+                        showToast('Selecione um arquivo primeiro', 'warning');
+                        return;
+                    }
+                    
+                    if (!collectionSelect.value) {
+                        console.log('❌ Collection não selecionada');
+                        showToast('Selecione uma collection primeiro', 'warning');
+                        return;
+                    }
+                    
+                    console.log('✅ Todas as validações passaram, iniciando upload...');
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('collection_name', collectionSelect.value);
+                    formData.append('enhance', document.getElementById('upload-enhance').value);
+                    
+                    uploadBtn.disabled = true;
+                    uploadProgress.classList.remove('hidden');
+                    updateVectorizationStatus('processing', 'Processando documento...');
+                    
+                    // Simulate progress updates
+                    let progress = 0;
+                    const progressInterval = setInterval(() => {
+                        progress += Math.random() * 15;
+                        if (progress > 90) progress = 90;
+                        progressBar.style.width = `${progress}%`;
+                        progressText.textContent = `Processando... ${Math.round(progress)}%`;
+                    }, 500);
+                    
+                    try {
+                        const response = await fetch('/api/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            clearInterval(progressInterval);
+                            progressBar.style.width = '100%';
+                            progressText.textContent = 'Upload concluído!';
+                            
+                            // Show success in progress area
+                            const progressContainer = uploadProgress.querySelector('.bg-gray-100');
+                            progressContainer.className = 'bg-green-50 rounded-lg p-4 border border-green-200';
+                            progressContainer.innerHTML = `
+                                <div class="flex items-center space-x-3 mb-3">
+                                    <i data-lucide="check-circle" class="h-5 w-5 text-green-500"></i>
+                                    <span class="text-sm font-medium text-green-700">Documento processado com sucesso!</span>
+                                </div>
+                                <div class="text-sm text-green-600">Collection: ${result.collection}</div>
+                                <div class="text-sm text-green-600">Chunks: ${result.chunks}</div>
+                            `;
+                            
+                            // Update status
+                            updateVectorizationStatus('success', `Documento processado com sucesso!`);
+                            
+                            // Show success message
+                            showToast(result.message, 'success');
+                            
+                            // Reload collections to show updated list
+                            await loadCollections();
+                            
+                            // If we're on the collections page, refresh the current view
+                            const collectionsContent = document.getElementById('collections-content');
+                            if (!collectionsContent.classList.contains('hidden')) {
+                                const selectedDatabase = document.getElementById('collections-database-select').value;
+                                updateCollectionsList(selectedDatabase);
+                            }
+                            
+                            // Reset form
+                            clearFileSelection();
+                            
+                            setTimeout(() => {
+                                uploadProgress.classList.add('hidden');
+                                progressBar.style.width = '0%';
+                                progressText.textContent = 'Iniciando processamento...';
+                                // Reset progress container to original state
+                                progressContainer.className = 'bg-gray-100 rounded-lg p-4 border border-gray-200';
+                                progressContainer.innerHTML = `
+                                    <div class="flex items-center space-x-3 mb-3">
+                                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                        <span class="text-sm font-medium text-gray-700">Processando documento...</span>
+                                    </div>
+                                    <div class="bg-gray-200 rounded-full h-2">
+                                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                    <div id="progress-text" class="text-sm text-gray-600 mt-2">Iniciando processamento...</div>
+                                `;
+                            }, 3000);
+                        } else {
+                            throw new Error(result.error);
+                        }
+                    } catch (error) {
+                        clearInterval(progressInterval);
+                        progressText.textContent = `Erro: ${error.message}`;
+                        updateVectorizationStatus('error', `Erro no upload: ${error.message}`);
+                        showToast(`Erro no upload: ${error.message}`, 'error');
+                        
+                        // Show error in progress area
+                        const progressContainer = uploadProgress.querySelector('.bg-gray-100');
+                        progressContainer.className = 'bg-red-50 rounded-lg p-4 border border-red-200';
+                        progressContainer.innerHTML = `
+                            <div class="flex items-center space-x-3 mb-3">
+                                <i data-lucide="alert-circle" class="h-5 w-5 text-red-500"></i>
+                                <span class="text-sm font-medium text-red-700">Erro no processamento</span>
+                            </div>
+                            <div class="text-sm text-red-600">${error.message}</div>
+                        `;
+                    } finally {
+                        clearInterval(progressInterval);
+                        uploadBtn.disabled = false;
+                    }
+                });
+            } else {
+                console.log('❌ Botão upload NÃO encontrado! ID:', 'upload-btn');
+            }
+        }
+        
+        // Editor functionality
+        const generateQaBtn = document.getElementById('generate-qa-btn');
+        const vectorizeContentBtn = document.getElementById('vectorize-content-btn');
+        const qaResults = document.getElementById('qa-results');
+        const qaList = document.getElementById('qa-list');
+        const markdownEditor = document.getElementById('markdown-editor');
+        const markdownPreview = document.getElementById('markdown-preview');
+        
+        // Markdown preview
+        if (markdownEditor && markdownPreview) {
+            markdownEditor.addEventListener('input', () => {
+                const content = markdownEditor.value;
+                if (content.trim()) {
+                    markdownPreview.innerHTML = marked.parse(content);
+                    // Highlight code blocks
+                    markdownPreview.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                } else {
+                    markdownPreview.innerHTML = '<p class="text-gray-500 text-sm">Pré-visualização aparecerá aqui...</p>';
+                }
+            });
+        }
+        
+        if (generateQaBtn) {
+            generateQaBtn.addEventListener('click', async () => {
+            const content = markdownEditor.value;
+            if (!content.trim()) {
+                showToast('Digite algum conteúdo primeiro', 'warning');
+                return;
+            }
+            
+            generateQaBtn.disabled = true;
+            generateQaBtn.textContent = 'Gerando...';
+            
+            try {
+                const response = await fetch('/api/generate-qa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: content,
+                        num_questions: 5,
+                        context_keywords: '',
+                        difficulty: 'Intermediário'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                                                displayQAResults(result.qa_pairs);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast(`Erro ao gerar Q&A: ${error.message}`, 'error');
+            } finally {
+                generateQaBtn.disabled = false;
+                generateQaBtn.textContent = 'Gerar Q&A';
+            }
+        });
+        }
+        
+        if (vectorizeContentBtn) {
+            vectorizeContentBtn.addEventListener('click', async () => {
+            const content = markdownEditor.value;
+            const collectionSelect = document.getElementById('editor-collection-select');
+            
+            if (!content.trim()) {
+                showToast('Digite algum conteúdo primeiro', 'warning');
+                return;
+            }
+            
+            if (!collectionSelect.value) {
+                showToast('Selecione uma collection primeiro', 'warning');
+                return;
+            }
+            
+            vectorizeContentBtn.disabled = true;
+            vectorizeContentBtn.textContent = 'Vetorizando...';
+            updateVectorizationStatus('processing', 'Vetorizando conteúdo...');
+            
+            try {
+                const response = await fetch('/api/vectorize-md', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        collection_name: collectionSelect.value,
+                        topic: document.getElementById('editor-topic').value
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                                                updateVectorizationStatus('success', `Conteúdo vetorizado: ${result.total_qa} Q&As`);
+                            showToast(`Conteúdo vetorizado: ${result.total_qa} Q&As`, 'success');
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                updateVectorizationStatus('error', `Erro na vetorização: ${error.message}`);
+                showToast(`Erro na vetorização: ${error.message}`, 'error');
+            } finally {
+                vectorizeContentBtn.disabled = false;
+                vectorizeContentBtn.textContent = 'Vetorizar Conteúdo';
+            }
+        });
+        }
+        
+        // Chat functionality
+        const chatInput = document.getElementById('chat-input');
+        const sendMessageBtn = document.getElementById('send-message-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const newSessionBtn = document.getElementById('new-session-btn');
+        const currentSessionSpan = document.getElementById('current-session');
+        
+        newSessionBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/sessions', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                currentSessionId = result.session_id;
+                currentSessionSpan.textContent = `Sessão: ${currentSessionId.substring(0, 8)}...`;
+                
+                // Clear chat
+                chatMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Nova sessão iniciada...</div>';
+                
+                // Load sessions
+                loadSessions();
+            } catch (error) {
+                console.error('Erro ao criar sessão:', error);
+            }
+        });
+        
+        sendMessageBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message || isProcessing) return;
+            
+            if (!currentSessionId) {
+                // Create new session if none exists
+                try {
+                    const response = await fetch('/api/sessions', {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    currentSessionId = result.session_id;
+                    currentSessionSpan.textContent = `Sessão: ${currentSessionId.substring(0, 8)}...`;
+                } catch (error) {
+                    console.error('Erro ao criar sessão:', error);
+                    return;
+                }
+            }
+            
+            // Add user message
+            addChatMessage('user', message);
+            
+            // Clear input
+            chatInput.value = '';
+            
+            // Send via WebSocket
+            isProcessing = true;
+            updateSendButton();
+            
+            socket.emit('chat_message', {
+                message: message,
+                session_id: currentSessionId,
+                collection_name: document.getElementById('chat-collection-select').value
+            });
+        }
+        
+        function addChatMessage(role, content, metadata = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message';
+            
+            const isUser = role === 'user';
+            const isError = role === 'error';
+            
+            let messageContent = `<div class="markdown-content">${marked.parse(content)}</div>`;
+            
+            // Adicionar informações da collection se disponível
+            if (metadata && metadata.embedding_info && role === 'assistant') {
+                const embeddingInfo = metadata.embedding_info;
+                messageContent += `
+                    <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-medium">Collection:</span>
+                            <span>${embeddingInfo.collection_name}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-medium">Embedding:</span>
+                            <span>${embeddingInfo.model_name} (${embeddingInfo.provider})</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-medium">Dimensão:</span>
+                            <span>${embeddingInfo.dimension}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        isUser ? 'bg-blue-600 text-white' : 
+                        isError ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-900'
+                    }">
+                        ${messageContent}
+                    </div>
+                </div>
+            `;
+            
+            // Remove placeholder if exists
+            const placeholder = chatMessages.querySelector('.text-center');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Highlight code blocks
+            messageDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+        
+        function updateSendButton() {
+            sendMessageBtn.disabled = isProcessing;
+            sendMessageBtn.textContent = isProcessing ? 'Enviando...' : 'Enviar';
+        }
+        
+        function updateVectorizationStatus(status, message) {
+            const statusDiv = document.getElementById('vectorization-status');
+            const icon = status === 'success' ? 'bg-green-500' : 
+                        status === 'error' ? 'bg-red-500' : 
+                        status === 'processing' ? 'bg-yellow-500' : 'bg-gray-400';
+            
+            statusDiv.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 ${icon} rounded-full"></div>
+                    <span class="text-sm text-gray-600">${message}</span>
+                </div>
+            `;
+        }
+        
+        function displayQAResults(qaPairs) {
+            qaList.innerHTML = '';
+            
+            qaPairs.forEach((qa, index) => {
+                const qaDiv = document.createElement('div');
+                qaDiv.className = 'border border-gray-200 rounded-lg p-4';
+                qaDiv.innerHTML = `
+                    <div class="font-medium text-gray-900 mb-2">Pergunta ${qa.number}:</div>
+                    <div class="text-gray-700 mb-3">${qa.question}</div>
+                    <div class="font-medium text-gray-900 mb-2">Resposta ${qa.number}:</div>
+                    <div class="text-gray-700 markdown-content">${marked.parse(qa.answer)}</div>
+                `;
+                qaList.appendChild(qaDiv);
+            });
+            
+            qaResults.classList.remove('hidden');
+        }
+        
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const result = await response.json();
+                
+                const sessionsList = document.getElementById('sessions-list');
+                sessionsList.innerHTML = '';
+                
+                result.sessions.forEach(session => {
+                    const sessionDiv = document.createElement('div');
+                    sessionDiv.className = 'border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50';
+                    sessionDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h4 class="font-medium text-gray-900">Sessão ${session.session_id.substring(0, 8)}...</h4>
+                                <p class="text-sm text-gray-600">${session.message_count} mensagens</p>
+                            </div>
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                        </div>
+                    `;
+                    sessionDiv.onclick = () => {
+                        currentSessionId = session.session_id;
+                        currentSessionSpan.textContent = `Sessão: ${session.session_id.substring(0, 8)}...`;
+                        // TODO: Load session messages
+                    };
+                    sessionsList.appendChild(sessionDiv);
+                });
+                
+                // Reinitialize icons
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Erro ao carregar sessões:', error);
+            }
+        }
+        
+        // Collection Management
+        
+        async function loadCollections() {
+            console.log('🔍 Carregando collections...');
+            try {
+                const response = await fetch('/api/collections');
+                console.log('📡 Response collections:', response.status);
+                const result = await response.json();
+                console.log('📁 Dados collections:', result);
+                
+                if (result.success && result.collections) {
+                    collections = result.collections;
+                    console.log('✅ Collections carregadas:', collections.length);
+                    updateCollectionSelect();
+                    updateCollectionsList();
+                } else {
+                    console.error('❌ Falha ao carregar collections:', result);
+                    collections = [];
+                    updateCollectionSelect();
+                    updateCollectionsList();
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar collections:', error);
+                collections = [];
+                updateCollectionSelect();
+                updateCollectionsList();
+            }
+        }
+        
+        async function loadEmbeddingModels() {
+            try {
+                const response = await fetch('/api/embedding-models');
+                const result = await response.json();
+                
+                if (result.success) {
+                    embeddingModels = result.models;
+                    updateEmbeddingModelSelect();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar modelos de embedding:', error);
+            }
+        }
+        
+        function updateCollectionSelect() {
+            console.log('🔄 Atualizando selects de collection...');
+            console.log('📁 Collections disponíveis:', collections);
+            
+            const selects = [
+                document.getElementById('upload-collection-select'),
+                document.getElementById('editor-collection-select'),
+                document.getElementById('chat-collection-select')
+            ];
+            
+            selects.forEach(select => {
+                if (select) {
+                    console.log(`🔧 Atualizando collection select: ${select.id}`);
+                    select.innerHTML = '<option value="">Selecione uma collection...</option>';
+                    
+                    if (collections && collections.length > 0) {
+                        collections.forEach(collection => {
+                            const option = document.createElement('option');
+                            option.value = collection.name;
+                            option.textContent = `${collection.name} (${collection.embedding_model})`;
+                            select.appendChild(option);
+                            console.log(`  ➕ Collection adicionada: ${collection.name}`);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = 'Nenhuma collection disponível';
+                        option.disabled = true;
+                        select.appendChild(option);
+                        console.log('❌ Nenhuma collection encontrada');
+                    }
+                }
+            });
+        }
+        
+
+        
+        async function toggleDocuments(collectionName) {
+            const documentsContainer = document.getElementById(`documents-${collectionName}`);
+            const toggleButton = documentsContainer.parentElement.querySelector('button[onclick*="toggleDocuments"]');
+            const toggleText = toggleButton.querySelector('.toggle-text');
+            const isVisible = !documentsContainer.classList.contains('hidden');
+            
+            if (isVisible) {
+                // Esconder documentos
+                documentsContainer.classList.add('hidden');
+                toggleText.textContent = 'Ver documentos';
+                return;
+            }
+            
+            // Mostrar documentos
+            documentsContainer.classList.remove('hidden');
+            toggleText.textContent = 'Ocultar documentos';
+            
+            try {
+                const response = await fetch(`/api/collections/${collectionName}/documents`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.documents.length === 0) {
+                        documentsContainer.innerHTML = `
+                            <div class="text-center py-4">
+                                <i data-lucide="file-x" class="w-8 h-8 text-gray-400 mx-auto mb-2"></i>
+                                <p class="text-sm text-gray-600">Nenhum documento encontrado nesta collection</p>
+                                <p class="text-xs text-gray-500 mt-1">Faça upload de um documento para começar</p>
+                            </div>
+                        `;
+                    } else {
+                        let documentsHtml = `
+                            <div class="mb-3">
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Documentos (${result.total_documents})</h5>
+                            </div>
+                            <div class="space-y-2 max-h-64 overflow-y-auto">
+                        `;
+                        
+                        result.documents.forEach(doc => {
+                            const filename = doc.filename || doc.source || 'Documento sem nome';
+                            const uploadDate = doc.upload_date || 'Data desconhecida';
+                            const source = doc.source || 'unknown';
+                            
+                            // Determinar ícone baseado no tipo de arquivo
+                            let fileIcon = 'file-text';
+                            if (filename.toLowerCase().endsWith('.pdf')) fileIcon = 'file-text';
+                            else if (filename.toLowerCase().endsWith('.docx')) fileIcon = 'file-text';
+                            else if (filename.toLowerCase().endsWith('.txt')) fileIcon = 'file-text';
+                            else if (filename.toLowerCase().endsWith('.md')) fileIcon = 'file-text';
+                            
+                            documentsHtml += `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center space-x-2">
+                                            <i data-lucide="${fileIcon}" class="w-4 h-4 text-blue-500 flex-shrink-0"></i>
+                                            <span class="text-sm font-medium text-gray-900 truncate">${filename}</span>
+                                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${source}</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1">Processado em: ${uploadDate}</p>
+                                        <p class="text-xs text-gray-600 mt-1 truncate">${doc.text}</p>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        documentsHtml += '</div>';
+                        documentsContainer.innerHTML = documentsHtml;
+                    }
+                } else {
+                    documentsContainer.innerHTML = `
+                        <div class="text-center py-4">
+                            <i data-lucide="alert-circle" class="w-8 h-8 text-red-400 mx-auto mb-2"></i>
+                            <p class="text-sm text-red-600">Erro ao carregar documentos: ${result.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                documentsContainer.innerHTML = `
+                    <div class="text-center py-4">
+                        <i data-lucide="alert-circle" class="w-8 h-8 text-red-400 mx-auto mb-2"></i>
+                        <p class="text-sm text-red-600">Erro ao carregar documentos: ${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            // Reinitialize icons
+            lucide.createIcons();
+        }
+        
+        function updateCollectionsList() {
+            const container = document.getElementById('collections-list');
+            container.innerHTML = '';
+            
+            collections.forEach(collection => {
+                
+                const div = document.createElement('div');
+                div.className = 'border border-gray-200 rounded-lg p-4';
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <h4 class="font-medium text-gray-900">${collection.name}</h4>
+                                <button onclick="toggleDocuments('${collection.name}')" 
+                                        class="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1 transition-colors">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                    <span class="toggle-text">Ver documentos</span>
+                                </button>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1">${collection.description || 'Sem descrição'}</p>
+                            <div class="text-xs text-gray-500 mt-2">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">${collection.embedding_model}</span>
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded ml-2">${collection.document_count || 0} docs</span>
+                            </div>
+                        </div>
+                        <button onclick="deleteCollection('${collection.name}')" class="text-red-600 hover:text-red-800 text-sm">
+                            Deletar
+                        </button>
+                    </div>
+                    <div id="documents-${collection.name}" class="hidden mt-4 border-t pt-4">
+                        <div class="flex items-center justify-center py-4">
+                            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span class="ml-2 text-sm text-gray-600">Carregando documentos...</span>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            });
+            
+            // Reinitialize icons
+            lucide.createIcons();
+        }
+        
+
+        
+        function updateEmbeddingModelSelect() {
+            const selects = [
+                document.getElementById('embedding-model-select'),
+                document.getElementById('collection-embedding-model-select')
+            ];
+            
+            selects.forEach(select => {
+                if (select) {
+                    select.innerHTML = '<option value="">Selecione um modelo...</option>';
+                    
+                    embeddingModels.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = `${model.name} (${model.dimension}d)`;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+        
+        // Modal functions
+        function showCollectionModal() {
+            document.getElementById('collection-modal').classList.remove('hidden');
+        }
+        
+        function hideCollectionModal() {
+            document.getElementById('collection-modal').classList.add('hidden');
+            document.getElementById('collection-name-input').value = '';
+            document.getElementById('collection-description-input').value = '';
+            document.getElementById('collection-embedding-model-select').value = '';
+            document.getElementById('collection-model-info').classList.add('hidden');
+        }
+        
+
+        
+        async function createCollection() {
+            const name = document.getElementById('collection-name-input').value.trim();
+            const description = document.getElementById('collection-description-input').value.trim();
+            const embeddingModel = document.getElementById('collection-embedding-model-select').value;
+            
+            if (!name || !embeddingModel) {
+                showToast('Nome da collection e modelo de embedding são obrigatórios', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: description,
+                        embedding_model: embeddingModel
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    hideCollectionModal();
+                    await loadCollections();
+                    showToast('Collection criada com sucesso!', 'success');
+                } else {
+                    showToast(`Erro ao criar collection: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Erro ao criar collection: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteCollection(collectionName) {
+            if (!confirm(`Tem certeza que deseja deletar a collection "${collectionName}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/collections/${collectionName}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    await loadCollections();
+                    showToast('Collection deletada com sucesso!', 'success');
+                } else {
+                    showToast(`Erro ao deletar collection: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Erro ao deletar collection: ${error.message}`, 'error');
+            }
+        }
+        
+
+        
+        const newCollectionBtn = document.getElementById('new-collection-btn');
+        if (newCollectionBtn) newCollectionBtn.addEventListener('click', showCollectionModal);
+        
+        const cancelCollectionBtn = document.getElementById('cancel-collection-btn');
+        if (cancelCollectionBtn) cancelCollectionBtn.addEventListener('click', hideCollectionModal);
+        
+        const createCollectionBtn = document.getElementById('create-collection-btn');
+        if (createCollectionBtn) createCollectionBtn.addEventListener('click', createCollection);
+        
+        const embeddingModelSelect = document.getElementById('embedding-model-select');
+        if (embeddingModelSelect) {
+            embeddingModelSelect.addEventListener('change', (e) => {
+                const modelId = e.target.value;
+                const model = embeddingModels.find(m => m.id === modelId);
+                
+                const modelInfo = document.getElementById('model-info');
+                if (model) {
+                    const modelName = document.getElementById('model-name');
+                    const modelDimension = document.getElementById('model-dimension');
+                    const modelProvider = document.getElementById('model-provider');
+                    
+                    if (modelName) modelName.textContent = model.name;
+                    if (modelDimension) modelDimension.textContent = model.dimension;
+                    if (modelProvider) modelProvider.textContent = model.provider;
+                    if (modelInfo) modelInfo.classList.remove('hidden');
+                } else {
+                    if (modelInfo) modelInfo.classList.add('hidden');
+                }
+            });
+        }
+        
+        const databaseEmbeddingModelSelect = document.getElementById('database-embedding-model-select');
+        if (databaseEmbeddingModelSelect) {
+            databaseEmbeddingModelSelect.addEventListener('change', (e) => {
+                const modelKey = e.target.value;
+                const model = embeddingModels.find(m => m.key === modelKey);
+                
+                const databaseModelInfo = document.getElementById('database-model-info');
+                if (model) {
+                    const databaseModelName = document.getElementById('database-model-name');
+                    const databaseModelDimension = document.getElementById('database-model-dimension');
+                    const databaseModelProvider = document.getElementById('database-model-provider');
+                    
+                    if (databaseModelName) databaseModelName.textContent = model.name;
+                    if (databaseModelDimension) databaseModelDimension.textContent = model.dimension;
+                    if (databaseModelProvider) databaseModelProvider.textContent = model.provider;
+                    if (databaseModelInfo) databaseModelInfo.classList.remove('hidden');
+                } else {
+                    if (databaseModelInfo) databaseModelInfo.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 DOM carregado! Iniciando aplicação...');
+            
+            try {
+                console.log('📁 Chamando initializeUpload...');
+                initializeUpload();
+                console.log('✅ initializeUpload concluído');
+            } catch (error) {
+                console.error('❌ Erro em initializeUpload:', error);
+            }
+            
+
+            
+
+            
+            try {
+                console.log('📁 Chamando loadCollections...');
+                loadCollections();
+                console.log('✅ loadCollections chamado');
+            } catch (error) {
+                console.error('❌ Erro em loadCollections:', error);
+            }
+            
+            // Outros métodos simplificados
+            try {
+                loadSessions();
+                loadEmbeddingModels();
+            } catch (error) {
+                console.error('❌ Erro em outras funções:', error);
+            }
+        });
+        
+        // Inicializar ícones Lucide (removed due to CSP)
+        // lucide.createIcons();
+    </script>
+</body>
+</html> 
