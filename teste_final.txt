@@ -1,0 +1,1 @@
+Teste final - documento para verificar integração MinIO

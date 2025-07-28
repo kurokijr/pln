@@ -6,9 +6,9 @@ O RAG-Demo é uma aplicação educacional baseada em RAG (Recuperação Aumentad
 
 - Frontend web leve (SPA) com três abas: Upload, Editor de Conteúdo, Chat.
 - Backend mínimo em Python (FastAPI) apenas para roteamento de arquivos e fallback do chat.
-- Orquestração das tarefas via **n8n**: extração de texto, vetorização, armazenamento em Milvus, geração de sessões.
+- Orquestração das tarefas via **n8n**: extração de texto, vetorização, armazenamento em Qdrant, geração de sessões.
 - Armazenamento de arquivos no **MinIO**.
-- Vetores persistidos no **Milvus**, separados por modelo e tema.
+- Vetores persistidos no **Qdrant**, separados por modelo e tema.
 
 ## Padrão de Arquitetura
 
@@ -27,7 +27,7 @@ O RAG-Demo é uma aplicação educacional baseada em RAG (Recuperação Aumentad
 
 1. Usuário envia PDF via frontend → Frontend envia para n8n (Webhook).
 2. n8n processa (OCR se necessário), converte para Markdown → salva no MinIO.
-3. Texto convertido → enviado ao serviço de vetorização (Python ou serviço externo) → vetores enviados ao Milvus.
+3. Texto convertido → enviado ao serviço de vetorização (Python ou serviço externo) → vetores enviados ao Qdrant.
 4. Ao iniciar o chat, frontend consulta n8n para buscar contexto → envia consulta → resposta gerada com base nos vetores.
 5. Editor de perguntas/respostas permite vetorização manual (fluxo idêntico ao upload).
 
@@ -37,10 +37,10 @@ O RAG-Demo é uma aplicação educacional baseada em RAG (Recuperação Aumentad
 - **Backend (mínimo)**: Python 3.12, FastAPI (somente se n8n não for suficiente).
 - **Orquestração**: [n8n](https://n8n.io)
 - **Vetorização**: Python (LangChain + Embedding Models)
-- **Banco Vetorial**: [Milvus](https://milvus.io) + [Attu](https://github.com/zilliztech/attu)
+- **Banco Vetorial**: [Qdrant](https://qdrant.tech)
 - **Armazenamento**: MinIO (S3-compatible)
 - **Deploy**: Docker Compose
-- **Outros**: etcd (para Milvus), WebSocket ou polling para feedback ao usuário
+- **Outros**: WebSocket ou polling para feedback ao usuário
 
 ## Processo de Autenticação
 
@@ -87,7 +87,7 @@ Preferencialmente via **n8n Webhooks**:
 
 Sem banco relacional tradicional. Estrutura de dados baseada em:
 
-- **Milvus**
+- **Qdrant**
   - Collections nomeadas por modelo e tema
   - Cada vetor com metadados: `source`, `timestamp`, `tipo (upload/manual)`
 
@@ -116,25 +116,27 @@ A aplicação é implantada localmente via Docker Compose com os seguintes servi
 version: '3.8'
 
 services:
-  etcd:
-    container_name: milvus-etcd
-    image: quay.io/coreos/etcd:v3.5.5
-    environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
+  # Qdrant Vector Database
+  qdrant:
+    container_name: qdrant
+    image: qdrant/qdrant:v1.7.3
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/etcd:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+      - ./volumes/qdrant:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
     healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
       interval: 30s
       timeout: 20s
       retries: 3
 
+  # MinIO para armazenamento de arquivos
   minio:
-    container_name: milvus-minio
+    container_name: minio
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     environment:
       MINIO_ACCESS_KEY: minioadmin
@@ -143,7 +145,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/minio:/minio_data
+      - ./volumes/minio:/minio_data
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -151,37 +153,20 @@ services:
       timeout: 20s
       retries: 3
 
-  standalone:
-    container_name: milvus-standalone
-    hostname: milvushost
-    image: milvusdb/milvus:v2.3.11
-    command: ["milvus", "run", "standalone"]
-    security_opt:
-      - seccomp:unconfined
+  # n8n - Orquestração de Workflows
+  n8n:
+    container_name: n8n
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
     environment:
-      ETCD_ENDPOINTS: etcd:2379
-      MINIO_ADDRESS: minio:9000
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/Sao_Paulo
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/milvus:/var/lib/milvus
-    ports:
-      - "19530:19530"
-      - "9091:9091"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      start_period: 90s
-      timeout: 20s
-      retries: 3
-    depends_on:
-      - etcd
-      - minio
-
-  gui:
-    container_name: milvus-gui
-    image: zilliz/attu:latest
-    environment:
-      HOST_URL: http://localhost:8000
-      MILVUS_URL: standalone:19530
-    ports:
-      - "8000:3000"
-    depends_on_
+      - ./volumes/n8n:/home/node/.n8n

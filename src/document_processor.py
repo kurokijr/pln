@@ -103,13 +103,31 @@ class DocumentProcessor:
     
     def split_document(self, text: str) -> List[Document]:
         """Divide o documento em chunks menores."""
-        return self.text_splitter.split_text(text)
+        print(f"🔧 Iniciando split_document com texto de {len(text)} caracteres")
+        
+        # Usar split_text e criar Documents manualmente
+        text_chunks = self.text_splitter.split_text(text)
+        print(f"✂️ Texto dividido em {len(text_chunks)} chunks de texto")
+        
+        documents = []
+        for i, chunk_text in enumerate(text_chunks):
+            print(f"  Criando Document {i}: {len(chunk_text)} chars")
+            doc = Document(
+                page_content=chunk_text,
+                metadata={"chunk_index": i}
+            )
+            documents.append(doc)
+        
+        print(f"📄 Total de Documents criados: {len(documents)}")
+        return documents
     
     def process_document(self, file_path: str, enhance: bool = True) -> Dict[str, Any]:
         """Processa um documento completo."""
         try:
+            print(f"🔍 Processando documento: {file_path}")
             # Carrega o documento
             raw_text = self.load_document(file_path)
+            print(f"📄 Texto carregado: {len(raw_text)} caracteres")
             
             # Melhora o texto com LLM se solicitado
             if enhance:
@@ -119,21 +137,38 @@ class DocumentProcessor:
             
             # Divide em chunks
             chunks = self.split_document(enhanced_text)
+            print(f"✂️ Documento dividido em {len(chunks)} chunks")
             
             # Adiciona metadados aos chunks
             documents = []
             for i, chunk in enumerate(chunks):
-                doc = Document(
-                    page_content=chunk,
-                    metadata={
+                print(f"🔧 Processando chunk {i+1}/{len(chunks)} - Tipo: {type(chunk)}")
+                # Verificar se chunk é um Document ou string
+                if isinstance(chunk, Document):
+                    # Se já é um Document, apenas atualizar metadata
+                    chunk.metadata.update({
                         "source": Path(file_path).name,
+                        "file_name": Path(file_path).name,
                         "chunk_id": i,
                         "total_chunks": len(chunks),
                         "file_path": str(file_path),
                         "enhanced": enhance
-                    }
-                )
-                documents.append(doc)
+                    })
+                    documents.append(chunk)
+                else:
+                    # Se é string, criar novo Document
+                    doc = Document(
+                        page_content=chunk,
+                        metadata={
+                            "source": Path(file_path).name,
+                            "file_name": Path(file_path).name,
+                            "chunk_id": i,
+                            "total_chunks": len(chunks),
+                            "file_path": str(file_path),
+                            "enhanced": enhance
+                        }
+                    )
+                    documents.append(doc)
             
             return {
                 "original_text": raw_text,

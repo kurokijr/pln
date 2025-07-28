@@ -1,6 +1,6 @@
 # RAG-Demo - Ambiente Educacional
 
-Uma aplicação educacional desenvolvida para demonstrar o funcionamento integrado de uma arquitetura baseada em Recuperação Aumentada por Geração (RAG), utilizando serviços modernos como Milvus, MinIO, n8n e LLMs.
+Uma aplicação educacional desenvolvida para demonstrar o funcionamento integrado de uma arquitetura baseada em Recuperação Aumentada por Geração (RAG), utilizando serviços modernos como Qdrant, MinIO, n8n e LLMs.
 
 ## 🎯 Objetivo
 
@@ -8,7 +8,7 @@ O RAG-Demo é voltado para alunos da disciplina de Processamento de Linguagem Na
 
 - Upload e processamento de documentos PDF/DOCX
 - Vetorização usando modelos de embedding modernos (APIs)
-- Armazenamento vetorial com Milvus
+- Armazenamento vetorial com Qdrant
 - Chat RAG com múltiplas sessões
 - Geração automática de perguntas e respostas
 - Interface web moderna e responsiva
@@ -17,7 +17,7 @@ O RAG-Demo é voltado para alunos da disciplina de Processamento de Linguagem Na
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Flask App     │    │   Milvus        │
+│   Frontend      │    │   Flask App     │    │   Qdrant        │
 │   (HTML/JS)     │◄──►│   (Python)      │◄──►│   (Vectors)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
@@ -32,7 +32,7 @@ O RAG-Demo é voltado para alunos da disciplina de Processamento de Linguagem Na
 
 - **Frontend**: Interface web moderna com Tailwind CSS
 - **Backend**: Flask com APIs REST
-- **Vector Store**: Milvus (única fonte de dados)
+- **Vector Store**: Qdrant (única fonte de dados)
 - **Storage**: MinIO para arquivos
 - **Orchestration**: n8n para workflows complexos
 - **LLMs**: OpenAI GPT e Grok para processamento e geração
@@ -76,7 +76,7 @@ docker-compose up -d
 ### 4. Acesse a aplicação
 
 - **RAG-Demo**: http://localhost:5000
-- **Attu (Milvus GUI)**: http://localhost:8000
+- **Qdrant Console**: http://localhost:6333
 - **MinIO Console**: http://localhost:9001
 - **n8n**: http://localhost:5678
 
@@ -87,11 +87,11 @@ docker-compose up -d
 - Suporte para PDF, DOCX, TXT e MD
 - Processamento automático com LLMs para melhorar formatação
 - Vetorização usando modelos de API (OpenAI, Grok)
-- Armazenamento direto no Milvus
+- Armazenamento direto no Qdrant
 
 ### 2. Gerenciamento de Collections
 
-- **Criação direta**: Collections criadas diretamente no Milvus
+- **Criação direta**: Collections criadas diretamente no Qdrant
 - **Múltiplos modelos**: Suporte a diferentes modelos de embedding:
   - OpenAI Text Embedding (1536d)
   - Grok Embedding (384d)
@@ -115,12 +115,12 @@ docker-compose up -d
 ## 🔧 APIs Disponíveis
 
 ### Collections
-- `GET /api/collections` - Listar collections do Milvus
+- `GET /api/collections` - Listar collections do Qdrant
 - `POST /api/collections` - Criar nova collection
 - `DELETE /api/collections/{name}` - Deletar collection
 
 ### Databases
-- `GET /api/databases` - Listar databases do Milvus
+- `GET /api/databases` - Listar databases do Qdrant
 
 ### Upload e Processamento
 - `POST /api/upload` - Upload e vetorização de documentos
@@ -139,12 +139,12 @@ docker-compose up -d
 
 ### Problemas Comuns
 
-1. **Milvus não conecta**
+1. **Qdrant não conecta**
    ```bash
    # Verificar se o serviço está rodando
    docker-compose ps
    
-   # Reiniciar Milvus
+   # Reiniciar Qdrant
    docker-compose restart standalone
    ```
 
@@ -174,7 +174,7 @@ logging.basicConfig(level=logging.DEBUG)
 📦 RAG-Demo/
 ├── 📁 src/                         # Código fonte
 │   ├── 📄 config.py               # Configurações
-│   ├── 📄 vector_store.py         # Interface Milvus
+│   ├── 📄 vector_store.py         # Interface Qdrant
 │   ├── 📄 document_processor.py   # Processamento de documentos
 │   ├── 📄 storage.py              # Gerenciamento MinIO
 │   └── 📄 chat_service.py         # Serviço de chat
@@ -182,7 +182,7 @@ logging.basicConfig(level=logging.DEBUG)
 ├── 📁 uploads/                     # Arquivos temporários
 ├── 📁 volumes/                     # Dados persistentes
 │   ├── 📁 minio/                   # Arquivos no MinIO
-│   ├── 📁 milvus/                  # Vetores no Milvus
+│   ├── 📁 qdrant/                  # Vetores no Qdrant
 │   └── 📁 n8n/                     # Workflows n8n
 ├── 📄 app.py                       # Aplicação Flask
 ├── 📄 docker-compose.yml           # Configuração Docker
@@ -192,9 +192,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 ## 🔄 Fluxo de Dados
 
-1. **Upload**: Arquivo → Processamento → Vetorização → Milvus
-2. **Chat**: Pergunta → Busca no Milvus → Geração de resposta
-3. **Q&A**: Texto → Geração → Vetorização (opcional) → Milvus
+1. **Upload**: Arquivo → Processamento → Vetorização → Qdrant
+2. **Chat**: Pergunta → Busca no Qdrant → Geração de resposta
+3. **Q&A**: Texto → Geração → Vetorização (opcional) → Qdrant
 
 ## 🤝 Contribuição
 
@@ -210,7 +210,7 @@ Este projeto está licenciado sob a MIT License - veja o arquivo [LICENSE](LICEN
 
 ## 🙏 Agradecimentos
 
-- [Milvus](https://milvus.io/) - Vector Database
+- [Qdrant](https://qdrant.tech/) - Vector Database
 - [MinIO](https://min.io/) - Object Storage
 - [n8n](https://n8n.io/) - Workflow Automation
 - [OpenAI](https://openai.com/) - Language Models

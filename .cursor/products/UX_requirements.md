@@ -148,8 +148,8 @@
 | 📚 Collections | |
 | ✍️ Editor | Sessão: [Selecionar ou Nova Sessão] |
 | 💬 Chat | |
-| 🕓 Histórico | 🧑: Qual a função do Milvus? |
-| | 🤖: Milvus é um banco vetorial... |
+| 🕓 Histórico | 🧑: Qual a função do Qdrant? |
+| | 🤖: Qdrant é um banco vetorial... |
 | | |
 | | [Campo de entrada de mensagem...] |
 | | [Enviar] |

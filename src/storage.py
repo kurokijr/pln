@@ -33,8 +33,21 @@ class MinIOStorage:
         try:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
+                print(f"✅ Bucket '{self.bucket_name}' criado no MinIO")
+            else:
+                print(f"✅ Bucket '{self.bucket_name}' já existe no MinIO")
         except S3Error as e:
             raise Exception(f"Erro ao criar bucket: {str(e)}")
+    
+    def test_connection(self) -> bool:
+        """Testa a conexão com o MinIO."""
+        try:
+            # Tentar listar buckets para verificar conexão
+            list(self.client.list_buckets())
+            return True
+        except Exception as e:
+            print(f"❌ Erro de conexão com MinIO: {str(e)}")
+            return False
     
     def upload_file(self, file_path: str, object_name: str, topic: str = "default") -> str:
         """Faz upload de um arquivo para o MinIO."""
@@ -145,10 +158,10 @@ class LocalStorage:
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
     
-    def save_file(self, file_path: str, object_name: str, topic: str = "default") -> str:
-        """Salva um arquivo localmente."""
+    def upload_file(self, file_path: str, object_name: str, topic: str = "default") -> str:
+        """Faz upload de um arquivo localmente."""
         try:
-            # Criar estrutura de diretórios
+            # Criar estrutura de diretórios: topic/originals/filename
             topic_path = self.base_path / topic / "originals"
             topic_path.mkdir(parents=True, exist_ok=True)
             
@@ -157,15 +170,15 @@ class LocalStorage:
             import shutil
             shutil.copy2(file_path, dest_path)
             
-            return str(dest_path)
+            return str(dest_path.relative_to(self.base_path))
             
         except Exception as e:
-            raise Exception(f"Erro ao salvar arquivo: {str(e)}")
+            raise Exception(f"Erro ao fazer upload do arquivo: {str(e)}")
     
-    def save_text(self, text: str, object_name: str, topic: str = "default") -> str:
-        """Salva texto como arquivo localmente."""
+    def upload_text(self, text: str, object_name: str, topic: str = "default") -> str:
+        """Faz upload de texto como arquivo localmente."""
         try:
-            # Criar estrutura de diretórios
+            # Criar estrutura de diretórios: topic/converted/filename.md
             topic_path = self.base_path / topic / "converted"
             topic_path.mkdir(parents=True, exist_ok=True)
             
@@ -174,49 +187,63 @@ class LocalStorage:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(text)
             
-            return str(file_path)
+            return str(file_path.relative_to(self.base_path))
             
         except Exception as e:
-            raise Exception(f"Erro ao salvar texto: {str(e)}")
+            raise Exception(f"Erro ao fazer upload do texto: {str(e)}")
     
-    def read_file(self, file_path: str) -> str:
-        """Lê um arquivo local."""
+    def download_file(self, object_name: str) -> bytes:
+        """Download de um arquivo local."""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            file_path = self.base_path / object_name
+            with open(file_path, 'rb') as f:
                 return f.read()
         except Exception as e:
-            raise Exception(f"Erro ao ler arquivo: {str(e)}")
+            raise Exception(f"Erro no download: {str(e)}")
     
-    def list_files(self, topic: str = None) -> List[Dict[str, Any]]:
+    def list_files(self, topic: str = None, prefix: str = "") -> List[Dict[str, Any]]:
         """Lista arquivos locais."""
         try:
             files = []
-            base = self.base_path / topic if topic else self.base_path
+            
+            if topic:
+                base = self.base_path / topic
+                search_prefix = prefix
+            else:
+                base = self.base_path
+                search_prefix = f"{topic}/{prefix}" if topic else prefix
             
             if not base.exists():
                 return files
             
             for file_path in base.rglob("*"):
                 if file_path.is_file():
-                    stat = file_path.stat()
-                    files.append({
-                        "name": str(file_path.relative_to(self.base_path)),
-                        "size": stat.st_size,
-                        "last_modified": datetime.fromtimestamp(stat.st_mtime),
-                        "path": str(file_path)
-                    })
+                    relative_path = str(file_path.relative_to(self.base_path))
+                    if not search_prefix or relative_path.startswith(search_prefix):
+                        stat = file_path.stat()
+                        files.append({
+                            "name": relative_path,
+                            "size": stat.st_size,
+                            "last_modified": datetime.fromtimestamp(stat.st_mtime),
+                            "etag": None
+                        })
             
             return files
             
         except Exception as e:
             raise Exception(f"Erro ao listar arquivos: {str(e)}")
     
-    def delete_file(self, file_path: str):
+    def delete_file(self, object_name: str):
         """Deleta um arquivo local."""
         try:
-            Path(file_path).unlink()
+            file_path = self.base_path / object_name
+            file_path.unlink()
         except Exception as e:
             raise Exception(f"Erro ao deletar arquivo: {str(e)}")
+    
+    def get_file_url(self, object_name: str, expires: int = 3600) -> str:
+        """Gera URL para arquivo local (apenas retorna o caminho)."""
+        return str(self.base_path / object_name)
 
 
 class StorageManager:
@@ -277,4 +304,37 @@ class StorageManager:
         try:
             self.storage.delete_file(object_name)
         except Exception as e:
-            raise Exception(f"Erro ao deletar documento: {str(e)}") 
+            raise Exception(f"Erro ao deletar documento: {str(e)}")
+    
+    def test_connection(self) -> Dict[str, Any]:
+        """Testa a conexão com o storage."""
+        result = {
+            "storage_type": "MinIO" if self.use_minio else "Local",
+            "connected": False,
+            "error": None
+        }
+        
+        try:
+            if hasattr(self.storage, 'test_connection'):
+                result["connected"] = self.storage.test_connection()
+            else:
+                # Para LocalStorage, sempre consideramos conectado se a pasta existe
+                result["connected"] = True
+                
+        except Exception as e:
+            result["error"] = str(e)
+            
+        return result
+    
+    def get_storage_info(self) -> Dict[str, Any]:
+        """Obtém informações sobre o storage atual."""
+        info = {
+            "storage_type": "MinIO" if self.use_minio else "Local",
+            "status": "unknown"
+        }
+        
+        connection_test = self.test_connection()
+        info.update(connection_test)
+        info["status"] = "connected" if connection_test["connected"] else "disconnected"
+        
+        return info 

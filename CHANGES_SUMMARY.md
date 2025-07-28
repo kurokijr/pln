@@ -65,7 +65,7 @@ Limpar completamente o projeto RAG-Demo, removendo arquivos desnecessários, sim
 📦 RAG-Demo/
 ├── 📁 src/                         # Código fonte
 │   ├── 📄 config.py               # Configurações
-│   ├── 📄 vector_store.py         # Interface Milvus
+│   ├── 📄 vector_store.py         # Interface Qdrant
 │   ├── 📄 document_processor.py   # Processamento de documentos
 │   ├── 📄 storage.py              # Gerenciamento MinIO
 │   └── 📄 chat_service.py         # Serviço de chat
@@ -73,7 +73,7 @@ Limpar completamente o projeto RAG-Demo, removendo arquivos desnecessários, sim
 ├── 📁 uploads/                     # Arquivos temporários
 ├── 📁 volumes/                     # Dados persistentes
 │   ├── 📁 minio/                   # Arquivos no MinIO
-│   ├── 📁 milvus/                  # Vetores no Milvus
+│   ├── 📁 qdrant/                  # Vetores no Qdrant
 │   └── 📁 n8n/                     # Workflows n8n
 ├── 📄 app.py                       # Aplicação Flask
 ├── 📄 docker-compose.yml           # Configuração Docker completa
@@ -108,9 +108,9 @@ Limpar completamente o projeto RAG-Demo, removendo arquivos desnecessários, sim
 
 ## 🔄 **Fluxo de Dados Atual**
 
-1. **Upload**: Arquivo → Processamento → Vetorização → Milvus
-2. **Chat**: Pergunta → Busca no Milvus → Geração de resposta
-3. **Q&A**: Texto → Geração → Vetorização (opcional) → Milvus
+1. **Upload**: Arquivo → Processamento → Vetorização → Qdrant
+2. **Chat**: Pergunta → Busca no Qdrant → Geração de resposta
+3. **Q&A**: Texto → Geração → Vetorização (opcional) → Qdrant
 
 ## 🚀 **Como Usar**
 
@@ -133,7 +133,7 @@ docker-compose up -d
 
 ### 3. **Acessar**
 - **RAG-Demo**: http://localhost:5000
-- **Attu (Milvus)**: http://localhost:8000
+- **Qdrant Console**: http://localhost:6333
 - **MinIO**: http://localhost:9001
 
 ## ⚠️ **Considerações**
@@ -154,7 +154,7 @@ docker-compose up -d
 ✅ **PROJETO COMPLETO COM N8N RESTAURADO**
 
 O RAG-Demo agora é uma aplicação educacional completa, com:
-- Arquitetura completa com orquestração
+- Arquitetura completa com Qdrant como vector store
 - Documentação atualizada
 - Configuração completa
 - Performance otimizada

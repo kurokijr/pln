@@ -51,7 +51,14 @@ class EmbeddingManager:
     
     def get_embedding(self, text: str) -> List[float]:
         """Gera embedding para um texto."""
-        return self.model.embed_query(text)
+        print(f"    🔍 Gerando embedding com modelo {self.model_name} ({self.provider})")
+        try:
+            embedding = self.model.embed_query(text)
+            print(f"    ✅ Embedding gerado com sucesso: {len(embedding)} dimensões")
+            return embedding
+        except Exception as e:
+            print(f"    ❌ Erro ao gerar embedding: {e}")
+            raise e
     
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Gera embeddings para múltiplos textos."""
@@ -175,9 +182,19 @@ class QdrantVectorStore:
             
             # Preparar pontos para inserção
             points = []
+            print(f"🔧 Iniciando inserção de {len(documents)} documentos na collection '{collection_name}'")
+            print(f"📊 Modelo de embedding: {embedding_model}")
+            
             for i, doc in enumerate(documents, start=1):  # Começar do 1 para não conflitar com metadata (ID 0)
+                print(f"  Processando documento {i}/{len(documents)}: {len(doc.page_content)} chars")
+                
                 # Gerar embedding para o conteúdo
-                embedding = embedding_manager.get_embedding(doc.page_content)
+                try:
+                    embedding = embedding_manager.get_embedding(doc.page_content)
+                    print(f"    ✅ Embedding gerado: {len(embedding)} dimensões")
+                except Exception as e:
+                    print(f"    ❌ Erro ao gerar embedding: {e}")
+                    raise e
                 
                 # Criar ponto
                 point = PointStruct(
@@ -186,12 +203,13 @@ class QdrantVectorStore:
                     payload={
                         "content": doc.page_content,
                         "metadata": doc.metadata,
-                        "file_name": doc.metadata.get("file_name", "unknown"),
+                        "file_name": doc.metadata.get("file_name", "Documento sem nome"),
                         "chunk_index": doc.metadata.get("chunk_index", 0),
                         "created_at": datetime.now().isoformat()
                     }
                 )
                 points.append(point)
+                print(f"    📄 Ponto criado com ID {i}")
             
             # Inserir pontos
             if points:
@@ -310,25 +328,20 @@ class QdrantVectorStore:
         try:
             # Buscar todos os pontos da collection (exceto metadata)
             scroll_result = self.client.scroll(
-                collection_name=collection_name,
-                limit=limit,
-                query_filter=Filter(
-                    must_not=[
-                        FieldCondition(
-                            key="name",
-                            match=MatchValue(value=collection_name)
-                        )
-                    ]
-                )  # Excluir o ponto de metadata
+                collection_name=collection_name
             )
             
             documents = []
             for point in scroll_result[0]:  # scroll_result é uma tupla (points, next_page_offset)
+                # Pular o ponto de metadata (ID 0)
+                if point.id == 0:
+                    continue
+                    
                 documents.append({
                     "id": point.id,
                     "content": point.payload.get("content", ""),
                     "metadata": point.payload.get("metadata", {}),
-                    "file_name": point.payload.get("file_name", "unknown"),
+                    "file_name": point.payload.get("file_name", "Documento sem nome"),
                     "chunk_index": point.payload.get("chunk_index", 0),
                     "created_at": point.payload.get("created_at", "")
                 })
@@ -379,10 +392,14 @@ class QdrantVectorStore:
                 current_count = metadata.get("document_count", 0)
                 new_count = current_count + increment
                 
+                # Obter dimensão correta do modelo
+                model_config = metadata.get("model_config", {})
+                dimension = model_config.get("dimension", 1536)
+                
                 # Atualizar o ponto de metadata
                 updated_point = PointStruct(
                     id=0,
-                    vector=[0.0] * 1536,  # Vetor zero
+                    vector=[0.0] * dimension,  # Vetor zero com dimensão correta
                     payload={
                         **metadata,
                         "document_count": new_count
@@ -396,6 +413,44 @@ class QdrantVectorStore:
                 
         except Exception as e:
             print(f"⚠️ Erro ao atualizar contador de documentos: {e}")
+    
+    def _recalculate_collection_document_count(self, collection_name: str):
+        """Recalcula o contador de documentos baseado no número real de documentos."""
+        try:
+            # Contar documentos reais (excluindo metadata ID 0)
+            scroll_result = self.client.scroll(
+                collection_name=collection_name
+            )
+            
+            real_count = 0
+            for point in scroll_result[0]:
+                if point.id != 0:  # Excluir ponto de metadata
+                    real_count += 1
+            
+            # Atualizar metadata com contagem real
+            metadata = self._get_collection_metadata(collection_name)
+            if metadata:
+                model_config = metadata.get("model_config", {})
+                dimension = model_config.get("dimension", 1536)
+                
+                updated_point = PointStruct(
+                    id=0,
+                    vector=[0.0] * dimension,
+                    payload={
+                        **metadata,
+                        "document_count": real_count
+                    }
+                )
+                
+                self.client.upsert(
+                    collection_name=collection_name,
+                    points=[updated_point]
+                )
+                
+                print(f"✅ Contagem de documentos da collection '{collection_name}' atualizada para {real_count}")
+                
+        except Exception as e:
+            print(f"❌ Erro ao recalcular contagem de documentos: {e}")
     
     def get_collection_info(self, collection_name: str) -> Optional[Dict[str, Any]]:
         """Obtém informações detalhadas de uma collection."""

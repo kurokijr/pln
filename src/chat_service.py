@@ -1,4 +1,4 @@
-"""Serviço de chat RAG com Milvus."""
+"""Serviço de chat RAG com Qdrant."""
 
 import os
 import json
@@ -209,9 +209,9 @@ Resposta:"""
     def get_collections(self) -> List[str]:
         """Retorna lista de collections disponíveis."""
         try:
-            if self.use_milvus:
+            if self.use_qdrant:
                 collections = self.vector_store.list_collections()
-                return [c['name'] for c in collections if c.get('exists_in_milvus')]
+                return [c['name'] for c in collections if c.get('exists_in_qdrant')]
             else:
                 return ["default"]
         except Exception as e:

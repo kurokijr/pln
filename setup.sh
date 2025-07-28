@@ -59,11 +59,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     echo "🔍 Verificando status dos serviços..."
     
-    # Verificar Milvus
-    if curl -f http://localhost:9091/healthz &> /dev/null; then
-        echo "✅ Milvus está rodando"
+    # Verificar Qdrant
+    if curl -f http://localhost:6333/health &> /dev/null; then
+        echo "✅ Qdrant está rodando"
     else
-        echo "❌ Milvus não está respondendo"
+        echo "❌ Qdrant não está respondendo"
     fi
     
     # Verificar MinIO
@@ -92,7 +92,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     echo "📱 URLs de acesso:"
     echo "   • RAG-Demo: http://localhost:5000"
-    echo "   • Attu (Milvus GUI): http://localhost:8000"
+    echo "   • Qdrant Console: http://localhost:6333"
     echo "   • MinIO Console: http://localhost:9001"
     echo "   • n8n: http://localhost:5678"
     echo ""

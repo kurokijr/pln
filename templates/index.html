@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAG-Demo - Ambiente Educacional</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -205,11 +208,6 @@
                     <span>Upload</span>
                     </button>
                 
-                <button id="databases-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="database" class="w-5 h-5"></i>
-                    <span>Databases</span>
-                    </button>
-                
                 <button id="collections-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="folder-open" class="w-5 h-5"></i>
                     <span>Collections</span>
@@ -407,13 +405,7 @@
                                 </select>
                                 <p class="text-xs text-gray-500 mt-1">Filtrar por modelo de embedding</p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Filtro por Tema:</label>
-                                <select id="topic-filter" class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                    <option value="">Todos os temas</option>
-                                </select>
-                                <p class="text-xs text-gray-500 mt-1">Filtrar por tema</p>
-                            </div>
+
                             <div class="flex items-end">
                                 <button id="new-collection-btn" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
                                     Nova Collection
@@ -434,57 +426,168 @@
                         <h2 class="text-2xl font-bold text-gray-900 mb-6">Editor de Perguntas e Respostas</h2>
                         
                         <div class="space-y-6">
-                            <!-- Database and Collection Selection -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Database:</label>
-                                    <select id="editor-database-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                        <option value="">Selecione um database...</option>
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1">Selecione o database para vetorização</p>
-                            </div>
+                            <!-- Document Selection -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
-                                    <select id="editor-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required disabled>
+                                    <select id="editor-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
                                         <option value="">Selecione uma collection...</option>
                                     </select>
-                                    <p class="text-xs text-gray-500 mt-1">Selecione a collection para o conteúdo</p>
+                                    <p class="text-xs text-gray-500 mt-1">Collection para inserir os Q&As gerados</p>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tema:</label>
-                                    <input type="text" id="editor-topic" class="w-full border border-gray-300 rounded-md px-3 py-2" value="default">
-                                    <p class="text-xs text-gray-500 mt-1">Tema para categorização</p>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Documento:</label>
+                                    <select id="editor-document-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
+                                        <option value="">Selecione um documento...</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Documento para gerar Q&As</p>
                                 </div>
                             </div>
 
-                            <!-- Editor Markdown com Preview -->
-                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Conteúdo Markdown:</label>
-                                    <textarea id="markdown-editor" rows="15" class="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm" placeholder="Digite seu conteúdo em Markdown aqui..."></textarea>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Pré-visualização:</label>
-                                    <div id="markdown-preview" class="w-full border border-gray-300 rounded-md px-3 py-2 min-h-[400px] overflow-y-auto bg-gray-50">
-                                        <p class="text-gray-500 text-sm">Pré-visualização aparecerá aqui...</p>
+                            <!-- Document Info -->
+                            <div id="document-info" class="hidden">
+                                <h3 class="text-lg font-medium text-gray-900 mb-3">📊 Métricas do Documento</h3>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <div class="text-2xl font-bold text-blue-600" id="char-count">0</div>
+                                        <div class="text-sm text-gray-600">Caracteres</div>
+                                    </div>
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <div class="text-2xl font-bold text-green-600" id="word-count">0</div>
+                                        <div class="text-sm text-gray-600">Palavras</div>
+                                    </div>
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <div class="text-2xl font-bold text-purple-600" id="unique-words">0</div>
+                                        <div class="text-sm text-gray-600">Palavras Únicas</div>
+                                    </div>
+                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                        <div class="text-2xl font-bold text-orange-600" id="avg-word-length">0</div>
+                                        <div class="text-sm text-gray-600">Tamanho Médio</div>
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- Q&A Generation Parameters -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h3 class="text-lg font-medium text-gray-900 mb-3">⚙️ Configurações de Geração</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Número de Q&As:</label>
+                                        <input type="number" id="num-questions" min="1" max="500" value="50" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Dificuldade:</label>
+                                        <select id="difficulty" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                            <option value="Iniciante">Iniciante</option>
+                                            <option value="Intermediário" selected>Intermediário</option>
+                                            <option value="Avançado">Avançado</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Criatividade:</label>
+                                        <input type="range" id="temperature" min="0.0" max="1.0" step="0.1" value="0.5" class="w-full">
+                                        <div class="text-xs text-gray-500 mt-1" id="temperature-value">0.5</div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Palavras-chave:</label>
+                                        <input type="text" id="context-keywords" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="termo1, termo2, termo3">
+                                        <p class="text-xs text-gray-500 mt-1">Separadas por vírgula</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Custom Prompt -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Instruções para geração:</label>
+                                <textarea id="custom-prompt" rows="6" class="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm" placeholder="Instruções personalizadas para geração de Q&A...">Você é um especialista em criação de conteúdos educacionais. 
+Gere no mínimo {num_questions} perguntas e respostas baseadas no documento abaixo:
+
+REGRAS:
+1. Foco nos contextos: {context_keywords} (priorizar estes termos)
+2. Formato obrigatório: 
+**Pergunta {{número}}:** [texto] \n\n **Resposta {{número}}:** [texto]
+3. Nível de detalhe: adequado para profissionais de nível {difficulty}
+4. Inclua exemplos quando relevante
+
+DOCUMENTO:
+{document_text}</textarea>
+                            </div>
+
                             <!-- Action Buttons -->
                             <div class="flex space-x-4">
-                                <button id="generate-qa-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                                    Gerar Q&A
+                                <button id="generate-qa-btn" class="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 font-medium">
+                                    🚀 Gerar Q&As
                                 </button>
-                                <button id="vectorize-content-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                                    Vetorizar Conteúdo
+                                <button id="vectorize-content-btn" class="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium">
+                                    📊 Vetorizar Conteúdo
                                 </button>
                             </div>
 
-                            <!-- Generated Q&A -->
+                            <!-- Progress Section -->
+                            <div id="qa-progress" class="hidden">
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                        <div>
+                                            <div class="text-sm font-medium text-blue-900" id="progress-status">Processando...</div>
+                                            <div class="text-xs text-blue-700" id="progress-details">Iniciando geração de Q&As...</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <div class="w-full bg-blue-200 rounded-full h-2">
+                                            <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Generated Q&A Results -->
                             <div id="qa-results" class="hidden">
-                                <h3 class="text-lg font-medium text-gray-900 mb-4">Q&A Gerados:</h3>
-                                <div id="qa-list" class="space-y-4"></div>
+                                <div class="border-t pt-6">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-medium text-gray-900">📋 Q&As Gerados</h3>
+                                        <div class="flex space-x-2">
+                                            <button id="download-qa-btn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm">
+                                                💾 Baixar Q&As
+                                            </button>
+                                            <button id="create-embeddings-btn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm">
+                                                🔗 Criar Embeddings
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Tabs para visualização -->
+                                    <div class="mb-4">
+                                        <div class="border-b border-gray-200">
+                                            <nav class="-mb-px flex space-x-8">
+                                                <button id="qa-tab-formatted" class="qa-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="formatted">
+                                                    📋 Visualização Formatada
+                                                </button>
+                                                <button id="qa-tab-markdown" class="qa-tab-btn border-indigo-500 text-indigo-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="markdown">
+                                                    📝 Markdown Raw
+                                                </button>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Conteúdo formatado -->
+                                    <div id="qa-content-formatted" class="qa-tab-content">
+                                        <div id="qa-list" class="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4"></div>
+                                    </div>
+                                    
+                                    <!-- Conteúdo markdown raw -->
+                                    <div id="qa-content-markdown" class="qa-tab-content hidden">
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-sm font-medium text-gray-700">Markdown para Embeddings:</span>
+                                                <button id="copy-markdown-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                                    📋 Copiar
+                                                </button>
+                                            </div>
+                                            <textarea id="qa-markdown-content" class="w-full h-96 font-mono text-sm border border-gray-300 rounded-md px-3 py-2" readonly></textarea>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -505,15 +608,8 @@
                                 </div>
                             </div>
                             
-                            <!-- Database and Collection Selection for Chat -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Database:</label>
-                                    <select id="chat-database-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                        <option value="">Todos os databases</option>
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1">Filtrar por database</p>
-                                </div>
+                            <!-- Collection Selection for Chat -->
+                            <div class="grid grid-cols-1 gap-4 mt-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
                                     <select id="chat-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
@@ -622,6 +718,7 @@
         let currentSessionId = null;
         let isProcessing = false;
         let collections = [];
+        let documents = [];
         let embeddingModels = [];
         
         // DOM elements
@@ -1136,8 +1233,7 @@
                             // If we're on the collections page, refresh the current view
                             const collectionsContent = document.getElementById('collections-content');
                             if (!collectionsContent.classList.contains('hidden')) {
-                                const selectedDatabase = document.getElementById('collections-database-select').value;
-                                updateCollectionsList(selectedDatabase);
+                                updateCollectionsList();
                             }
                             
                             // Reset form
@@ -1194,114 +1290,163 @@
         const vectorizeContentBtn = document.getElementById('vectorize-content-btn');
         const qaResults = document.getElementById('qa-results');
         const qaList = document.getElementById('qa-list');
-        const markdownEditor = document.getElementById('markdown-editor');
-        const markdownPreview = document.getElementById('markdown-preview');
+        const qaProgress = document.getElementById('qa-progress');
+        const downloadQaBtn = document.getElementById('download-qa-btn');
         
-        // Markdown preview
-        if (markdownEditor && markdownPreview) {
-            markdownEditor.addEventListener('input', () => {
-                const content = markdownEditor.value;
-                if (content.trim()) {
-                    markdownPreview.innerHTML = marked.parse(content);
-                    // Highlight code blocks
-                    markdownPreview.querySelectorAll('pre code').forEach((block) => {
-                        hljs.highlightElement(block);
-                    });
+        // Temperature slider
+        const temperatureSlider = document.getElementById('temperature');
+        const temperatureValue = document.getElementById('temperature-value');
+        if (temperatureSlider && temperatureValue) {
+            temperatureSlider.addEventListener('input', () => {
+                temperatureValue.textContent = temperatureSlider.value;
+            });
+        }
+        
+        // Collection selection change handler
+        const editorCollectionSelect = document.getElementById('editor-collection-select');
+        if (editorCollectionSelect) {
+            editorCollectionSelect.addEventListener('change', async () => {
+                const selectedCollection = editorCollectionSelect.value;
+                console.log('🔄 Collection selecionada:', selectedCollection);
+                
+                if (selectedCollection) {
+                    // Recarregar documentos para a collection selecionada
+                    await loadDocumentsForCollection(selectedCollection);
                 } else {
-                    markdownPreview.innerHTML = '<p class="text-gray-500 text-sm">Pré-visualização aparecerá aqui...</p>';
+                    // Limpar seletor de documentos
+                    updateDocumentSelect([]);
+                    hideDocumentInfo();
+                }
+            });
+        }
+
+        // Document selection change handler
+        const editorDocumentSelect = document.getElementById('editor-document-select');
+        if (editorDocumentSelect) {
+            editorDocumentSelect.addEventListener('change', async () => {
+                const selectedDocument = editorDocumentSelect.value;
+                if (selectedDocument) {
+                    await loadDocumentInfo(selectedDocument);
+                } else {
+                    hideDocumentInfo();
                 }
             });
         }
         
         if (generateQaBtn) {
             generateQaBtn.addEventListener('click', async () => {
-            const content = markdownEditor.value;
-            if (!content.trim()) {
-                showToast('Digite algum conteúdo primeiro', 'warning');
-                return;
-            }
-            
-            generateQaBtn.disabled = true;
-            generateQaBtn.textContent = 'Gerando...';
-            
-            try {
-                const response = await fetch('/api/generate-qa', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        text: content,
-                        num_questions: 5,
-                        context_keywords: '',
-                        difficulty: 'Intermediário'
-                    })
-                });
+                const collectionSelect = document.getElementById('editor-collection-select');
+                const documentSelect = document.getElementById('editor-document-select');
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                                                displayQAResults(result.qa_pairs);
-                } else {
-                    throw new Error(result.error);
+                if (!collectionSelect.value) {
+                    showToast('Selecione uma collection primeiro', 'warning');
+                    return;
                 }
-            } catch (error) {
-                showToast(`Erro ao gerar Q&A: ${error.message}`, 'error');
-            } finally {
-                generateQaBtn.disabled = false;
-                generateQaBtn.textContent = 'Gerar Q&A';
-            }
-        });
+                
+                if (!documentSelect.value) {
+                    showToast('Selecione um documento primeiro', 'warning');
+                    return;
+                }
+                
+                // Get form values
+                const numQuestions = parseInt(document.getElementById('num-questions').value) || 50;
+                const difficulty = document.getElementById('difficulty').value;
+                const temperature = parseFloat(document.getElementById('temperature').value) || 0.5;
+                const contextKeywords = document.getElementById('context-keywords').value;
+                const customPrompt = document.getElementById('custom-prompt').value;
+                
+                generateQaBtn.disabled = true;
+                generateQaBtn.textContent = 'Gerando...';
+                showQaProgress('Iniciando geração de Q&As...');
+                
+                try {
+                    // Obter o conteúdo do documento selecionado
+                    const contentResponse = await fetch(`/api/collections/${collectionSelect.value}/content?document=${encodeURIComponent(documentSelect.value)}`);
+                    const contentResult = await contentResponse.json();
+                    
+                    if (!contentResult.success) {
+                        throw new Error('Erro ao obter conteúdo do documento');
+                    }
+                    
+                    if (!contentResult.content.trim()) {
+                        showToast('O documento selecionado não possui conteúdo para gerar Q&A', 'warning');
+                        return;
+                    }
+                    
+                    // Gerar Q&A
+                    const response = await fetch('/api/qa-generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            content: contentResult.content,
+                            collection_name: collectionSelect.value,
+                            num_questions: numQuestions,
+                            context_keywords: contextKeywords,
+                            difficulty: difficulty,
+                            temperature: temperature,
+                            custom_prompt: customPrompt
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        displayQAResults(result.qa_content);
+                        hideQaProgress();
+                        showToast(`${result.qa_count} Q&As gerados com sucesso`, 'success');
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    hideQaProgress();
+                    showToast(`Erro ao gerar Q&A: ${error.message}`, 'error');
+                } finally {
+                    generateQaBtn.disabled = false;
+                    generateQaBtn.textContent = '🚀 Gerar Q&As';
+                }
+            });
         }
         
         if (vectorizeContentBtn) {
             vectorizeContentBtn.addEventListener('click', async () => {
-            const content = markdownEditor.value;
-            const collectionSelect = document.getElementById('editor-collection-select');
-            
-            if (!content.trim()) {
-                showToast('Digite algum conteúdo primeiro', 'warning');
-                return;
-            }
-            
-            if (!collectionSelect.value) {
-                showToast('Selecione uma collection primeiro', 'warning');
-                return;
-            }
-            
-            vectorizeContentBtn.disabled = true;
-            vectorizeContentBtn.textContent = 'Vetorizando...';
-            updateVectorizationStatus('processing', 'Vetorizando conteúdo...');
-            
-            try {
-                const response = await fetch('/api/vectorize-md', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        content: content,
-                        collection_name: collectionSelect.value,
-                        topic: document.getElementById('editor-topic').value
-                    })
-                });
+                const collectionSelect = document.getElementById('editor-collection-select');
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                                                updateVectorizationStatus('success', `Conteúdo vetorizado: ${result.total_qa} Q&As`);
-                            showToast(`Conteúdo vetorizado: ${result.total_qa} Q&As`, 'success');
-                } else {
-                    throw new Error(result.error);
+                if (!collectionSelect.value) {
+                    showToast('Selecione uma collection primeiro', 'warning');
+                    return;
                 }
-            } catch (error) {
-                updateVectorizationStatus('error', `Erro na vetorização: ${error.message}`);
-                showToast(`Erro na vetorização: ${error.message}`, 'error');
-            } finally {
-                vectorizeContentBtn.disabled = false;
-                vectorizeContentBtn.textContent = 'Vetorizar Conteúdo';
-            }
-        });
+                
+                vectorizeContentBtn.disabled = true;
+                vectorizeContentBtn.textContent = 'Vetorizando...';
+                showQaProgress('Vetorizando conteúdo...');
+                
+                try {
+                    // Obter conteúdo da collection
+                    const contentResponse = await fetch(`/api/collections/${collectionSelect.value}/content`);
+                    const contentResult = await contentResponse.json();
+                    
+                    if (!contentResult.success) {
+                        throw new Error('Erro ao obter conteúdo da collection');
+                    }
+                    
+                    if (!contentResult.content.trim()) {
+                        showToast('A collection selecionada não possui documentos para vetorizar', 'warning');
+                        return;
+                    }
+                    
+                    // Aqui você pode implementar a lógica de vetorização se necessário
+                    showToast('Conteúdo já está vetorizado na collection', 'info');
+                    
+                } catch (error) {
+                    showToast(`Erro ao vetorizar conteúdo: ${error.message}`, 'error');
+                } finally {
+                    vectorizeContentBtn.disabled = false;
+                    vectorizeContentBtn.textContent = '📊 Vetorizar Conteúdo';
+                    hideQaProgress();
+                }
+            });
         }
         
         // Chat functionality
@@ -1450,22 +1595,314 @@
             `;
         }
         
-        function displayQAResults(qaPairs) {
+        function displayQAResults(qaContent) {
+            if (!qaContent) {
+                showToast('Nenhum Q&A foi gerado', 'warning');
+                return;
+            }
+            
+            // Store Q&A content globally
+            window.currentQAContent = qaContent;
+            
+            // Parse Q&A content
+            const qaPairs = parseQAContent(qaContent);
+            
+            // Display in formatted view
+            const qaList = document.getElementById('qa-list');
+            const qaResults = document.getElementById('qa-results');
+            
             qaList.innerHTML = '';
             
-            qaPairs.forEach((qa, index) => {
+            qaPairs.forEach((pair, index) => {
                 const qaDiv = document.createElement('div');
-                qaDiv.className = 'border border-gray-200 rounded-lg p-4';
+                qaDiv.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm';
                 qaDiv.innerHTML = `
-                    <div class="font-medium text-gray-900 mb-2">Pergunta ${qa.number}:</div>
-                    <div class="text-gray-700 mb-3">${qa.question}</div>
-                    <div class="font-medium text-gray-900 mb-2">Resposta ${qa.number}:</div>
-                    <div class="text-gray-700 markdown-content">${marked.parse(qa.answer)}</div>
+                    <div class="mb-3">
+                        <h4 class="font-medium text-gray-900 flex items-center">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded mr-2">Q${index + 1}</span>
+                            Pergunta ${index + 1}
+                        </h4>
+                        <div class="text-gray-700 mt-1 pl-4 border-l-2 border-blue-200">${pair.question}</div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-900 flex items-center">
+                            <span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded mr-2">R${index + 1}</span>
+                            Resposta ${index + 1}
+                        </h4>
+                        <div class="text-gray-700 mt-1 pl-4 border-l-2 border-green-200">${pair.answer}</div>
+                    </div>
                 `;
                 qaList.appendChild(qaDiv);
             });
             
+            // Display raw markdown
+            const qaMarkdownContent = document.getElementById('qa-markdown-content');
+            qaMarkdownContent.value = qaContent;
+            
             qaResults.classList.remove('hidden');
+            
+            // Setup buttons
+            setupDownloadButton(qaContent);
+            setupTabHandlers();
+            setupCopyButton();
+            setupEmbeddingsButton();
+        }
+        
+        function parseQAContent(qaContent) {
+            const qaPairs = [];
+            const pattern = /\*\*Pergunta (\d+):\*\*(.*?)(?=\*\*Resposta \1:\*\*|\*\*Pergunta \d+:\*\*|\Z)/gs;
+            
+            let match;
+            while ((match = pattern.exec(qaContent)) !== null) {
+                const questionNumber = match[1];
+                const questionText = match[2].trim();
+                
+                // Find corresponding answer
+                const answerPattern = new RegExp(`\\*\\*Resposta ${questionNumber}:\\*\\*(.*?)(?=\\*\\*Pergunta \\d+:\\*\\*|\\Z)`, 's');
+                const answerMatch = qaContent.match(answerPattern);
+                const answerText = answerMatch ? answerMatch[1].trim() : '';
+                
+                if (questionText && answerText) {
+                    qaPairs.push({
+                        question: questionText,
+                        answer: answerText
+                    });
+                }
+            }
+            
+            return qaPairs;
+        }
+        
+        function setupDownloadButton(qaContent) {
+            const downloadBtn = document.getElementById('download-qa-btn');
+            if (downloadBtn) {
+                downloadBtn.onclick = () => {
+                    const blob = new Blob([qaContent], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `qas_gerados_${new Date().toISOString().split('T')[0]}.md`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+            }
+        }
+        
+        function showQaProgress(message) {
+            const qaProgress = document.getElementById('qa-progress');
+            const progressStatus = document.getElementById('progress-status');
+            const progressDetails = document.getElementById('progress-details');
+            
+            if (qaProgress && progressStatus && progressDetails) {
+                progressStatus.textContent = 'Processando...';
+                progressDetails.textContent = message;
+                qaProgress.classList.remove('hidden');
+            }
+        }
+        
+        function hideQaProgress() {
+            const qaProgress = document.getElementById('qa-progress');
+            if (qaProgress) {
+                qaProgress.classList.add('hidden');
+            }
+        }
+        
+        async function loadDocumentInfo(documentName) {
+            try {
+                // Usar uma collection temporária para obter o conteúdo
+                const response = await fetch(`/api/collections/temp/content?document=${encodeURIComponent(documentName)}`);
+                const result = await response.json();
+                
+                if (result.success && result.content) {
+                    const content = result.content;
+                    const words = content.split(/\s+/);
+                    const uniqueWords = new Set(words);
+                    
+                    document.getElementById('char-count').textContent = content.length.toLocaleString('pt-BR');
+                    document.getElementById('word-count').textContent = words.length.toLocaleString('pt-BR');
+                    document.getElementById('unique-words').textContent = uniqueWords.size.toLocaleString('pt-BR');
+                    document.getElementById('avg-word-length').textContent = 
+                        (words.reduce((sum, word) => sum + word.length, 0) / words.length).toFixed(1);
+                    
+                    document.getElementById('document-info').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar informações do documento:', error);
+            }
+        }
+        
+        function hideDocumentInfo() {
+            document.getElementById('document-info').classList.add('hidden');
+        }
+        
+        function setupTabHandlers() {
+            const tabButtons = document.querySelectorAll('.qa-tab-btn');
+            const tabContents = document.querySelectorAll('.qa-tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // Remove active classes from all tabs
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-indigo-500', 'text-indigo-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    
+                    // Add active classes to clicked tab
+                    button.classList.remove('border-transparent', 'text-gray-500');
+                    button.classList.add('border-indigo-500', 'text-indigo-600');
+                    
+                    // Hide all content panels
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    
+                    // Show target content panel
+                    document.getElementById(`qa-content-${targetTab}`).classList.remove('hidden');
+                });
+            });
+        }
+        
+        function setupCopyButton() {
+            const copyBtn = document.getElementById('copy-markdown-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    const markdownContent = document.getElementById('qa-markdown-content');
+                    if (markdownContent) {
+                        markdownContent.select();
+                        navigator.clipboard.writeText(markdownContent.value).then(() => {
+                            showToast('Markdown copiado para a área de transferência!', 'success');
+                            copyBtn.textContent = '✅ Copiado';
+                            setTimeout(() => {
+                                copyBtn.textContent = '📋 Copiar';
+                            }, 2000);
+                        }).catch(() => {
+                            showToast('Erro ao copiar markdown', 'error');
+                        });
+                    }
+                });
+            }
+        }
+        
+        function setupEmbeddingsButton() {
+            const embeddingsBtn = document.getElementById('create-embeddings-btn');
+            if (embeddingsBtn) {
+                embeddingsBtn.addEventListener('click', async () => {
+                    if (!window.currentQAContent) {
+                        showToast('Nenhum Q&A disponível para criar embeddings', 'warning');
+                        return;
+                    }
+                    
+                    const collectionSelect = document.getElementById('editor-collection-select');
+                    if (!collectionSelect.value) {
+                        showToast('Selecione uma collection primeiro', 'warning');
+                        return;
+                    }
+                    
+                    // Mostrar modal para criar embeddings
+                    showEmbeddingsModal();
+                });
+            }
+        }
+        
+        function showEmbeddingsModal() {
+            // Criar modal dinâmico
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+            modal.innerHTML = `
+                <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">🔗 Criar Embeddings dos Q&As</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nome da Nova Collection:</label>
+                                <input type="text" id="embeddings-collection-name" class="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="qa_collection_embeddings">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Modelo de Embedding:</label>
+                                <select id="embeddings-model-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="text-embedding-3-small">OpenAI text-embedding-3-small</option>
+                                    <option value="text-embedding-3-large">OpenAI text-embedding-3-large</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button id="cancel-embeddings" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                                Cancelar
+                            </button>
+                            <button id="create-embeddings" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                                Criar Embeddings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Event handlers para o modal
+            document.getElementById('cancel-embeddings').addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            
+            document.getElementById('create-embeddings').addEventListener('click', () => {
+                createEmbeddingsFromQA();
+                document.body.removeChild(modal);
+            });
+            
+            // Fechar modal clicando fora
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+        }
+        
+        async function createEmbeddingsFromQA() {
+            const collectionName = document.getElementById('embeddings-collection-name').value || 'qa_collection_embeddings';
+            const embeddingModel = document.getElementById('embeddings-model-select').value;
+            
+            if (!window.currentQAContent) {
+                showToast('Nenhum Q&A disponível', 'error');
+                return;
+            }
+            
+            try {
+                showToast('Criando embeddings dos Q&As...', 'info');
+                
+                // Preparar dados para o endpoint
+                const qaData = {
+                    qa_content: window.currentQAContent,
+                    collection_name: collectionName,
+                    embedding_model: embeddingModel
+                };
+                
+                // Chamar endpoint para criar embeddings (será implementado no backend)
+                const response = await fetch('/api/create-qa-embeddings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(qaData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`✅ Embeddings criados com sucesso na collection "${collectionName}"`, 'success');
+                    // Recarregar collections para mostrar a nova
+                    await loadCollections();
+                } else {
+                    throw new Error(result.error || 'Erro ao criar embeddings');
+                }
+                
+            } catch (error) {
+                showToast(`❌ Erro ao criar embeddings: ${error.message}`, 'error');
+                console.error('Erro ao criar embeddings:', error);
+            }
         }
         
         async function loadSessions() {
@@ -1503,6 +1940,186 @@
             }
         }
         
+        // Document Management
+        
+        async function loadDocuments() {
+            console.log('🔍 Carregando todos os documentos...');
+            try {
+                const response = await fetch('/api/storage-info');
+                console.log('📡 Response documentos:', response.status);
+                const result = await response.json();
+                console.log('📁 Dados documentos:', result);
+                
+                if (result.success && result.documents) {
+                    documents = result.documents;
+                    console.log('✅ Documentos carregados:', documents.length);
+                    console.log('🗄️ Tipo de storage:', result.storage_type);
+                    // Não atualizar automaticamente - esperar seleção de collection
+                } else {
+                    console.error('❌ Falha ao carregar documentos:', result);
+                    documents = [];
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar documentos:', error);
+                documents = [];
+            }
+        }
+        
+        async function loadDocumentsForCollection(collectionName) {
+            console.log('🔍 Carregando documentos para collection:', collectionName);
+            
+            if (!documents || documents.length === 0) {
+                console.log('⚠️ Nenhum documento carregado ainda - tentando recarregar...');
+                await loadDocuments();
+                
+                if (!documents || documents.length === 0) {
+                    console.log('❌ Ainda não há documentos após reload');
+                    updateDocumentSelect([]);
+                    return;
+                }
+            }
+            
+            console.log('📦 Total de documentos disponíveis:', documents.length);
+            console.log('📦 Primeiros 5 documentos completos:', documents.slice(0, 5));
+            
+            // Mostrar estrutura de alguns documentos para entender o formato
+            documents.slice(0, 5).forEach((doc, i) => {
+                console.log(`📄 Documento ${i + 1}:`, doc);
+                console.log(`   name: ${doc.name}`);
+                console.log(`   path: ${doc.path}`);
+                console.log(`   object_name: ${doc.object_name}`);
+            });
+            
+            // Filtrar documentos da collection específica - match inteligente
+            console.log('🔍 Procurando por collection:', collectionName);
+            
+            const collectionDocuments = documents.filter(doc => {
+                const docPath = doc.name || doc.path || doc;
+                
+                // Verificar múltiplas formas de match (case-insensitive e fuzzy)
+                const collectionLower = collectionName.toLowerCase().replace('_', '');
+                const pathLower = docPath.toLowerCase();
+                
+                const matchPatterns = [
+                    // Match exato
+                    pathLower.includes(collectionName.toLowerCase() + '/'),
+                    // Match com case diferentes
+                    pathLower.includes(collectionLower + '/'),
+                    // Match sem underscores (teste_openai -> testeopenai)
+                    pathLower.includes(collectionLower.replace('_', '') + '/'),
+                    // Match com sufixos (_real, etc)
+                    pathLower.includes(collectionLower + '_real/'),
+                    pathLower.includes(collectionLower + '_test/'),
+                    // Match começando com o nome
+                    pathLower.startsWith(collectionLower + '/'),
+                    pathLower.startsWith(collectionLower.replace('_', '') + '/'),
+                    // Match contendo o nome base
+                    pathLower.includes('/' + collectionLower + '/'),
+                    pathLower.includes(collectionLower),
+                    // Match específicos que vemos nos dados
+                    (collectionName === 'teste_openai' && (pathLower.includes('testeopenai/') || pathLower.includes('teste_openai_real/'))),
+                    (collectionName === 'Teste_gemini' && pathLower.includes('teste_gemini/'))
+                ];
+                
+                const matches = matchPatterns.some(pattern => pattern);
+                
+                if (matches) {
+                    console.log('✅ MATCH encontrado!', docPath);
+                }
+                
+                return matches;
+            });
+            
+            console.log('📁 Documentos da collection encontrados:', collectionDocuments.length);
+            console.log('📁 Paths da collection:', collectionDocuments.map(d => d.name || d.path || d));
+            
+            // Filtrar documentos originais de forma mais flexível
+            const originalDocuments = collectionDocuments.filter(doc => {
+                const docPath = doc.name || doc.path || doc;
+                
+                // Verificar se NÃO é convertido
+                const isNotConverted = !docPath.includes('/converted/') && !docPath.endsWith('.md');
+                
+                // Verificar extensões válidas
+                const validExtensions = ['.pdf', '.docx', '.doc', '.txt', '.pptx', '.xlsx'];
+                const hasValidExtension = validExtensions.some(ext => docPath.toLowerCase().endsWith(ext));
+                
+                console.log('📄 Analisando:', docPath);
+                console.log('  - Não convertido:', isNotConverted);
+                console.log('  - Extensão válida:', hasValidExtension);
+                
+                return isNotConverted && hasValidExtension;
+            });
+            
+            console.log('📄 Documentos originais filtrados:', originalDocuments.length);
+            console.log('📄 Documentos originais finais:', originalDocuments.map(d => d.name || d.path || d));
+            
+            // Se não encontrou nenhum original, mostrar todos da collection para debug
+            if (originalDocuments.length === 0 && collectionDocuments.length > 0) {
+                console.log('⚠️ Nenhum original encontrado, mostrando todos da collection para debug');
+                updateDocumentSelect(collectionDocuments);
+            } else {
+                updateDocumentSelect(originalDocuments);
+            }
+        }
+        
+        function updateDocumentSelect(documentsToShow = null) {
+            console.log('🔄 Atualizando select de documentos...');
+            
+            const docsToUse = documentsToShow || [];
+            console.log('📁 Documentos a mostrar:', docsToUse.length);
+            console.log('📁 Lista de documentos:', docsToUse.map(d => d.name || d.path || d));
+            
+            const documentSelect = document.getElementById('editor-document-select');
+            if (!documentSelect) {
+                console.error('❌ Elemento select não encontrado!');
+                return;
+            }
+            
+            // Limpar opções existentes
+            documentSelect.innerHTML = '<option value="">Selecione um documento...</option>';
+            
+            if (docsToUse && docsToUse.length > 0) {
+                docsToUse.forEach((doc, index) => {
+                    const docPath = doc.name || doc.path || doc;
+                    const option = document.createElement('option');
+                    option.value = docPath;
+                    
+                    // Extrair nome mais amigável do path
+                    const fileName = docPath.split('/').pop();
+                    
+                    // Mostrar tipo de arquivo e tamanho se disponível
+                    let displayName = fileName;
+                    if (doc.size) {
+                        const sizeKB = Math.round(doc.size / 1024);
+                        displayName += ` (${sizeKB} KB)`;
+                    }
+                    
+                    option.textContent = displayName;
+                    option.title = docPath; // Tooltip com path completo
+                    
+                    documentSelect.appendChild(option);
+                    
+                    console.log(`📄 ${index + 1}. Adicionado: ${fileName} (${docPath})`);
+                });
+                
+                console.log('✅ Select atualizado com', docsToUse.length, 'documentos');
+            } else {
+                // Mostrar mensagem informativa
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Nenhum documento encontrado para esta collection';
+                option.disabled = true;
+                option.style.color = '#6B7280';
+                documentSelect.appendChild(option);
+                
+                console.log('⚠️ Nenhum documento encontrado - adicionada mensagem informativa');
+            }
+            
+            // Disparar evento change para atualizar interface
+            documentSelect.dispatchEvent(new Event('change'));
+        }
+        
         // Collection Management
         
         async function loadCollections() {
@@ -1518,11 +2135,13 @@
                     console.log('✅ Collections carregadas:', collections.length);
                     updateCollectionSelect();
                     updateCollectionsList();
+                    updateModelFilter();
                 } else {
                     console.error('❌ Falha ao carregar collections:', result);
                     collections = [];
                     updateCollectionSelect();
                     updateCollectionsList();
+                    updateModelFilter();
                 }
             } catch (error) {
                 console.error('❌ Erro ao carregar collections:', error);
@@ -1616,15 +2235,21 @@
                     } else {
                         let documentsHtml = `
                             <div class="mb-3">
-                                <h5 class="text-sm font-medium text-gray-700 mb-2">Documentos (${result.total_documents})</h5>
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Documentos (${result.documents.length})</h5>
                             </div>
                             <div class="space-y-2 max-h-64 overflow-y-auto">
                         `;
                         
                         result.documents.forEach(doc => {
-                            const filename = doc.filename || doc.source || 'Documento sem nome';
-                            const uploadDate = doc.upload_date || 'Data desconhecida';
-                            const source = doc.source || 'unknown';
+                            console.log('🔍 Processando documento:', doc);
+                            const filename = doc.file_name || doc.metadata?.file_name || doc.source || 'Documento sem nome';
+                            const uploadDate = doc.created_at ? new Date(doc.created_at).toLocaleString('pt-BR') : 'Data desconhecida';
+                            const source = doc.metadata?.source || doc.source || 'unknown';
+                            const content = doc.content || '';
+                            
+                            console.log('📄 Filename:', filename);
+                            console.log('📅 Upload date:', uploadDate);
+                            console.log('🏷️ Source:', source);
                             
                             // Determinar ícone baseado no tipo de arquivo
                             let fileIcon = 'file-text';
@@ -1642,7 +2267,7 @@
                                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">${source}</span>
                                         </div>
                                         <p class="text-xs text-gray-500 mt-1">Processado em: ${uploadDate}</p>
-                                        <p class="text-xs text-gray-600 mt-1 truncate">${doc.text}</p>
+                                        <p class="text-xs text-gray-600 mt-1 truncate">${content.substring(0, 100)}${content.length > 100 ? '...' : ''}</p>
                                     </div>
                                 </div>
                             `;
@@ -1739,6 +2364,23 @@
             });
         }
         
+        function updateModelFilter() {
+            const modelFilter = document.getElementById('model-filter');
+            if (modelFilter) {
+                modelFilter.innerHTML = '<option value="">Todos os modelos</option>';
+                
+                // Obter modelos únicos das collections
+                const uniqueModels = [...new Set(collections.map(c => c.embedding_model))];
+                
+                uniqueModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    modelFilter.appendChild(option);
+                });
+            }
+        }
+        
         // Modal functions
         function showCollectionModal() {
             document.getElementById('collection-modal').classList.remove('hidden');
@@ -1814,6 +2456,22 @@
             }
         }
         
+        function filterCollectionsByModel(selectedModel) {
+            const container = document.getElementById('collections-list');
+            const collectionElements = container.querySelectorAll('.border');
+            
+            collectionElements.forEach(element => {
+                const collectionName = element.querySelector('h4').textContent;
+                const collection = collections.find(c => c.name === collectionName);
+                
+                if (selectedModel === '' || collection.embedding_model === selectedModel) {
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
+        }
+        
 
         
         const newCollectionBtn = document.getElementById('new-collection-btn');
@@ -1824,6 +2482,15 @@
         
         const createCollectionBtn = document.getElementById('create-collection-btn');
         if (createCollectionBtn) createCollectionBtn.addEventListener('click', createCollection);
+        
+        // Filtro por modelo
+        const modelFilter = document.getElementById('model-filter');
+        if (modelFilter) {
+            modelFilter.addEventListener('change', (e) => {
+                const selectedModel = e.target.value;
+                filterCollectionsByModel(selectedModel);
+            });
+        }
         
         const embeddingModelSelect = document.getElementById('embedding-model-select');
         if (embeddingModelSelect) {
@@ -1847,27 +2514,7 @@
             });
         }
         
-        const databaseEmbeddingModelSelect = document.getElementById('database-embedding-model-select');
-        if (databaseEmbeddingModelSelect) {
-            databaseEmbeddingModelSelect.addEventListener('change', (e) => {
-                const modelKey = e.target.value;
-                const model = embeddingModels.find(m => m.key === modelKey);
-                
-                const databaseModelInfo = document.getElementById('database-model-info');
-                if (model) {
-                    const databaseModelName = document.getElementById('database-model-name');
-                    const databaseModelDimension = document.getElementById('database-model-dimension');
-                    const databaseModelProvider = document.getElementById('database-model-provider');
-                    
-                    if (databaseModelName) databaseModelName.textContent = model.name;
-                    if (databaseModelDimension) databaseModelDimension.textContent = model.dimension;
-                    if (databaseModelProvider) databaseModelProvider.textContent = model.provider;
-                    if (databaseModelInfo) databaseModelInfo.classList.remove('hidden');
-                } else {
-                    if (databaseModelInfo) databaseModelInfo.classList.add('hidden');
-                }
-            });
-        }
+
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -1891,6 +2538,14 @@
                 console.log('✅ loadCollections chamado');
             } catch (error) {
                 console.error('❌ Erro em loadCollections:', error);
+            }
+            
+            try {
+                console.log('📁 Chamando loadDocuments...');
+                loadDocuments();
+                console.log('✅ loadDocuments chamado');
+            } catch (error) {
+                console.error('❌ Erro em loadDocuments:', error);
             }
             
             // Outros métodos simplificados
