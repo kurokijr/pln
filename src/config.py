@@ -24,7 +24,7 @@ class Config:
     MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    MINIO_BUCKET_DOCUMENTS = "documents"
+    MINIO_BUCKET_DOCUMENTS = os.getenv("MINIO_BUCKET_NAME", "documents")
     
     # n8n
     N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook")

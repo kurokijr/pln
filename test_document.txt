@@ -1,8 +1,0 @@
-Este é um documento de teste para upload.
-
-Este documento contém algumas informações importantes:
-- Teste de processamento de texto
-- Verificação de funcionalidades
-- Validação de upload
-
-O sistema deve processar este documento corretamente.

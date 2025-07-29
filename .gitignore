@@ -155,30 +155,13 @@ cython_debug/
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be added to the global gitignore or merged into this project gitignore.  For a PyCharm
-#  project, it is recommended to include the following files:
-#  .idea/
-#  *.iml
-#  *.ipr
-#  *.iws
-
-# Project specific
-uploads/
-volumes/
-*.db
-*.sqlite
-*.sqlite3
+#  project, it is not recommended to check them into version control.
+.idea/
 
 # Docker
 .dockerignore
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -187,7 +170,16 @@ volumes/
 ehthumbs.db
 Thumbs.db
 
-# Logs
+# IDE files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Project specific
+volumes/
+uploads/
+data/
 logs/
 *.log
 
@@ -197,10 +189,51 @@ temp/
 *.tmp
 *.temp
 
-# API keys and secrets
+# Test files
+test_*.txt
+teste_*.txt
+debug_*.txt
+
+# Docker Compose override
+docker-compose.override.yml
+
+# Local configuration
 .env.local
+.env.development
+.env.test
 .env.production
-secrets.json
-credentials.json
-*.env
-.env
+
+# Node.js (if using npm/yarn for frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Editor backup files
+*~
+*.bak
+*.backup
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Cursor IDE
+.cursor/

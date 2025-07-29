@@ -63,6 +63,63 @@ Path("uploads").mkdir(exist_ok=True)
 Path("data").mkdir(exist_ok=True)
 
 
+@socketio.on('chat_message')
+def handle_chat_message(data):
+    """Handler para mensagens de busca por similaridade via WebSocket."""
+    try:
+        message = data.get('message')
+        collection_name = data.get('collection_name')
+        similarity_threshold = data.get('similarity_threshold', 0.0)
+        
+        if not message:
+            emit('chat_response', {'error': 'Mensagem é obrigatória'})
+            return
+        
+        # Validar threshold de similaridade
+        if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0.0 or similarity_threshold > 1.0:
+            similarity_threshold = 0.0
+        
+        # Buscar documentos similares diretamente
+        if collection_name:
+            collection_names = [collection_name]
+        else:
+            # Buscar em todas as collections
+            collections = vector_store.list_collections()
+            collection_names = [c['name'] for c in collections]
+        
+        all_results = []
+        for coll_name in collection_names:
+            try:
+                results = vector_store.search_similar(
+                    collection_name=coll_name,
+                    query=message,
+                    top_k=10,
+                    similarity_threshold=similarity_threshold
+                )
+                # Adicionar informação da collection e número do chunk
+                for i, result in enumerate(results, 1):
+                    result['source_collection'] = coll_name
+                    result['chunk_number'] = i
+                all_results.extend(results)
+            except Exception as e:
+                print(f"Erro ao buscar na collection {coll_name}: {e}")
+                continue
+        
+        # Ordenar por similaridade (maior primeiro)
+        all_results.sort(key=lambda x: x.get('similarity_percentage', x.get('score', 0) * 100), reverse=True)
+        
+        # Enviar resposta via WebSocket
+        emit('chat_response', {
+            'success': True,
+            'response': f"Encontrados {len(all_results)} documentos com similaridade ≥ {(similarity_threshold * 100):.0f}%",
+            'sources': all_results,
+            'similarity_threshold': similarity_threshold
+        })
+        
+    except Exception as e:
+        emit('chat_response', {'error': str(e)})
+
+
 def allowed_file(filename: str) -> bool:
     """Verifica se o arquivo é permitido."""
     return '.' in filename and \
@@ -413,7 +470,7 @@ def upload_document():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Endpoint para chat com RAG."""
+    """Endpoint para chat com RAG com suporte a múltiplas collections e threshold de similaridade."""
     try:
         data = request.get_json()
         
@@ -421,37 +478,38 @@ def chat():
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
         message = data.get('message')
-        collection_name = data.get('collection_name')
+        collection_names = data.get('collection_names')  # Pode ser string, lista ou None
+        collection_name = data.get('collection_name')  # Compatibilidade com versão anterior
         session_id = data.get('session_id')
+        similarity_threshold = data.get('similarity_threshold', 0.0)  # Threshold de similaridade (0.0 a 1.0)
         
-        if not message or not collection_name:
-            return jsonify({'error': 'Mensagem e collection são obrigatórios'}), 400
+        if not message:
+            return jsonify({'error': 'Mensagem é obrigatória'}), 400
         
-        # Buscar documentos similares
-        similar_docs = vector_store.search_similar(
-            collection_name=collection_name,
-            query=message,
-            top_k=5
-        )
+        # Validar threshold de similaridade
+        if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0.0 or similarity_threshold > 1.0:
+            similarity_threshold = 0.0
         
-        if not similar_docs:
-            return jsonify({
-                'success': True,
-                'response': 'Desculpe, não encontrei informações relevantes para responder sua pergunta.',
-                'sources': []
-            })
+        # Suporte a compatibilidade: se collection_name foi fornecido mas collection_names não
+        if collection_name and not collection_names:
+            collection_names = collection_name
         
-        # Gerar resposta usando o chat manager
-        response = chat_manager.generate_response(
+        # Processar mensagem usando o ChatManager
+        result = chat_manager.chat(
+            session_id=session_id or "",
             message=message,
-            context_docs=similar_docs,
-            session_id=session_id
+            collection_names=collection_names,
+            similarity_threshold=similarity_threshold
         )
         
         return jsonify({
             'success': True,
-            'response': response,
-            'sources': similar_docs
+            'response': result['response'],
+            'sources': result['sources'],
+            'session_id': result['session_id'],
+            'collections_used': result.get('collections_used', []),
+            'processed_by': result.get('processed_by', 'unknown'),
+            'similarity_threshold': similarity_threshold
         })
         
     except Exception as e:
@@ -529,8 +587,9 @@ def list_documents():
 
 @app.route('/api/collections/<collection_name>/documents', methods=['GET'])
 def list_collection_documents(collection_name: str):
-    """Lista documentos de uma collection."""
+    """Lista documentos originais de uma collection."""
     try:
+        print(f"🔍 Listando documentos originais da collection: {collection_name}", file=sys.stderr)
         limit = request.args.get('limit', 1000, type=int)
         
         documents = vector_store.list_collection_documents(
@@ -538,13 +597,21 @@ def list_collection_documents(collection_name: str):
             limit=limit
         )
         
+        print(f"📄 Encontrados {len(documents)} documentos originais", file=sys.stderr)
+        for i, doc in enumerate(documents[:3]):  # Log dos primeiros 3 para debug
+            print(f"   Doc {i+1}: {doc.get('name', 'Sem nome')} - {doc.get('file_type', 'tipo desconhecido')}", file=sys.stderr)
+        
         return jsonify({
             'success': True,
             'documents': documents,
-            'total': len(documents)
+            'total': len(documents),
+            'collection_name': collection_name
         })
         
     except Exception as e:
+        print(f"❌ Erro ao listar documentos da collection {collection_name}: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -596,21 +663,74 @@ def get_collection_content(collection_name: str):
         if document_name:
             # Buscar documento específico no storage
             try:
+                # Primeiro, tentar encontrar o documento na collection para obter o caminho processado
+                documents = vector_store.list_collection_documents(collection_name)
+                
+                # Encontrar o documento específico por nome original
+                target_doc = None
+                for doc in documents:
+                    # Comparar pelo nome do arquivo original ou pelo minio_original_path
+                    if (doc.get('name') == document_name or 
+                        doc.get('file_name') == document_name or
+                        doc.get('minio_original_path') == document_name or
+                        doc.get('original_path') == document_name):
+                        target_doc = doc
+                        break
+                
+                if not target_doc:
+                    return jsonify({'error': f'Documento {document_name} não encontrado na collection {collection_name}'}), 404
+                
+                # Usar o caminho processado se disponível, senão o original
+                processed_path = target_doc.get('minio_processed_path')
+                if not processed_path:
+                    return jsonify({'error': f'Documento {document_name} não possui versão processada disponível'}), 404
+                
+                print(f"🔍 Buscando documento processado: {processed_path}", file=sys.stderr)
+                
                 if storage_manager.use_minio:
                     # MinIO storage
-                    content_bytes = storage_manager.storage.download_file(document_name)
-                    content = content_bytes.decode('utf-8')
+                    content_bytes = storage_manager.storage.download_file(processed_path)
+                    # Tentar diferentes codificações
+                    try:
+                        content = content_bytes.decode('utf-8')
+                    except UnicodeDecodeError:
+                        try:
+                            content = content_bytes.decode('latin-1')
+                            print(f"⚠️ Usando codificação latin-1 para {processed_path}", file=sys.stderr)
+                        except UnicodeDecodeError:
+                            try:
+                                content = content_bytes.decode('cp1252')
+                                print(f"⚠️ Usando codificação cp1252 para {processed_path}", file=sys.stderr)
+                            except UnicodeDecodeError:
+                                # Como último recurso, usar utf-8 com erro 'ignore'
+                                content = content_bytes.decode('utf-8', errors='ignore')
+                                print(f"⚠️ Usando UTF-8 com ignore para {processed_path}", file=sys.stderr)
                 else:
                     # Local storage
-                    content = storage_manager.storage.read_file(document_name)
+                    try:
+                        content = storage_manager.storage.read_file(processed_path)
+                    except UnicodeDecodeError:
+                        # Tentar ler como binário e decodificar
+                        with open(processed_path, 'rb') as f:
+                            content_bytes = f.read()
+                        try:
+                            content = content_bytes.decode('utf-8')
+                        except UnicodeDecodeError:
+                            content = content_bytes.decode('utf-8', errors='ignore')
+                
+                print(f"✅ Conteúdo obtido com sucesso. Tamanho: {len(content)} caracteres", file=sys.stderr)
                 
                 return jsonify({
                     'success': True,
                     'content': content,
-                    'document_name': document_name,
+                    'document_name': target_doc.get('name', document_name),
+                    'processed_path': processed_path,
                     'document_count': 1
                 })
             except Exception as e:
+                print(f"❌ Erro ao buscar documento: {str(e)}", file=sys.stderr)
+                import traceback
+                traceback.print_exc()
                 return jsonify({'error': f'Documento não encontrado: {str(e)}'}), 404
         else:
             # Comportamento original - conteúdo da collection
@@ -634,23 +754,72 @@ def get_collection_content(collection_name: str):
 
 @app.route('/api/qa-generate', methods=['POST'])
 def generate_qa():
-    """Gera perguntas e respostas a partir de um documento."""
+    """Gera perguntas e respostas a partir de um documento (apenas geração, sem vetorização)."""
     try:
         data = request.get_json()
+        print(f"🔍 Dados recebidos no qa-generate: {data is not None}", file=sys.stderr)
         
         if not data:
+            print("❌ Nenhum dado JSON fornecido", file=sys.stderr)
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
         content = data.get('content')
-        collection_name = data.get('collection_name')
         num_questions = data.get('num_questions', 10)
         difficulty = data.get('difficulty', 'Intermediário')
         temperature = data.get('temperature', 0.5)
         context_keywords = data.get('context_keywords', '')
         custom_prompt = data.get('custom_prompt', '')
         
-        if not content or not collection_name:
-            return jsonify({'error': 'Conteúdo e collection são obrigatórios'}), 400
+        print(f"📄 Tamanho do conteúdo: {len(content) if content else 0}", file=sys.stderr)
+        
+        # Debug individual das variáveis
+        try:
+            print(f"🔢 num_questions: {num_questions} (tipo: {type(num_questions)})", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Erro com num_questions: {e}", file=sys.stderr)
+            
+        try:
+            print(f"🎚️ difficulty: '{difficulty}' (tipo: {type(difficulty)})", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Erro com difficulty: {e}", file=sys.stderr)
+            
+        try:
+            print(f"🌡️ temperature: {temperature} (tipo: {type(temperature)})", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Erro com temperature: {e}", file=sys.stderr)
+            
+        try:
+            print(f"🔤 Context keywords: '{context_keywords}' (tipo: {type(context_keywords)})", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Erro com context_keywords: {e}", file=sys.stderr)
+            
+        try:
+            print(f"📝 Custom prompt length: {len(custom_prompt) if custom_prompt else 0}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ Erro com custom_prompt: {e}", file=sys.stderr)
+        
+        if not content:
+            print("❌ Conteúdo vazio ou não fornecido", file=sys.stderr)
+            return jsonify({'error': 'Conteúdo é obrigatório'}), 400
+        
+        if not content.strip():
+            print("❌ Conteúdo contém apenas espaços em branco", file=sys.stderr)
+            return jsonify({'error': 'Conteúdo não pode estar vazio'}), 400
+        
+        print(f"✅ Validações passadas. qa_generator: {type(qa_generator)}", file=sys.stderr)
+        
+        # Processar custom prompt substituindo placeholders
+        if custom_prompt:
+            processed_prompt = custom_prompt.format(
+                num_questions=num_questions,
+                context_keywords=context_keywords,
+                difficulty=difficulty,
+                document_text=content
+            )
+            print(f"🔧 Prompt processado (primeiros 100 chars): {repr(processed_prompt[:100])}", file=sys.stderr)
+        else:
+            processed_prompt = custom_prompt
+            print(f"🔧 Usando prompt padrão", file=sys.stderr)
         
         # Parâmetros para geração de Q&A
         params = {
@@ -658,14 +827,65 @@ def generate_qa():
             'context_keywords': context_keywords,
             'difficulty': difficulty,
             'temperature': temperature,
-            'custom_prompt': custom_prompt
+            'custom_prompt': processed_prompt
         }
         
         # Gerar Q&A
-        qa_content = qa_generator.generate_qa_pairs(content, params)
+        print(f"🚀 Iniciando geração de Q&A com {len(content)} caracteres...", file=sys.stderr)
+        print(f"📋 Parâmetros completos: {params}", file=sys.stderr)
+        
+        try:
+            print("⚡ Prestes a chamar qa_generator.generate_qa_pairs()", file=sys.stderr)
+            qa_content = qa_generator.generate_qa_pairs(content, params)
+            print(f"✅ Função generate_qa_pairs retornou!", file=sys.stderr)
+            print(f"📊 Resultado da geração: {type(qa_content)}, length: {len(qa_content) if qa_content else 0}", file=sys.stderr)
+            if qa_content:
+                print(f"📄 Preview: {repr(qa_content[:100])}", file=sys.stderr)
+        except Exception as gen_error:
+            print(f"❌ Erro durante geração: {str(gen_error)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Erro na geração de Q&A: {str(gen_error)}'}), 500
         
         if not qa_content:
+            print("❌ Q&A generator retornou conteúdo vazio", file=sys.stderr)
             return jsonify({'error': 'Não foi possível gerar perguntas e respostas'}), 400
+        
+        if not qa_content.strip():
+            print("❌ Q&A generator retornou apenas espaços em branco", file=sys.stderr)
+            return jsonify({'error': 'Conteúdo Q&A gerado está vazio'}), 400
+        
+        # Converter para documentos (apenas para contar)
+        documents = qa_generator.qa_to_documents(qa_content, "temp")
+        
+        return jsonify({
+            'success': True,
+            'message': f'{len(documents)} pares de Q&A gerados com sucesso',
+            'qa_content': qa_content,
+            'qa_count': len(documents)
+        })
+            
+    except Exception as e:
+        print(f"❌ Erro ao gerar Q&A: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/qa-vectorize', methods=['POST'])
+def vectorize_qa():
+    """Vetoriza Q&As já gerados em uma collection específica."""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        qa_content = data.get('qa_content')
+        collection_name = data.get('collection_name')
+        
+        if not qa_content or not collection_name:
+            return jsonify({'error': 'Conteúdo Q&A e collection são obrigatórios'}), 400
         
         # Converter para documentos
         documents = qa_generator.qa_to_documents(qa_content, collection_name)
@@ -679,8 +899,7 @@ def generate_qa():
         if success:
             return jsonify({
                 'success': True,
-                'message': f'{len(documents)} pares de Q&A gerados e inseridos com sucesso',
-                'qa_content': qa_content,
+                'message': f'{len(documents)} pares de Q&A inseridos com sucesso na collection {collection_name}',
                 'qa_count': len(documents)
             })
         else:
@@ -730,6 +949,98 @@ def create_qa_embeddings():
             return jsonify({'error': 'Erro ao criar embeddings no banco de vetores'}), 500
             
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/semantic-search', methods=['POST'])
+def semantic_search():
+    """Endpoint para busca semântica que aciona o N8N."""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        question = data.get('question')
+        collection_name = data.get('collection_name', '')
+        models = data.get('models', {})
+        
+        if not question:
+            return jsonify({'error': 'Pergunta é obrigatória'}), 400
+        
+        # Verificar se pelo menos um modelo foi selecionado
+        openai_enabled = models.get('openai', False)
+        gemini_enabled = models.get('gemini', False)
+        
+        if not openai_enabled and not gemini_enabled:
+            return jsonify({'error': 'Pelo menos um modelo deve ser selecionado'}), 400
+        
+        # Configuração do N8N
+        n8n_webhook_url = os.getenv('N8N_WEBHOOK_URL')
+        if not n8n_webhook_url:
+            return jsonify({'error': 'N8N_WEBHOOK_URL não configurada no .env'}), 500
+        
+        # Ajustar URL para o webhook de busca semântica
+        if '/webhook-test/' in n8n_webhook_url:
+            # Se for um webhook de teste, usar o mesmo padrão para semantic-search
+            n8n_webhook_url = n8n_webhook_url.replace('/webhook-test/', '/webhook/semantic-search/')
+        elif not n8n_webhook_url.endswith('/semantic-search'):
+            # Se não terminar com /semantic-search, adicionar
+            n8n_webhook_url = n8n_webhook_url.rstrip('/') + '/semantic-search'
+        
+        # Preparar dados para o N8N
+        n8n_payload = {
+            'question': question,
+            'collection_name': collection_name,
+            'models': {
+                'openai': openai_enabled,
+                'gemini': gemini_enabled
+            },
+            'timestamp': time.time()
+        }
+        
+        # Fazer requisição para o N8N
+        import requests
+        try:
+            response = requests.post(
+                n8n_webhook_url,
+                json=n8n_payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=60  # Timeout de 60 segundos
+            )
+            
+            if response.status_code == 200:
+                n8n_result = response.json()
+                
+                # Processar resposta do N8N
+                responses = {}
+                
+                if openai_enabled and 'openai_response' in n8n_result:
+                    responses['openai'] = n8n_result['openai_response']
+                
+                if gemini_enabled and 'gemini_response' in n8n_result:
+                    responses['gemini'] = n8n_result['gemini_response']
+                
+                return jsonify({
+                    'success': True,
+                    'responses': responses,
+                    'n8n_workflow_id': n8n_result.get('workflow_id'),
+                    'processing_time': n8n_result.get('processing_time')
+                })
+            else:
+                return jsonify({
+                    'error': f'Erro no N8N: {response.status_code} - {response.text}'
+                }), 500
+                
+        except requests.exceptions.RequestException as e:
+            return jsonify({
+                'error': f'Erro de conexão com N8N: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Erro na busca semântica: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

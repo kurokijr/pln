@@ -231,8 +231,17 @@ class QdrantVectorStore:
             raise e
     
     def search_similar(self, collection_name: str, query: str, top_k: int = 5, 
-                      embedding_model: str = None) -> List[Dict[str, Any]]:
-        """Busca documentos similares em uma collection."""
+                      embedding_model: str = None, similarity_threshold: float = 0.0) -> List[Dict[str, Any]]:
+        """
+        Busca documentos similares em uma collection com threshold de similaridade.
+        
+        Args:
+            collection_name: Nome da collection
+            query: Query de busca
+            top_k: Número máximo de resultados
+            embedding_model: Modelo de embedding (opcional)
+            similarity_threshold: Threshold de similaridade (0.0 a 1.0, onde 0.0 = 0% e 1.0 = 100%)
+        """
         self._ensure_connection()
         
         try:
@@ -264,17 +273,24 @@ class QdrantVectorStore:
                 )  # Excluir o ponto de metadata
             )
             
-            # Formatar resultados
+            # Formatar resultados e aplicar threshold de similaridade
             results = []
             for point in search_result:
-                results.append({
-                    "content": point.payload.get("content", ""),
-                    "metadata": point.payload.get("metadata", {}),
-                    "file_name": point.payload.get("file_name", "unknown"),
-                    "score": point.score,
-                    "id": point.id
-                })
+                # Converter score para percentual (0-100%)
+                similarity_percentage = point.score * 100
+                
+                # Aplicar threshold de similaridade
+                if similarity_percentage >= (similarity_threshold * 100):
+                    results.append({
+                        "content": point.payload.get("content", ""),
+                        "metadata": point.payload.get("metadata", {}),
+                        "file_name": point.payload.get("file_name", "unknown"),
+                        "score": point.score,
+                        "similarity_percentage": similarity_percentage,
+                        "id": point.id
+                    })
             
+            print(f"🔍 Busca com threshold {similarity_threshold * 100:.1f}%: {len(results)} resultados de {len(search_result)} encontrados")
             return results
             
         except Exception as e:
@@ -282,7 +298,7 @@ class QdrantVectorStore:
             raise e
     
     def list_collections(self) -> List[Dict[str, Any]]:
-        """Lista todas as collections disponíveis."""
+        """Lista todas as collections disponíveis com contagem real de documentos."""
         self._ensure_connection()
         
         try:
@@ -295,13 +311,17 @@ class QdrantVectorStore:
                 # Buscar metadata da collection
                 metadata = self._get_collection_metadata(collection_name)
                 
+                # Calcular contagem real de documentos
+                real_count = self._get_real_document_count(collection_name)
+                
                 if metadata:
                     collections.append({
                         "name": collection_name,
                         "embedding_model": metadata.get("embedding_model", "unknown"),
                         "description": metadata.get("description", ""),
                         "created_at": metadata.get("created_at", ""),
-                        "document_count": metadata.get("document_count", 0),
+                        "document_count": real_count,  # Usar contagem real
+                        "count": real_count,  # Alias para compatibilidade
                         "model_config": metadata.get("model_config", {})
                     })
                 else:
@@ -311,7 +331,8 @@ class QdrantVectorStore:
                         "embedding_model": "unknown",
                         "description": "Collection sem configuração",
                         "created_at": "",
-                        "document_count": 0,
+                        "document_count": real_count,  # Usar contagem real
+                        "count": real_count,  # Alias para compatibilidade
                         "model_config": {}
                     })
             
@@ -321,30 +342,74 @@ class QdrantVectorStore:
             print(f"❌ Erro ao listar collections: {e}")
             raise e
     
+    def _get_real_document_count(self, collection_name: str) -> int:
+        """Calcula a contagem real de documentos em uma collection."""
+        try:
+            # Usar scroll para contar todos os pontos (exceto metadata)
+            scroll_result = self.client.scroll(
+                collection_name=collection_name,
+                limit=10000  # Limite alto para pegar todos
+            )
+            
+            real_count = 0
+            for point in scroll_result[0]:  # scroll_result é uma tupla (points, next_page_offset)
+                if point.id != 0:  # Excluir ponto de metadata
+                    real_count += 1
+            
+            print(f"📊 Collection '{collection_name}': {real_count} documentos reais encontrados")
+            return real_count
+            
+        except Exception as e:
+            print(f"❌ Erro ao contar documentos da collection '{collection_name}': {e}")
+            return 0
+    
     def list_collection_documents(self, collection_name: str, limit: int = 1000) -> List[Dict[str, Any]]:
-        """Lista documentos de uma collection específica."""
+        """Lista documentos originais únicos de uma collection específica."""
         self._ensure_connection()
         
         try:
             # Buscar todos os pontos da collection (exceto metadata)
             scroll_result = self.client.scroll(
-                collection_name=collection_name
+                collection_name=collection_name,
+                limit=limit
             )
             
-            documents = []
+            # Dicionário para armazenar documentos únicos por file_name
+            unique_documents = {}
+            
             for point in scroll_result[0]:  # scroll_result é uma tupla (points, next_page_offset)
                 # Pular o ponto de metadata (ID 0)
                 if point.id == 0:
                     continue
-                    
-                documents.append({
-                    "id": point.id,
-                    "content": point.payload.get("content", ""),
-                    "metadata": point.payload.get("metadata", {}),
-                    "file_name": point.payload.get("file_name", "Documento sem nome"),
-                    "chunk_index": point.payload.get("chunk_index", 0),
-                    "created_at": point.payload.get("created_at", "")
-                })
+                
+                # Extrair informações do documento original dos metadados
+                metadata = point.payload.get("metadata", {})
+                file_name = point.payload.get("file_name", "Documento sem nome")
+                
+                # Se já temos este documento, pular
+                if file_name in unique_documents:
+                    continue
+                
+                # Criar entrada para documento original
+                document_info = {
+                    "name": file_name,
+                    "file_name": file_name,
+                    "collection_name": metadata.get("collection_name", collection_name),
+                    "minio_original_path": metadata.get("minio_original_path", ""),
+                    "minio_processed_path": metadata.get("minio_processed_path", ""),
+                    "upload_timestamp": metadata.get("upload_timestamp", ""),
+                    "created_at": point.payload.get("created_at", ""),
+                    "source": metadata.get("source", ""),
+                    "file_size": metadata.get("file_size", 0),
+                    "file_type": metadata.get("file_type", ""),
+                    "original_path": metadata.get("minio_original_path", "")  # Para compatibilidade
+                }
+                
+                unique_documents[file_name] = document_info
+            
+            # Retornar lista de documentos únicos
+            documents = list(unique_documents.values())
+            print(f"📄 Encontrados {len(documents)} documentos originais únicos na collection '{collection_name}'")
             
             return documents
             

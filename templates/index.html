@@ -90,6 +90,36 @@
             border-right: 3px solid #1d4ed8;
         }
         
+        /* Estilos para a barra de similaridade */
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #3b82f6 0%, #3b82f6 0%, #e5e7eb 0%);
+            border-radius: 8px;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
         /* Layout responsivo */
         @media (max-width: 768px) {
             .sidebar {
@@ -192,7 +222,7 @@
         <div id="sidebar-overlay" class="sidebar-overlay"></div>
         
         <!-- Menu Lateral Fixo -->
-        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
+        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0 flex flex-col">
             <!-- Logo/Header do Sidebar -->
             <div class="p-6 border-b border-gray-200">
                     <h1 class="text-xl font-semibold text-gray-900">
@@ -202,7 +232,7 @@
                 </div>
             
             <!-- Menu de Navegação -->
-            <nav class="p-4 space-y-2">
+            <nav class="flex-1 p-4 space-y-2">
                 <button id="upload-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="upload" class="w-5 h-5"></i>
                     <span>Upload</span>
@@ -218,10 +248,15 @@
                     <span>Editor</span>
                     </button>
                 
-                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="message-circle" class="w-5 h-5"></i>
-                    <span>Chat</span>
-                    </button>
+                                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="search" class="w-5 h-5"></i>
+                    <span>Busca por Similaridade</span>
+                </button>
+                
+                <button id="semantic-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="brain" class="w-5 h-5"></i>
+                    <span>Busca Semântica</span>
+                </button>
                 
                 <button id="history-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="clock" class="w-5 h-5"></i>
@@ -230,7 +265,7 @@
             </nav>
             
             <!-- Status de Conexão -->
-            <div class="absolute bottom-4 left-4 right-4">
+            <div class="mt-auto">
                 <div id="status-indicator" class="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
                     <div class="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span class="text-sm text-gray-600">Conectado</span>
@@ -429,11 +464,11 @@
                             <!-- Document Selection -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection (Origem):</label>
                                     <select id="editor-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2" required>
                                         <option value="">Selecione uma collection...</option>
                                     </select>
-                                    <p class="text-xs text-gray-500 mt-1">Collection para inserir os Q&As gerados</p>
+                                    <p class="text-xs text-gray-500 mt-1">Collection com documentos originais</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Documento:</label>
@@ -514,12 +549,15 @@ DOCUMENTO:
                             </div>
 
                             <!-- Action Buttons -->
-                            <div class="flex space-x-4">
+                            <div class="flex flex-wrap gap-4">
                                 <button id="generate-qa-btn" class="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 font-medium">
                                     🚀 Gerar Q&As
                                 </button>
-                                <button id="vectorize-content-btn" class="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium">
-                                    📊 Vetorizar Conteúdo
+                                <button id="vectorize-qa-btn" class="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium hidden">
+                                    📊 Vetorizar Q&As
+                                </button>
+                                <button id="edit-qa-btn" class="bg-yellow-600 text-white px-6 py-3 rounded-md hover:bg-yellow-700 font-medium hidden">
+                                    ✏️ Editar Q&As
                                 </button>
                             </div>
 
@@ -545,14 +583,22 @@ DOCUMENTO:
                             <div id="qa-results" class="hidden">
                                 <div class="border-t pt-6">
                                     <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-lg font-medium text-gray-900">📋 Q&As Gerados</h3>
+                                        <h3 class="text-lg font-medium text-gray-900">📋 Q&As Gerados - Preview</h3>
                                         <div class="flex space-x-2">
                                             <button id="download-qa-btn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm">
                                                 💾 Baixar Q&As
                                             </button>
-                                            <button id="create-embeddings-btn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 text-sm">
-                                                🔗 Criar Embeddings
-                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Alerta de preview -->
+                                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="text-yellow-600">⚠️</div>
+                                            <div>
+                                                <p class="text-sm font-medium text-yellow-800">Preview do Conteúdo Gerado</p>
+                                                <p class="text-xs text-yellow-700">Revise o conteúdo antes de vetorizar. Você pode editar o markdown se necessário.</p>
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -560,31 +606,67 @@ DOCUMENTO:
                                     <div class="mb-4">
                                         <div class="border-b border-gray-200">
                                             <nav class="-mb-px flex space-x-8">
-                                                <button id="qa-tab-formatted" class="qa-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="formatted">
-                                                    📋 Visualização Formatada
+                                                <button id="qa-tab-formatted" class="qa-tab-btn border-indigo-500 text-indigo-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="formatted">
+                                                    👁️ Preview Formatado
                                                 </button>
-                                                <button id="qa-tab-markdown" class="qa-tab-btn border-indigo-500 text-indigo-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="markdown">
-                                                    📝 Markdown Raw
+                                                <button id="qa-tab-markdown" class="qa-tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="markdown">
+                                                    ✏️ Editar Markdown
                                                 </button>
                                             </nav>
                                         </div>
                                     </div>
                                     
-                                    <!-- Conteúdo formatado -->
+                                    <!-- Conteúdo formatado (preview) -->
                                     <div id="qa-content-formatted" class="qa-tab-content">
-                                        <div id="qa-list" class="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4"></div>
+                                        <div id="qa-list" class="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4 bg-white"></div>
                                     </div>
                                     
-                                    <!-- Conteúdo markdown raw -->
+                                    <!-- Conteúdo markdown editável -->
                                     <div id="qa-content-markdown" class="qa-tab-content hidden">
                                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                             <div class="flex justify-between items-center mb-2">
-                                                <span class="text-sm font-medium text-gray-700">Markdown para Embeddings:</span>
-                                                <button id="copy-markdown-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
-                                                    📋 Copiar
-                                                </button>
+                                                <span class="text-sm font-medium text-gray-700">Markdown Editável:</span>
+                                                <div class="flex space-x-2">
+                                                    <button id="copy-markdown-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                                        📋 Copiar
+                                                    </button>
+                                                    <button id="save-markdown-btn" class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                                        💾 Salvar Alterações
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <textarea id="qa-markdown-content" class="w-full h-96 font-mono text-sm border border-gray-300 rounded-md px-3 py-2" readonly></textarea>
+                                            <textarea id="qa-markdown-content" class="w-full h-96 font-mono text-sm border border-gray-300 rounded-md px-3 py-2" placeholder="O markdown gerado aparecerá aqui e pode ser editado..."></textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Seção de vetorização -->
+                                    <div id="vectorization-section" class="border-t pt-4 mt-6">
+                                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                            <h4 class="text-lg font-medium text-blue-900 mb-3">🚀 Pronto para Vetorizar?</h4>
+                                            <p class="text-sm text-blue-700 mb-4">
+                                                O conteúdo será inserido na collection de destino selecionada como embeddings vetorizados.
+                                            </p>
+                                            
+                                            <!-- Seletor de Collection Destino -->
+                                            <div class="mb-4">
+                                                <label class="block text-sm font-medium text-blue-800 mb-2">Collection de Destino:</label>
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                                    <div class="md:col-span-2">
+                                                        <select id="qa-collection-select" class="w-full border border-blue-300 rounded-md px-3 py-2 bg-white" required>
+                                                            <option value="">Selecione a collection destino...</option>
+                                                        </select>
+                                                        <p class="text-xs text-blue-600 mt-1">Collection para inserir Q&As geradas</p>
+                                                    </div>
+                                                    <div class="flex space-x-2">
+                                                        <button id="refresh-collections-btn" class="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 text-sm">
+                                                            🔄 Atualizar
+                                                        </button>
+                                                        <button id="vectorize-final-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                                                            📊 Vetorizar Q&As
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -595,45 +677,108 @@ DOCUMENTO:
 
                 <!-- Chat -->
                 <div id="chat-content" class="content-section hidden">
-                    <div class="bg-white rounded-lg shadow flex flex-col h-[600px]">
-                        <!-- Chat Header -->
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <!-- Search Header -->
                         <div class="border-b px-6 py-4">
                             <div class="flex justify-between items-center">
-                                <h2 class="text-xl font-semibold text-gray-900">Chat RAG</h2>
-                                <div class="flex items-center space-x-4">
-                                    <span id="current-session" class="text-sm text-gray-600">Sessão: Nova</span>
-                                    <button id="new-session-btn" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                                        Nova Sessão
+                                <h2 class="text-xl font-semibold text-gray-900">🔍 Busca por Similaridade</h2>
+                            </div>
+                            
+                            <!-- Collection Selection -->
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="chat-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            
+                            <!-- Similarity Threshold Control -->
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Similaridade Mínima: <span id="similarity-value" class="text-blue-600 font-bold">0%</span>
+                                </label>
+                                <input type="range" id="similarity-threshold" 
+                                       min="0" max="100" value="0" step="5" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider">
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>0% (Mais resultados)</span>
+                                    <span>100% (Mais precisos)</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Ajuste o percentual mínimo de similaridade para filtrar resultados mais relevantes
+                                </p>
+                            </div>
+                            
+                            <!-- Search Input -->
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua consulta para busca por similaridade...">
+                                    <button id="send-message-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                        Enviar
                                     </button>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Similarity Search Results -->
+                        <div id="chat-messages" class="p-6 space-y-4">
+                            <div class="text-center text-gray-500 text-sm">
+                                Inicie uma busca por similaridade fazendo uma consulta...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Busca Semântica -->
+                <div id="semantic-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <!-- Search Header -->
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🧠 Busca Semântica com IA</h2>
+                            </div>
                             
-                            <!-- Collection Selection for Chat -->
-                            <div class="grid grid-cols-1 gap-4 mt-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
-                                    <select id="chat-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
-                                        <option value="">Todas as collections</option>
-                                    </select>
-                                    <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            <!-- Collection Selection -->
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="semantic-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            
+                            <!-- Model Selection -->
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Modelos de IA:</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="openai-checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                        <span class="text-sm text-gray-700">🤖 OpenAI GPT</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="gemini-checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                                        <span class="text-sm text-gray-700">🤖 Google Gemini</span>
+                                    </label>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Selecione quais modelos de IA usarão para responder sua pergunta</p>
+                            </div>
+                            
+                            <!-- Search Input -->
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <textarea id="semantic-input" rows="3" class="flex-1 border border-gray-300 rounded-md px-3 py-2 resize-none" placeholder="Digite sua pergunta para busca semântica..."></textarea>
+                                    <button id="send-semantic-btn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 self-end">
+                                        Enviar
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Chat Messages -->
-                        <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                        <!-- Semantic Search Results -->
+                        <div id="semantic-messages" class="p-6 space-y-4">
                             <div class="text-center text-gray-500 text-sm">
-                                Inicie uma conversa fazendo uma pergunta...
-                            </div>
-                        </div>
-
-                        <!-- Chat Input -->
-                        <div class="border-t px-6 py-4">
-                            <div class="flex space-x-4">
-                                <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua pergunta...">
-                                <button id="send-message-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                                    Enviar
-                                </button>
+                                Faça uma pergunta para obter respostas dos modelos de IA selecionados...
                             </div>
                         </div>
                     </div>
@@ -714,6 +859,21 @@ DOCUMENTO:
         // Socket.IO connection
         const socket = io();
         
+        // WebSocket handlers
+        socket.on('chat_response', (data) => {
+            if (data.error) {
+                addChatMessage('error', `Erro: ${data.error}`);
+            } else {
+                addChatMessage('assistant', data.response, {
+                    sources: data.sources,
+                    similarity_threshold: data.similarity_threshold
+                });
+            }
+            
+            isProcessing = false;
+            updateSendButton();
+        });
+        
         // Global variables
         let currentSessionId = null;
         let isProcessing = false;
@@ -792,8 +952,12 @@ DOCUMENTO:
                     subtitle: 'Crie e edite perguntas e respostas'
                 },
                 'chat': {
-                    title: 'Chat RAG',
-                    subtitle: 'Converse com seus documentos'
+                    title: 'Busca por Similaridade',
+                    subtitle: 'Busque documentos por similaridade de conteúdo'
+                },
+                'semantic': {
+                    title: 'Busca Semântica',
+                    subtitle: 'Obtenha respostas de múltiplos modelos de IA'
                 },
                 'history': {
                     title: 'Histórico',
@@ -1339,7 +1503,7 @@ DOCUMENTO:
                 const documentSelect = document.getElementById('editor-document-select');
                 
                 if (!collectionSelect.value) {
-                    showToast('Selecione uma collection primeiro', 'warning');
+                    showToast('Selecione uma collection de origem primeiro', 'warning');
                     return;
                 }
                 
@@ -1373,29 +1537,60 @@ DOCUMENTO:
                         return;
                     }
                     
-                    // Gerar Q&A
+                    // Gerar Q&A (sem vetorizar ainda)
+                    const requestData = {
+                        content: contentResult.content,
+                        num_questions: numQuestions,
+                        context_keywords: contextKeywords,
+                        difficulty: difficulty,
+                        temperature: temperature,
+                        custom_prompt: customPrompt
+                    };
+                    
+                    console.log('📤 Enviando dados para qa-generate:', {
+                        contentLength: contentResult.content?.length || 0,
+                        numQuestions,
+                        difficulty,
+                        temperature,
+                        contextKeywords,
+                        customPrompt: customPrompt?.substring(0, 50) + '...'
+                    });
+                    
                     const response = await fetch('/api/qa-generate', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            content: contentResult.content,
-                            collection_name: collectionSelect.value,
-                            num_questions: numQuestions,
-                            context_keywords: contextKeywords,
-                            difficulty: difficulty,
-                            temperature: temperature,
-                            custom_prompt: customPrompt
-                        })
+                        body: JSON.stringify(requestData)
                     });
                     
                     const result = await response.json();
                     
+                    console.log('📥 Resposta qa-generate:', {
+                        status: response.status,
+                        success: result.success,
+                        error: result.error,
+                        qaCount: result.qa_count
+                    });
+                    
+                    if (!response.ok) {
+                        console.error('❌ Erro HTTP:', response.status, result);
+                        throw new Error(result.error || `Erro HTTP ${response.status}`);
+                    }
+                    
                     if (result.success) {
+                        // Armazenar o conteúdo Q&A para uso posterior
+                        window.currentQAContent = result.qa_content;
+                        
                         displayQAResults(result.qa_content);
                         hideQaProgress();
-                        showToast(`${result.qa_count} Q&As gerados com sucesso`, 'success');
+                        showToast(`${result.qa_count} Q&As gerados com sucesso - Pronto para preview e vetorização`, 'success');
+                        
+                        // Habilitar botões de vetorização e edição
+                        updateVectorizationUI();
+                        
+                        // Popular o seletor de collections destino quando Q&As são geradas
+                        await populateQACollectionSelect();
                     } else {
                         throw new Error(result.error);
                     }
@@ -1453,28 +1648,15 @@ DOCUMENTO:
         const chatInput = document.getElementById('chat-input');
         const sendMessageBtn = document.getElementById('send-message-btn');
         const chatMessages = document.getElementById('chat-messages');
-        const newSessionBtn = document.getElementById('new-session-btn');
-        const currentSessionSpan = document.getElementById('current-session');
         
-        newSessionBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/sessions', {
-                    method: 'POST'
-                });
-                
-                const result = await response.json();
-                currentSessionId = result.session_id;
-                currentSessionSpan.textContent = `Sessão: ${currentSessionId.substring(0, 8)}...`;
-                
-                // Clear chat
-                chatMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Nova sessão iniciada...</div>';
-                
-                // Load sessions
-                loadSessions();
-            } catch (error) {
-                console.error('Erro ao criar sessão:', error);
-            }
-        });
+        // Semantic search functionality
+        const semanticInput = document.getElementById('semantic-input');
+        const sendSemanticBtn = document.getElementById('send-semantic-btn');
+        const semanticMessages = document.getElementById('semantic-messages');
+        const openaiCheckbox = document.getElementById('openai-checkbox');
+        const geminiCheckbox = document.getElementById('gemini-checkbox');
+        
+
         
         sendMessageBtn.addEventListener('click', sendMessage);
         chatInput.addEventListener('keypress', (e) => {
@@ -1484,24 +1666,21 @@ DOCUMENTO:
             }
         });
         
+        // Semantic search event listeners
+        sendSemanticBtn.addEventListener('click', sendSemanticMessage);
+        semanticInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendSemanticMessage();
+            }
+        });
+        
         async function sendMessage() {
             const message = chatInput.value.trim();
             if (!message || isProcessing) return;
             
-            if (!currentSessionId) {
-                // Create new session if none exists
-                try {
-                    const response = await fetch('/api/sessions', {
-                        method: 'POST'
-                    });
-                    const result = await response.json();
-                    currentSessionId = result.session_id;
-                    currentSessionSpan.textContent = `Sessão: ${currentSessionId.substring(0, 8)}...`;
-                } catch (error) {
-                    console.error('Erro ao criar sessão:', error);
-                    return;
-                }
-            }
+            // Limpar resultados anteriores
+            clearSearchResults();
             
             // Add user message
             addChatMessage('user', message);
@@ -1513,10 +1692,204 @@ DOCUMENTO:
             isProcessing = true;
             updateSendButton();
             
+            // Obter o threshold de similaridade (0.0 a 1.0)
+            const similarityThreshold = parseFloat(document.getElementById('similarity-threshold').value) / 100;
+            
             socket.emit('chat_message', {
                 message: message,
-                session_id: currentSessionId,
-                collection_name: document.getElementById('chat-collection-select').value
+                collection_name: document.getElementById('chat-collection-select').value,
+                similarity_threshold: similarityThreshold
+            });
+        }
+        
+        async function sendSemanticMessage() {
+            const message = semanticInput.value.trim();
+            if (!message || isProcessing) return;
+            
+            // Verificar se pelo menos um modelo foi selecionado
+            const openaiSelected = openaiCheckbox.checked;
+            const geminiSelected = geminiCheckbox.checked;
+            
+            if (!openaiSelected && !geminiSelected) {
+                showToast('Selecione pelo menos um modelo de IA', 'warning');
+                return;
+            }
+            
+            // Limpar resultados anteriores
+            clearSemanticResults();
+            
+            // Add user message
+            addSemanticMessage('user', message);
+            
+            // Clear input
+            semanticInput.value = '';
+            
+            // Send via HTTP request to N8N
+            isProcessing = true;
+            updateSemanticButton();
+            
+            try {
+                const response = await fetch('/api/semantic-search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: message,
+                        collection_name: document.getElementById('semantic-collection-select').value,
+                        models: {
+                            openai: openaiSelected,
+                            gemini: geminiSelected
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Exibir respostas lado a lado
+                    displaySemanticResults(result.responses);
+                } else {
+                    addSemanticMessage('error', `Erro: ${result.error}`);
+                }
+            } catch (error) {
+                addSemanticMessage('error', `Erro de conexão: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateSemanticButton();
+            }
+        }
+        
+        function clearSearchResults() {
+            const chatMessages = document.getElementById('chat-messages');
+            if (chatMessages) {
+                // Manter apenas a mensagem inicial
+                chatMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Inicie uma busca por similaridade fazendo uma consulta...</div>';
+            }
+        }
+        
+        function clearSemanticResults() {
+            const semanticMessages = document.getElementById('semantic-messages');
+            if (semanticMessages) {
+                // Manter apenas a mensagem inicial
+                semanticMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Faça uma pergunta para obter respostas dos modelos de IA selecionados...</div>';
+            }
+        }
+        
+        function updateSendButton() {
+            const sendBtn = document.getElementById('send-message-btn');
+            if (sendBtn) {
+                if (isProcessing) {
+                    sendBtn.disabled = true;
+                    sendBtn.textContent = '⏳ Processando...';
+                    sendBtn.className = 'bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed';
+                } else {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Enviar';
+                    sendBtn.className = 'bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700';
+                }
+            }
+        }
+        
+        function updateSemanticButton() {
+            const sendBtn = document.getElementById('send-semantic-btn');
+            if (sendBtn) {
+                if (isProcessing) {
+                    sendBtn.disabled = true;
+                    sendBtn.textContent = '⏳ Processando...';
+                    sendBtn.className = 'bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed self-end';
+                } else {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Enviar';
+                    sendBtn.className = 'bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 self-end';
+                }
+            }
+        }
+        
+        function addSemanticMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message';
+            
+            if (role === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="flex justify-end">
+                        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-purple-600 text-white">
+                            <div class="font-medium">❓ Pergunta:</div>
+                            <div>${content}</div>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'error') {
+                messageDiv.innerHTML = `
+                    <div class="flex justify-start">
+                        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-red-100 text-red-800">
+                            <div class="font-medium">❌ Erro:</div>
+                            <div>${content}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            semanticMessages.appendChild(messageDiv);
+        }
+        
+        function displaySemanticResults(responses) {
+            const resultsDiv = document.createElement('div');
+            resultsDiv.className = 'chat-message';
+            
+            let resultsContent = `
+                <div class="w-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">🤖 Respostas dos Modelos de IA</h3>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            `;
+            
+            // Resposta do OpenAI
+            if (responses.openai) {
+                resultsContent += `
+                    <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                <span class="text-white font-bold text-sm">O</span>
+                            </div>
+                            <h4 class="font-semibold text-blue-900">OpenAI GPT</h4>
+                        </div>
+                        <div class="text-sm text-blue-800 bg-white p-3 rounded border-l-4 border-blue-500">
+                            ${marked.parse(responses.openai)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Resposta do Gemini
+            if (responses.gemini) {
+                resultsContent += `
+                    <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                                <span class="text-white font-bold text-sm">G</span>
+                            </div>
+                            <h4 class="font-semibold text-green-900">Google Gemini</h4>
+                        </div>
+                        <div class="text-sm text-green-800 bg-white p-3 rounded border-l-4 border-green-500">
+                            ${marked.parse(responses.gemini)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsContent += `
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = resultsContent;
+            semanticMessages.appendChild(resultsDiv);
+            
+            // Highlight code blocks
+            resultsDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
             });
         }
         
@@ -1527,48 +1900,106 @@ DOCUMENTO:
             const isUser = role === 'user';
             const isError = role === 'error';
             
-            let messageContent = `<div class="markdown-content">${marked.parse(content)}</div>`;
-            
-            // Adicionar informações da collection se disponível
-            if (metadata && metadata.embedding_info && role === 'assistant') {
-                const embeddingInfo = metadata.embedding_info;
-                messageContent += `
-                    <div class="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
-                        <div class="flex items-center space-x-2">
-                            <span class="font-medium">Collection:</span>
-                            <span>${embeddingInfo.collection_name}</span>
+            if (isUser) {
+                // Mensagem do usuário (consulta)
+                messageDiv.innerHTML = `
+                    <div class="flex justify-end">
+                        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-blue-600 text-white">
+                            <div class="font-medium">🔍 Consulta:</div>
+                            <div>${content}</div>
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="font-medium">Embedding:</span>
-                            <span>${embeddingInfo.model_name} (${embeddingInfo.provider})</span>
+                    </div>
+                `;
+            } else if (role === 'assistant' && metadata && metadata.sources) {
+                // Resultados de busca por similaridade - substituir todo o conteúdo
+                const sources = metadata.sources;
+                const similarityThreshold = metadata.similarity_threshold || 0;
+                
+                let resultsContent = `
+                    <div class="w-full">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">📊 Resultados da Busca</h3>
+                            <div class="text-sm text-gray-600">
+                                Similaridade mínima: <span class="font-medium text-blue-600">${(similarityThreshold * 100).toFixed(0)}%</span>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="font-medium">Dimensão:</span>
-                            <span>${embeddingInfo.dimension}</span>
+                        <div class="text-sm text-gray-600 mb-4">
+                            <p>🔍 <strong>Similaridade baseada em cálculo de cosseno</strong> entre o vetor da consulta e os vetores dos chunks de documentos.</p>
+                        </div>
+                `;
+                
+                if (sources.length === 0) {
+                    resultsContent += `
+                        <div class="text-center py-8 text-gray-500">
+                            <div class="text-2xl mb-2">🔍</div>
+                            <div>Nenhum documento encontrado com similaridade ≥ ${(similarityThreshold * 100).toFixed(0)}%</div>
+                        </div>
+                    `;
+                } else {
+                    resultsContent += `<div class="space-y-4">`;
+                    
+                    sources.forEach((source, index) => {
+                        const similarityPercent = (source.similarity_percentage || source.score * 100).toFixed(1);
+                        const fileName = source.file_name || 'Documento desconhecido';
+                        const content = source.content || 'Conteúdo não disponível';
+                        const collectionName = source.source_collection || 'Collection desconhecida';
+                        const chunkNumber = source.chunk_number || (index + 1);
+                        
+                        resultsContent += `
+                            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="font-medium text-gray-900">📄 ${fileName}</div>
+                                        <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                            📁 ${collectionName}
+                                        </div>
+                                        <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                            #${chunkNumber}
+                                        </div>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="font-medium text-blue-600">${similarityPercent}%</span>
+                                        <span class="text-gray-500">similaridade</span>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded border-l-4 border-blue-500">
+                                    <div class="font-medium mb-1">Chunk encontrado:</div>
+                                    <div class="text-gray-600">${content.substring(0, 300)}${content.length > 300 ? '...' : ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    resultsContent += `</div>`;
+                }
+                
+                resultsContent += `</div>`;
+                
+                messageDiv.innerHTML = resultsContent;
+            } else {
+                // Mensagem de erro ou resposta simples
+                let messageContent = `<div class="markdown-content">${marked.parse(content)}</div>`;
+                
+                messageDiv.innerHTML = `
+                    <div class="flex ${isError ? 'justify-start' : 'justify-start'}">
+                        <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            isError ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-900'
+                        }">
+                            ${messageContent}
                         </div>
                     </div>
                 `;
             }
             
-            messageDiv.innerHTML = `
-                <div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
-                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        isUser ? 'bg-blue-600 text-white' : 
-                        isError ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-900'
-                    }">
-                        ${messageContent}
-                    </div>
-                </div>
-            `;
-            
-            // Remove placeholder if exists
-            const placeholder = chatMessages.querySelector('.text-center');
-            if (placeholder) {
-                placeholder.remove();
+            if (role === 'assistant') {
+                // Para respostas do sistema, substituir todo o conteúdo
+                chatMessages.innerHTML = '';
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = 0; // Scroll para o topo
+            } else {
+                // Para mensagens do usuário, apenas adicionar
+                chatMessages.appendChild(messageDiv);
             }
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
             
             // Highlight code blocks
             messageDiv.querySelectorAll('pre code').forEach((block) => {
@@ -1711,8 +2142,14 @@ DOCUMENTO:
         
         async function loadDocumentInfo(documentName) {
             try {
-                // Usar uma collection temporária para obter o conteúdo
-                const response = await fetch(`/api/collections/temp/content?document=${encodeURIComponent(documentName)}`);
+                // Obter a collection selecionada no editor
+                const collectionSelect = document.getElementById('editor-collection-select');
+                if (!collectionSelect.value) {
+                    console.warn('Nenhuma collection selecionada para carregar informações do documento');
+                    return;
+                }
+                
+                const response = await fetch(`/api/collections/${collectionSelect.value}/content?document=${encodeURIComponent(documentName)}`);
                 const result = await response.json();
                 
                 if (result.success && result.content) {
@@ -2081,26 +2518,34 @@ DOCUMENTO:
             
             if (docsToUse && docsToUse.length > 0) {
                 docsToUse.forEach((doc, index) => {
-                    const docPath = doc.name || doc.path || doc;
-                    const option = document.createElement('option');
-                    option.value = docPath;
+                    // Usar o identificador apropriado para o valor
+                    const docValue = doc.minio_original_path || doc.original_path || doc.name || doc.path || doc;
+                    const docName = doc.name || doc.file_name || (doc.path ? doc.path.split('/').pop() : doc);
                     
-                    // Extrair nome mais amigável do path
-                    const fileName = docPath.split('/').pop();
+                    const option = document.createElement('option');
+                    option.value = docValue;
                     
                     // Mostrar tipo de arquivo e tamanho se disponível
-                    let displayName = fileName;
-                    if (doc.size) {
+                    let displayName = docName;
+                    if (doc.file_size && doc.file_size > 0) {
+                        const sizeKB = Math.round(doc.file_size / 1024);
+                        displayName += ` (${sizeKB} KB)`;
+                    } else if (doc.size) {
                         const sizeKB = Math.round(doc.size / 1024);
                         displayName += ` (${sizeKB} KB)`;
                     }
                     
+                    // Adicionar indicador se o documento foi processado
+                    if (doc.minio_processed_path) {
+                        displayName += ' ✅';
+                    }
+                    
                     option.textContent = displayName;
-                    option.title = docPath; // Tooltip com path completo
+                    option.title = `${docName}\nCaminho: ${docValue}\nProcessado: ${doc.minio_processed_path ? 'Sim' : 'Não'}`; // Tooltip com informações completas
                     
                     documentSelect.appendChild(option);
                     
-                    console.log(`📄 ${index + 1}. Adicionado: ${fileName} (${docPath})`);
+                    console.log(`📄 ${index + 1}. Adicionado: ${docName} (valor: ${docValue})`);
                 });
                 
                 console.log('✅ Select atualizado com', docsToUse.length, 'documentos');
@@ -2172,7 +2617,8 @@ DOCUMENTO:
             const selects = [
                 document.getElementById('upload-collection-select'),
                 document.getElementById('editor-collection-select'),
-                document.getElementById('chat-collection-select')
+                document.getElementById('chat-collection-select'),
+                document.getElementById('semantic-collection-select')
             ];
             
             selects.forEach(select => {
@@ -2447,6 +2893,7 @@ DOCUMENTO:
                 
                 if (result.success) {
                     await loadCollections();
+                    updateCollectionsList(); // Atualizar a listagem
                     showToast('Collection deletada com sucesso!', 'success');
                 } else {
                     showToast(`Erro ao deletar collection: ${result.error}`, 'error');
@@ -2552,10 +2999,318 @@ DOCUMENTO:
             try {
                 loadSessions();
                 loadEmbeddingModels();
+                setupNewQAFeatures();
+                setupSimilarityControl();
             } catch (error) {
                 console.error('❌ Erro em outras funções:', error);
             }
         });
+        
+        // ============= NOVAS FUNCIONALIDADES Q&A =============
+        
+        function setupSimilarityControl() {
+            console.log('🎛️ Configurando controle de similaridade');
+            
+            const similaritySlider = document.getElementById('similarity-threshold');
+            const similarityValue = document.getElementById('similarity-value');
+            
+            if (similaritySlider && similarityValue) {
+                // Atualizar valor exibido quando o slider muda
+                similaritySlider.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    similarityValue.textContent = `${value}%`;
+                    
+                    // Atualizar o gradiente da barra
+                    const percentage = (value / 100) * 100;
+                    e.target.style.background = `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${percentage}%, #e5e7eb ${percentage}%)`;
+                });
+                
+                // Inicializar o gradiente
+                similaritySlider.style.background = `linear-gradient(to right, #3b82f6 0%, #3b82f6 0%, #e5e7eb 0%)`;
+            }
+        }
+        
+        function setupNewQAFeatures() {
+            console.log('🚀 Configurando novas funcionalidades Q&A');
+            
+            // Configurar dropdown da collection de destino
+            setupQACollectionSelect();
+            
+            // Configurar botão de vetorização final
+            setupVectorizeFinalButton();
+            
+            // Configurar botão de salvar alterações no markdown
+            setupSaveMarkdownButton();
+            
+            // Configurar sincronização entre dropdowns
+            setupCollectionSync();
+        }
+        
+        function setupQACollectionSelect() {
+            const qaCollectionSelect = document.getElementById('qa-collection-select');
+            if (qaCollectionSelect) {
+                qaCollectionSelect.addEventListener('change', () => {
+                    updateVectorizationUI();
+                });
+            }
+            
+            // Configurar botão de refresh
+            const refreshCollectionsBtn = document.getElementById('refresh-collections-btn');
+            if (refreshCollectionsBtn) {
+                refreshCollectionsBtn.addEventListener('click', async () => {
+                    console.log('🔄 Atualizando collections...');
+                    refreshCollectionsBtn.disabled = true;
+                    refreshCollectionsBtn.textContent = '⏳ Atualizando...';
+                    
+                    try {
+                        await populateQACollectionSelect();
+                        showToast('Collections atualizadas com sucesso!', 'success');
+                    } catch (error) {
+                        console.error('Erro ao atualizar collections:', error);
+                        showToast('Erro ao atualizar collections', 'error');
+                    } finally {
+                        refreshCollectionsBtn.disabled = false;
+                        refreshCollectionsBtn.textContent = '🔄 Atualizar';
+                    }
+                });
+            }
+        }
+        
+        function setupVectorizeFinalButton() {
+            const vectorizeFinalBtn = document.getElementById('vectorize-final-btn');
+            if (vectorizeFinalBtn) {
+                vectorizeFinalBtn.addEventListener('click', async () => {
+                    const qaCollectionSelect = document.getElementById('qa-collection-select');
+                    
+                    if (!qaCollectionSelect.value) {
+                        showToast('Selecione uma collection de destino primeiro', 'warning');
+                        return;
+                    }
+                    
+                    if (!window.currentQAContent) {
+                        showToast('Nenhum conteúdo Q&A disponível para vetorizar', 'warning');
+                        return;
+                    }
+                    
+                    // Verificar se houve alterações no markdown
+                    const markdownTextarea = document.getElementById('qa-markdown-content');
+                    const currentMarkdown = markdownTextarea.value;
+                    
+                    vectorizeFinalBtn.disabled = true;
+                    vectorizeFinalBtn.textContent = 'Vetorizando...';
+                    showQaProgress('Criando embeddings e inserindo na collection...');
+                    
+                    try {
+                        const response = await fetch('/api/qa-vectorize', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                qa_content: currentMarkdown || window.currentQAContent,
+                                collection_name: qaCollectionSelect.value
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            hideQaProgress();
+                            showToast(`✅ ${result.qa_count} Q&As vetorizados com sucesso na collection "${qaCollectionSelect.value}"`, 'success');
+                            
+                            // Recarregar collections
+                            await loadCollections();
+                            
+                            // Resetar interface
+                            resetQAInterface();
+                        } else {
+                            throw new Error(result.error);
+                        }
+                    } catch (error) {
+                        hideQaProgress();
+                        showToast(`Erro ao vetorizar Q&As: ${error.message}`, 'error');
+                    } finally {
+                        vectorizeFinalBtn.disabled = false;
+                        vectorizeFinalBtn.textContent = '📊 Vetorizar Q&As';
+                    }
+                });
+            }
+        }
+        
+        function setupSaveMarkdownButton() {
+            const saveMarkdownBtn = document.getElementById('save-markdown-btn');
+            if (saveMarkdownBtn) {
+                saveMarkdownBtn.addEventListener('click', () => {
+                    const markdownTextarea = document.getElementById('qa-markdown-content');
+                    const currentContent = markdownTextarea.value;
+                    
+                    // Atualizar o conteúdo global
+                    window.currentQAContent = currentContent;
+                    
+                    // Atualizar preview formatado
+                    displayQAResults(currentContent);
+                    
+                    showToast('Alterações salvas no preview!', 'success');
+                    
+                    // Feedback visual temporário
+                    saveMarkdownBtn.textContent = '✅ Salvo';
+                    setTimeout(() => {
+                        saveMarkdownBtn.textContent = '💾 Salvar Alterações';
+                    }, 2000);
+                });
+            }
+        }
+        
+        function setupCollectionSync() {
+            const editorCollectionSelect = document.getElementById('editor-collection-select');
+            const qaCollectionSelect = document.getElementById('qa-collection-select');
+            
+            if (editorCollectionSelect && qaCollectionSelect) {
+                // Sincronizar options quando o dropdown de origem muda
+                editorCollectionSelect.addEventListener('change', async () => {
+                    await populateQACollectionSelect();
+                });
+            }
+        }
+        
+        async function populateQACollectionSelect() {
+            console.log('🔄 Populando seletor de collections destino...');
+            const qaCollectionSelect = document.getElementById('qa-collection-select');
+            if (!qaCollectionSelect) {
+                console.error('❌ qa-collection-select não encontrado!');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/collections');
+                const result = await response.json();
+                
+                // Limpar options existentes
+                qaCollectionSelect.innerHTML = '<option value="">Selecione a collection destino...</option>';
+                
+                if (result.success && result.collections) {
+                    console.log(`✅ ${result.collections.length} collections carregadas para destino`);
+                    result.collections.forEach(collection => {
+                        const option = document.createElement('option');
+                        option.value = collection.name;
+                        option.textContent = `${collection.name} (${collection.count || 0} docs)`;
+                        qaCollectionSelect.appendChild(option);
+                    });
+                    
+                    // Adicionar opção para criar nova collection
+                    const newOption = document.createElement('option');
+                    newOption.value = 'NEW_COLLECTION';
+                    newOption.textContent = '+ Criar Nova Collection';
+                    qaCollectionSelect.appendChild(newOption);
+                } else {
+                    console.error('❌ Falha ao carregar collections:', result);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar collections para Q&A:', error);
+            }
+        }
+        
+        function updateVectorizationUI() {
+            const qaCollectionSelect = document.getElementById('qa-collection-select');
+            const vectorizeFinalBtn = document.getElementById('vectorize-final-btn');
+            
+            if (qaCollectionSelect && vectorizeFinalBtn) {
+                const selectedCollection = qaCollectionSelect.value;
+                
+                if (selectedCollection && selectedCollection !== 'NEW_COLLECTION') {
+                    console.log('✅ Collection selecionada:', selectedCollection);
+                    vectorizeFinalBtn.disabled = !window.currentQAContent;
+                } else if (selectedCollection === 'NEW_COLLECTION') {
+                    console.log('✅ Nova collection será criada');
+                    vectorizeFinalBtn.disabled = !window.currentQAContent;
+                } else {
+                    console.log('⚠️ Nenhuma collection selecionada');
+                    vectorizeFinalBtn.disabled = true;
+                }
+                
+                // Atualizar texto do botão baseado no estado
+                if (window.currentQAContent && selectedCollection) {
+                    vectorizeFinalBtn.textContent = '📊 Vetorizar Q&As';
+                    vectorizeFinalBtn.classList.remove('disabled:bg-gray-400');
+                } else {
+                    vectorizeFinalBtn.textContent = '📊 Vetorizar Q&As';
+                    vectorizeFinalBtn.classList.add('disabled:bg-gray-400');
+                }
+            }
+        }
+        
+        function resetQAInterface() {
+            // Limpar conteúdo armazenado
+            window.currentQAContent = null;
+            
+            // Ocultar seção de resultados
+            const qaResults = document.getElementById('qa-results');
+            if (qaResults) {
+                qaResults.classList.add('hidden');
+            }
+            
+            // Resetar dropdowns
+            const documentSelect = document.getElementById('editor-document-select');
+            const qaCollectionSelect = document.getElementById('qa-collection-select');
+            
+            if (documentSelect) documentSelect.value = '';
+            if (qaCollectionSelect) qaCollectionSelect.value = '';
+            
+            // Atualizar UI de vetorização
+            updateVectorizationUI();
+        }
+        
+        // Sobrescrever a função displayQAResults para melhor formatação
+        function displayQAResults(qaContent) {
+            const qaResults = document.getElementById('qa-results');
+            const qaList = document.getElementById('qa-list');
+            const qaMarkdownContent = document.getElementById('qa-markdown-content');
+            
+            if (!qaResults || !qaList || !qaMarkdownContent) return;
+            
+            // Mostrar seção de resultados
+            qaResults.classList.remove('hidden');
+            
+            // Preencher markdown editável
+            qaMarkdownContent.value = qaContent;
+            
+            // Processar e exibir preview formatado
+            const qaBlocks = qaContent.split(/\*\*Pergunta \d+:\*\*/);
+            qaList.innerHTML = '';
+            
+            qaBlocks.forEach((block, index) => {
+                if (index === 0 || !block.trim()) return;
+                
+                const parts = block.split(/\*\*Resposta \d+:\*\*/);
+                if (parts.length < 2) return;
+                
+                const question = parts[0].trim();
+                const answer = parts[1].trim();
+                
+                const qaItem = document.createElement('div');
+                qaItem.className = 'border border-gray-200 rounded-lg p-4 bg-white shadow-sm';
+                qaItem.innerHTML = `
+                    <div class="mb-3">
+                        <h4 class="font-semibold text-gray-900 text-sm">📝 Pergunta ${index}:</h4>
+                        <p class="text-gray-700 text-sm mt-1">${question}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-green-700 text-sm">💡 Resposta ${index}:</h4>
+                        <p class="text-gray-700 text-sm mt-1">${answer}</p>
+                    </div>
+                `;
+                qaList.appendChild(qaItem);
+            });
+            
+            // Inicialmente mostrar a aba de preview formatado
+            setupTabHandlers();
+            
+            // Atualizar UI de vetorização
+            updateVectorizationUI();
+            
+            // Popular dropdown de collections de destino se ainda não foi feito
+            populateQACollectionSelect();
+        }
         
         // Inicializar ícones Lucide (removed due to CSP)
         // lucide.createIcons();
