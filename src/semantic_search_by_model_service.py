@@ -322,7 +322,7 @@ Resposta:"""
             return f"Erro ao processar com OpenAI: {str(e)}"
     
     def _call_gemini_api(self, prompt: str) -> str:
-        """Chama a API do Gemini para gerar resposta semântica."""
+        """Chama a API do Gemini para gerar resposta semântica com fallback automático."""
         try:
             import google.generativeai as genai
             
@@ -331,9 +331,18 @@ Resposta:"""
             
             genai.configure(api_key=config.GEMINI_API_KEY)
             
-            model = genai.GenerativeModel(config.GEMINI_MODEL)
+            # Lista de modelos para tentar em ordem de preferência (baseado no teste)
+            models_to_try = [
+                "gemini-1.5-flash",     # ✅ Funcionando
+                "gemini-1.5-pro",       # ✅ Funcionando  
+                config.GEMINI_MODEL,    # Modelo configurado (se diferente)
+                "gemini-pro-1.5",       # Fallback adicional
+                "gemini-1.0-pro"        # Último recurso
+            ]
             
-            # Configuração semelhante ao padrão dos exemplos
+            # Remover duplicatas mantendo ordem
+            models_to_try = list(dict.fromkeys(models_to_try))
+            
             generation_config = {
                 "temperature": 0.3,
                 "top_p": 0.8,
@@ -341,15 +350,28 @@ Resposta:"""
                 "max_output_tokens": 2000,
             }
             
-            response = model.generate_content(
-                prompt,
-                generation_config=generation_config
-            )
+            last_error = None
             
-            if response and response.text:
-                return response.text.strip()
-            else:
-                return f"Erro: Modelo {config.GEMINI_MODEL} não retornou resposta válida"
+            for model_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    
+                    response = model.generate_content(
+                        prompt,
+                        generation_config=generation_config
+                    )
+                    
+                    if response and response.text:
+                        return response.text.strip()
+                    else:
+                        continue
+                        
+                except Exception as model_error:
+                    last_error = model_error
+                    continue
+            
+            # Se chegou aqui, nenhum modelo funcionou
+            return f"Erro: Nenhum modelo Gemini disponível funcionou. Último erro: {str(last_error)}"
             
         except Exception as e:
             return f"Erro ao processar com Gemini: {str(e)}"
