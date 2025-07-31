@@ -186,7 +186,9 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📄 document_processor.py   # Processamento de documentos
 │   ├── 📄 qa_generator.py         # Geração de Q&A com LLM
 │   ├── 📄 storage.py              # Gerenciamento MinIO
-│   └── 📄 chat_service.py         # Serviço de chat RAG
+│   ├── 📄 chat_rag_service.py     # Serviço de chat RAG
+│   ├── 📄 semantic_search_service.py # Serviço de busca semântica
+│   └── 📄 similarity_search_service.py # Serviço de busca por similaridade
 ├── 📁 templates/                   # Templates HTML
 │   └── 📄 index.html              # Interface principal (SPA)
 ├── 📁 static/                      # Assets estáticos

@@ -1,0 +1,37 @@
+
+[
+    {
+        "headers": {
+            "host": "n8n:5678",
+            "user-agent": "python-requests/2.31.0",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "content-length": "169"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+            "question": "teste 8n",
+            "models": {
+                "gemini": {
+                    "enabled": true,
+                    "collections": [
+                        "qna_gemini",
+                        "teste_gemini"
+                    ]
+                },
+                "openai": {
+                    "enabled": true,
+                    "collections": [
+                        "teste_open_ai"
+                    ]
+                }
+            },
+            "timestamp": 1753881118.462135
+        },
+        "webhookUrl": "http://n8n:5678/webhook-test/2d388a36-490f-4dfd-952a-6c5c63dac146",
+        "executionMode": "test"
+    }
+]

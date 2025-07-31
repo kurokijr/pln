@@ -138,6 +138,31 @@ class MinIOStorage:
         except S3Error as e:
             raise Exception(f"Erro ao deletar arquivo: {str(e)}")
     
+    def delete_folder(self, folder_prefix: str) -> int:
+        """Deleta todos os arquivos com um prefixo específico (simula deletar pasta)."""
+        try:
+            # Listar todos os objetos com o prefixo
+            objects_to_delete = []
+            for obj in self.client.list_objects(
+                bucket_name=self.bucket_name,
+                prefix=folder_prefix,
+                recursive=True
+            ):
+                objects_to_delete.append(obj.object_name)
+            
+            # Deletar cada objeto
+            for object_name in objects_to_delete:
+                self.client.remove_object(
+                    bucket_name=self.bucket_name,
+                    object_name=object_name
+                )
+            
+            print(f"🗑️ {len(objects_to_delete)} arquivos deletados com prefixo '{folder_prefix}'")
+            return len(objects_to_delete)
+            
+        except S3Error as e:
+            raise Exception(f"Erro ao deletar pasta '{folder_prefix}': {str(e)}")
+    
     def get_file_url(self, object_name: str, expires: int = 3600) -> str:
         """Gera URL temporária para download."""
         try:

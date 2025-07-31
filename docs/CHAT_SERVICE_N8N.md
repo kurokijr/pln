@@ -1,6 +1,6 @@
 # Chat Service com Integração N8N
 
-Este documento descreve as melhorias implementadas no `chat_service.py` para integração com N8N e suporte a múltiplas collections.
+Este documento descreve as melhorias implementadas no `chat_rag_service.py` para integração com N8N e suporte a múltiplas collections.
 
 ## 🚀 Novas Funcionalidades
 
@@ -141,7 +141,7 @@ curl -X POST http://localhost:5000/api/chat \
 ### 2. Código Python
 
 ```python
-from src.chat_service import ChatManager
+from src.chat_rag_service import ChatManager
 
 # Inicializar chat manager
 chat_manager = ChatManager()

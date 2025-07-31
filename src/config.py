@@ -37,7 +37,7 @@ class Config:
     
     # Google Gemini
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-pro")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
     
     # Modelos de Embedding Disponíveis (apenas APIs)
     EMBEDDING_MODELS = {
@@ -49,9 +49,9 @@ class Config:
             "api_key_env": "OPENAI_API_KEY"
         },
         "gemini": {
-            "name": "Google Gemini Embedding",
-            "model": "models/embedding-001",
-            "dimension": 768,
+            "name": "Google Gemini Embedding v2",
+            "model": "models/gemini-embedding-001",  # Modelo mais recente e avançado
+            "dimension": 3072,  # Dimensão correta do modelo Gemini
             "provider": "gemini",
             "api_key_env": "GEMINI_API_KEY"
         }

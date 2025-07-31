@@ -14,9 +14,9 @@ services:
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook-test/2d388a36-490f-4dfd-952a-6c5c63dac146
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - MODEL_QA_GENERATOR=${MODEL_QA_GENERATOR:-gpt-4o-mini}
+      - MODEL_QA_GENERATOR=${MODEL_QA_GENERATOR}
     volumes:
       - ./uploads:/app/uploads
     depends_on:
@@ -77,10 +77,10 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin123
-      - N8N_HOST=localhost
+      - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=http://n8n:5678/
       - GENERIC_TIMEZONE=America/Sao_Paulo
       - N8N_LOG_LEVEL=info
       - N8N_LOG_OUTPUT=console

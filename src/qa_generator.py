@@ -5,6 +5,7 @@ Implementação definitiva e testada para arquitetura Flask + Qdrant
 
 import re
 import time
+import unicodedata
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,6 +20,47 @@ INITIAL_CHUNK_SIZE = 15000
 MAX_WORKERS = 2  # Reduzido para evitar rate limiting
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 60
+
+def sanitize_qa_text(text: str) -> str:
+    """Sanitiza texto para geração de Q&A, prevenindo problemas de charset."""
+    if not isinstance(text, str):
+        text = str(text)
+    
+    try:
+        # 1. Remover caracteres de controle
+        text = ''.join(char for char in text if unicodedata.category(char)[0] != 'C' or char in '\n\r\t')
+        
+        # 2. Normalizar Unicode
+        text = unicodedata.normalize('NFKC', text)
+        
+        # 3. Remover surrogates UTF-16 problemáticos
+        text = text.encode('utf-8', 'ignore').decode('utf-8')
+        
+        # 4. Remover caracteres não-printáveis
+        text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+        
+        # 5. Normalizar espaços e quebras de linha
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+        
+        # 6. Limpar linhas
+        text = '\n'.join(line.strip() for line in text.split('\n'))
+        
+        # 7. Verificação final
+        text.encode('utf-8')
+        
+        return text.strip()
+        
+    except Exception as e:
+        print(f"⚠️ Erro na sanitização de Q&A: {e}", file=sys.stderr)
+        # Fallback mais agressivo
+        try:
+            text = text.encode('ascii', 'ignore').decode('ascii')
+            return text.strip()
+        except:
+            print("❌ Falha completa na sanitização Q&A, retornando string vazia", file=sys.stderr)
+            return "Texto não pode ser processado devido a problemas de codificação"
+
 
 def dynamic_chunk_size(text_length):
     """Calcula tamanho de chunk baseado no tamanho do texto."""
@@ -102,12 +144,17 @@ IMPORTANTE: Gere EXATAMENTE {num_questions} pares de pergunta-resposta."""
                 print(f"❌ Erro ao criar chain: {str(e)}", file=sys.stderr)
                 raise e
 
+            # Sanitizar chunk antes de enviar para LLM
+            sanitized_chunk = sanitize_qa_text(chunk)
+            if len(sanitized_chunk) != len(chunk):
+                print(f"🧼 Chunk sanitizado: {len(chunk)} -> {len(sanitized_chunk)} caracteres", file=sys.stderr)
+            
             # Preparar parâmetros para o prompt
             prompt_params = {
                 "num_questions": params.get('questions_per_chunk', 2),
                 "context_keywords": params.get('context_keywords', ''),
                 "difficulty": params.get('difficulty', 'Intermediário'),
-                "document_text": chunk
+                "document_text": sanitized_chunk
             }
             print(f"🔧 Parâmetros do prompt: {prompt_params}", file=sys.stderr)
 
@@ -116,7 +163,12 @@ IMPORTANTE: Gere EXATAMENTE {num_questions} pares de pergunta-resposta."""
                 response = chain.invoke(prompt_params)
                 print(f"✅ Resposta recebida da OpenAI", file=sys.stderr)
                 
-                result = response.content
+                # Sanitizar resposta do LLM
+                raw_result = response.content
+                result = sanitize_qa_text(raw_result)
+                if len(result) != len(raw_result):
+                    print(f"🧼 Resposta LLM sanitizada: {len(raw_result)} -> {len(result)} caracteres", file=sys.stderr)
+                
                 print(f"✅ Chunk processado: {len(result)} caracteres gerados", file=sys.stderr)
                 
                 if result and len(result) > 10:
@@ -147,6 +199,18 @@ IMPORTANTE: Gere EXATAMENTE {num_questions} pares de pergunta-resposta."""
         if not doc_text or not doc_text.strip():
             print("❌ Texto do documento está vazio", file=sys.stderr)
             return ""
+        
+        # Sanitizar texto do documento antes do processamento
+        sanitized_text = sanitize_qa_text(doc_text)
+        if len(sanitized_text) != len(doc_text):
+            print(f"🧼 Texto sanitizado para Q&A: {len(doc_text)} -> {len(sanitized_text)} caracteres", file=sys.stderr)
+        
+        if not sanitized_text or not sanitized_text.strip():
+            print("❌ Texto do documento está vazio após sanitização", file=sys.stderr)
+            return ""
+        
+        # Usar texto sanitizado para processamento
+        doc_text = sanitized_text
 
         # Para textos pequenos, processar diretamente sem chunking
         if len(doc_text) < 5000:

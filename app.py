@@ -3,6 +3,8 @@
 import os
 import json
 import sys
+import re
+import unicodedata
 from pathlib import Path
 from typing import Dict, Any
 
@@ -17,7 +19,50 @@ from src.qa_generator import qa_generator
 from langchain_core.documents import Document
 from src.vector_store import QdrantVectorStore
 from src.storage import StorageManager
-from src.chat_service import ChatManager
+from src.chat_rag_service import ChatManager
+from src.debug_utils import charset_debugger
+
+
+def sanitize_content(content: str) -> str:
+    """Sanitiza conteúdo de arquivos para prevenir problemas de charset."""
+    if not isinstance(content, str):
+        content = str(content)
+    
+    try:
+        # 1. Remover caracteres de controle (exceto quebras de linha)
+        content = ''.join(char for char in content if unicodedata.category(char)[0] != 'C' or char in '\n\r\t')
+        
+        # 2. Normalizar Unicode
+        content = unicodedata.normalize('NFKC', content)
+        
+        # 3. Remover surrogates UTF-16 problemáticos
+        content = content.encode('utf-8', 'ignore').decode('utf-8')
+        
+        # 4. Remover caracteres não-printáveis
+        content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', content)
+        
+        # 5. Normalizar espaços e quebras de linha
+        content = re.sub(r'\n{3,}', '\n\n', content)
+        content = re.sub(r'[ \t]+', ' ', content)
+        
+        # 6. Limpar linhas
+        content = '\n'.join(line.strip() for line in content.split('\n'))
+        
+        # 7. Verificação final
+        content.encode('utf-8')
+        
+        return content.strip()
+        
+    except Exception as e:
+        print(f"⚠️ Erro na sanitização de conteúdo: {e}", file=sys.stderr)
+        # Fallback mais agressivo
+        try:
+            content = content.encode('ascii', 'ignore').decode('ascii')
+            return content.strip()
+        except:
+            print("❌ Falha completa na sanitização, retornando conteúdo vazio", file=sys.stderr)
+            return "Conteúdo não pôde ser processado devido a problemas de codificação"
+
 
 # Configuração
 config = get_config()
@@ -138,6 +183,68 @@ def test():
     return jsonify({'message': 'Teste OK'})
 
 
+@app.route('/api/n8n/status', methods=['GET'])
+def n8n_status():
+    """Endpoint para verificar o status do N8N."""
+    try:
+        n8n_webhook_url = os.getenv('N8N_WEBHOOK_URL')
+        if not n8n_webhook_url:
+            return jsonify({
+                'status': 'error',
+                'message': 'N8N_WEBHOOK_URL não configurada no .env'
+            }), 500
+        
+        import requests
+        
+        # Extrair URL base do N8N
+        n8n_base_url = n8n_webhook_url.split('/webhook-test/')[0]
+        
+        # Verificar conectividade básica
+        try:
+            health_check = requests.get(f"{n8n_base_url}/healthz", timeout=5)
+            n8n_accessible = health_check.status_code == 200
+        except requests.exceptions.RequestException:
+            n8n_accessible = False
+        
+        # Verificar webhook específico
+        webhook_status = 'unknown'
+        webhook_details = None
+        
+        if n8n_accessible:
+            try:
+                webhook_response = requests.get(n8n_webhook_url, timeout=5)
+                if webhook_response.status_code == 404:
+                    webhook_status = 'not_registered'
+                    try:
+                        webhook_details = webhook_response.json()
+                    except:
+                        webhook_details = webhook_response.text
+                elif webhook_response.status_code == 200:
+                    webhook_status = 'active'
+                else:
+                    webhook_status = f'error_{webhook_response.status_code}'
+                    webhook_details = webhook_response.text
+            except requests.exceptions.RequestException as e:
+                webhook_status = 'connection_error'
+                webhook_details = str(e)
+        
+        return jsonify({
+            'status': 'ok',
+            'n8n_accessible': n8n_accessible,
+            'n8n_base_url': n8n_base_url,
+            'webhook_url': n8n_webhook_url,
+            'webhook_status': webhook_status,
+            'webhook_details': webhook_details,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
 @app.route('/api/storage-info')
 def storage_info():
     """Endpoint para informações do storage e documentos disponíveis."""
@@ -252,6 +359,151 @@ def list_embedding_models():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/collections/<collection_name>/compatibility', methods=['GET'])
+def check_collection_compatibility(collection_name: str):
+    """Verifica compatibilidade de dimensões entre collection e modelos."""
+    try:
+        results = {}
+        
+        # Verificar compatibilidade com todos os modelos
+        for model_key in config.EMBEDDING_MODELS.keys():
+            compatibility = vector_store._check_dimension_compatibility(collection_name, model_key)
+            results[model_key] = compatibility
+        
+        # Determinar status geral
+        any_compatible = any(result["compatible"] for result in results.values())
+        
+        return jsonify({
+            'success': True,
+            'collection_name': collection_name,
+            'compatible_models': results,
+            'any_compatible': any_compatible,
+            'recommendation': (
+                "Collection compatível com pelo menos um modelo" if any_compatible else 
+                "Collection precisa ser recriada - nenhum modelo compatível"
+            )
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/collections/<collection_name>/update-dimensions', methods=['POST'])
+def update_collection_dimensions(collection_name: str):
+    """Força atualização das dimensões de uma collection para as atuais do config."""
+    try:
+        result = vector_store.update_collection_dimensions(collection_name)
+        
+        if result["success"]:
+            return jsonify({
+                'success': True,
+                'message': f'Dimensões da collection "{collection_name}" atualizadas com sucesso',
+                'details': result
+            })
+        else:
+            return jsonify({'error': result.get("error", "Erro desconhecido")}), 400
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/collections/migrate-all-dimensions', methods=['POST'])
+def migrate_all_collection_dimensions():
+    """Migra todas as collections para usar as dimensões atuais do config."""
+    try:
+        collections = vector_store.list_collections()
+        results = []
+        
+        for collection in collections:
+            if collection.get("exists_in_qdrant"):
+                collection_name = collection["name"]
+                result = vector_store.update_collection_dimensions(collection_name)
+                results.append({
+                    "collection": collection_name,
+                    "result": result
+                })
+        
+        success_count = sum(1 for r in results if r["result"].get("success"))
+        total_count = len(results)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Migração concluída: {success_count}/{total_count} collections atualizadas',
+            'results': results,
+            'summary': {
+                'total': total_count,
+                'success': success_count,
+                'failed': total_count - success_count
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/charset-test', methods=['POST'])
+def test_charset():
+    """Endpoint para testar e diagnosticar problemas de charset."""
+    try:
+        data = request.get_json()
+        test_text = data.get('text', '')
+        
+        if not test_text:
+            return jsonify({'error': 'Texto de teste é obrigatório'}), 400
+        
+        # Diagnóstico detalhado
+        diagnosis = {
+            'original_length': len(test_text),
+            'original_encoding_test': None,
+            'sanitized_text': None,
+            'sanitized_length': 0,
+            'encoding_issues': [],
+            'character_analysis': {}
+        }
+        
+        # Testar encoding original
+        try:
+            test_text.encode('utf-8')
+            diagnosis['original_encoding_test'] = 'UTF-8 válido'
+        except UnicodeEncodeError as e:
+            diagnosis['original_encoding_test'] = f'Erro UTF-8: {str(e)}'
+            diagnosis['encoding_issues'].append(str(e))
+        
+        # Sanitizar e testar
+        sanitized = sanitize_content(test_text)
+        diagnosis['sanitized_text'] = sanitized
+        diagnosis['sanitized_length'] = len(sanitized)
+        
+        # Análise de caracteres problemáticos
+        problematic_chars = []
+        for i, char in enumerate(test_text):
+            try:
+                char.encode('utf-8')
+            except UnicodeEncodeError:
+                problematic_chars.append({
+                    'position': i,
+                    'character': repr(char),
+                    'unicode_category': unicodedata.category(char) if char else 'None'
+                })
+        
+        diagnosis['character_analysis'] = {
+            'total_problematic': len(problematic_chars),
+            'problematic_chars': problematic_chars[:10]  # Primeiros 10
+        }
+        
+        return jsonify({
+            'success': True,
+            'diagnosis': diagnosis,
+            'recommendation': (
+                'Texto já está válido' if len(problematic_chars) == 0 else 
+                'Texto possui caracteres problemáticos que foram sanitizados'
+            )
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/storage/status', methods=['GET'])
 def storage_status():
     """Verifica o status do sistema de armazenamento."""
@@ -314,158 +566,154 @@ def delete_storage_file(object_name):
         return jsonify({'error': str(e)}), 500
 
 
+def emit_progress(step: str, progress: int, message: str):
+    """Emite progresso via SocketIO - SIMPLES."""
+    try:
+        socketio.emit('upload_progress', {
+            'step': step,
+            'progress': progress,
+            'message': message
+        })
+        print(f"📡 {step} - {progress}% - {message}", file=sys.stderr)
+    except Exception as e:
+        print(f"❌ Erro emit: {e}", file=sys.stderr)
+
+def emit_qa_progress(step: str, progress: int, message: str):
+    """Emite progresso de Q&A via SocketIO."""
+    try:
+        socketio.emit('qa_progress', {
+            'step': step,
+            'progress': progress,
+            'message': message
+        })
+        print(f"📊 Q&A {step} - {progress}% - {message}", file=sys.stderr)
+    except Exception as e:
+        print(f"❌ Erro emit Q&A: {e}", file=sys.stderr)
+
 @app.route('/api/upload', methods=['POST'])
 def upload_document():
-    """Upload e processamento de documentos."""
+    """Upload e processamento de documentos com DEBUG ROBUSTO."""
     print("=== INÍCIO DO UPLOAD ===", file=sys.stderr)
-    sys.stderr.flush()
+    charset_debugger.log_debug("APP_UPLOAD_START", "Iniciando processo de upload com debug robusto")
+    
     try:
+        emit_progress('validation', 5, 'Validando arquivo enviado...')
+        charset_debugger.log_debug("APP_UPLOAD_VALIDATION", "Iniciando validação do arquivo")
+        
+        # Validações básicas
         if 'file' not in request.files:
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['file']
         collection_name = request.form.get('collection_name')
         
-        if not file.filename:
-            return jsonify({'error': 'Nome do arquivo não fornecido'}), 400
-        
-        if not collection_name:
-            return jsonify({'error': 'Collection não selecionada'}), 400
+        if not file.filename or not collection_name:
+            return jsonify({'error': 'Arquivo ou collection não fornecidos'}), 400
         
         if not allowed_file(file.filename):
             return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
         
-        # Salvar arquivo temporariamente
+        emit_progress('saving', 10, f'Salvando arquivo {file.filename}...')
+        
+        # Salvar arquivo
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        print(f"📁 Arquivo salvo temporariamente: {file_path}", file=sys.stderr)
         
-        # === DEBUG: Verificar storage manager ===
-        print(f"🔍 DEBUG Storage Manager:", file=sys.stderr)
-        print(f"  - Tipo: {type(storage_manager.storage).__name__}", file=sys.stderr)
-        print(f"  - Usando MinIO: {storage_manager.use_minio}", file=sys.stderr)
+        emit_progress('saved', 20, 'Arquivo salvo com sucesso')
         
-        # Upload do arquivo original para o MinIO
+        # Upload para storage
+        emit_progress('uploading', 30, 'Enviando arquivo para armazenamento...')
         try:
-            print(f"🚀 Iniciando upload para MinIO na collection: {collection_name}", file=sys.stderr)
-            print(f"📂 Arquivo: {file_path}", file=sys.stderr)
-            sys.stderr.flush()
-            
             upload_result = storage_manager.upload_document(file_path, topic=collection_name)
-            
-            print(f"✅ Upload para MinIO concluído:", file=sys.stderr)
-            print(f"   - Path: {upload_result['original_path']}", file=sys.stderr)
-            print(f"   - Object: {upload_result['object_name']}", file=sys.stderr)
-            print(f"   - Topic: {upload_result['topic']}", file=sys.stderr)
-            sys.stderr.flush()
-            
+            emit_progress('uploaded', 40, 'Arquivo armazenado com sucesso')
         except Exception as e:
-            print(f"❌ ERRO CRÍTICO no upload para MinIO: {str(e)}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            sys.stderr.flush()
-            # Limpar arquivo temporário
-            try:
-                os.remove(file_path)
-            except:
-                pass
-            return jsonify({'error': f'Erro ao fazer upload para MinIO: {str(e)}'}), 500
+            os.remove(file_path)
+            return jsonify({'error': f'Erro no upload: {str(e)}'}), 500
         
         # Processar documento
-        print(f"🔍 Iniciando processamento do arquivo: {file_path}", file=sys.stderr)
+        emit_progress('processing', 50, 'Processando documento...')
         try:
             result = document_processor.process_document(file_path)
-            print(f"✅ Processamento concluído: {result.keys() if result else 'None'}", file=sys.stderr)
+            emit_progress('processed', 70, 'Documento processado com sucesso')
         except Exception as e:
-            print(f"❌ Erro no processamento: {str(e)}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            # Limpar arquivo temporário
-            try:
-                os.remove(file_path)
-            except:
-                pass
-            return jsonify({'error': str(e)}), 500
+            os.remove(file_path)
+            return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
         
-        if not result or 'chunks' not in result:
-            print(f"❌ Resultado inválido: {result}", file=sys.stderr)
-            # Limpar arquivo temporário
-            try:
-                os.remove(file_path)
-            except:
-                pass
-            return jsonify({'error': 'Não foi possível processar o documento'}), 400
+        # ESTRATÉGIA ZERO-CHARSET: Adicionar minio_path aos chunks
+        emit_progress('preparing', 75, 'Preparando metadados para armazenamento...')
+        for chunk in result['chunks']:
+            chunk.metadata['minio_path'] = upload_result['original_path']
+            chunk.metadata['minio_object'] = upload_result['object_name']
         
-        # Salvar documento processado no MinIO
+        # Inserir no banco de vetores COM DEBUG ROBUSTO
+        emit_progress('vectorizing', 80, 'Gerando embeddings e inserindo no banco de vetores...')
+        charset_debugger.log_debug("APP_VECTORIZING_START", f"Iniciando vetorização de {len(result['chunks'])} chunks")
+        
         try:
-            print(f"💾 Salvando documento processado no MinIO", file=sys.stderr)
-            processed_filename = f"processed_{filename}"
-            processed_path = storage_manager.save_processed_document(
-                text=result['enhanced_text'],
-                file_name=processed_filename,
-                topic=collection_name
+            # Debug dos chunks antes da inserção
+            for i, chunk in enumerate(result['chunks']):
+                safety_check = charset_debugger.check_text_safety(chunk.page_content, f"app_chunk_{i+1}")
+                charset_debugger.log_debug("APP_CHUNK_SAFETY", f"Chunk {i+1} verificação", safety_check)
+                
+                # Debug dos metadados
+                for key, value in chunk.metadata.items():
+                    metadata_safety = charset_debugger.check_text_safety(str(value), f"app_metadata_{key}_{i+1}")
+                    charset_debugger.log_debug("APP_METADATA_SAFETY", f"Metadata {key} do chunk {i+1}", metadata_safety)
+            
+            charset_debugger.log_debug("APP_VECTOR_STORE_CALL", f"Chamando vector_store.insert_documents para collection: {collection_name}")
+            success = vector_store.insert_documents(
+                collection_name=collection_name,
+                documents=result['chunks']
             )
-            print(f"✅ Documento processado salvo: {processed_path}", file=sys.stderr)
+            charset_debugger.log_debug("APP_VECTOR_STORE_SUCCESS", "vector_store.insert_documents concluído com sucesso")
+            emit_progress('vectorized', 95, 'Embeddings e metadados completos armazenados com sucesso!')
+            
         except Exception as e:
-            print(f"⚠️ Aviso: Erro ao salvar documento processado no MinIO: {str(e)}", file=sys.stderr)
-            # Continuar mesmo se falhar ao salvar o processado
-            processed_path = None
-        
-        # Atualizar metadados dos chunks com informações do MinIO
-        print(f"📝 Atualizando metadados dos chunks", file=sys.stderr)
-        for i, chunk in enumerate(result['chunks']):
-            chunk.metadata.update({
-                'collection_name': collection_name,
-                'minio_original_path': upload_result['original_path'],
-                'minio_processed_path': processed_path,
-                'upload_timestamp': upload_result['upload_time']
-            })
-            print(f"   Chunk {i+1}: {len(chunk.page_content)} chars, metadata atualizado", file=sys.stderr)
-        
-        # Inserir no banco de vetores
-        print(f"🔗 Inserindo no banco de vetores (QDrant)", file=sys.stderr)
-        success = vector_store.insert_documents(
-            collection_name=collection_name,
-            documents=result['chunks']
-        )
-        
-        if success:
-            # Limpar arquivo temporário
-            try:
-                os.remove(file_path)
-                print(f"🗑️ Arquivo temporário removido: {file_path}", file=sys.stderr)
-            except:
-                pass
+            charset_debugger.log_debug("APP_VECTOR_STORE_ERROR", f"ERRO CRÍTICO no app.py: {e}")
             
-            print(f"🎉 UPLOAD COMPLETO COM SUCESSO!", file=sys.stderr)
-            print(f"   - MinIO: {upload_result['original_path']}", file=sys.stderr)
-            print(f"   - QDrant: {len(result['chunks'])} chunks", file=sys.stderr)
-            sys.stderr.flush()
+            # Stack trace completo
+            import traceback
+            stack_trace = traceback.format_exc()
+            charset_debugger.log_debug("APP_VECTOR_STORE_STACK", f"Stack trace completo do app.py:\n{stack_trace}")
             
-            return jsonify({
-                'success': True,
-                'message': f'Documento "{filename}" processado e inserido com sucesso',
-                'file_name': filename,
-                'chunks_count': len(result['chunks']),
-                'minio_path': upload_result['original_path'],
-                'collection_name': collection_name
-            })
-        else:
-            return jsonify({'error': 'Erro ao inserir documentos no banco de vetores'}), 500
+            # Relatório completo de debug
+            charset_debugger.print_debug_report()
             
+            os.remove(file_path)
+            return jsonify({'error': f'Erro na vetorização ZERO-CHARSET: {str(e)}'}), 500
+        
+        # Limpar arquivo temporário
+        try:
+            os.remove(file_path)
+        except:
+            pass
+        
+        emit_progress('completed', 100, f'Documento {filename} processado com sucesso! {len(result["chunks"])} chunks criados.')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Documento processado com sucesso',
+            'filename': filename,
+            'file_name': filename,  # Adicionar campo esperado pelo front-end
+            'collection_name': collection_name,  # Adicionar campo esperado pelo front-end
+            'chunks_count': len(result['chunks']),
+            'collection': collection_name
+        })
+    
     except Exception as e:
-        print(f"❌ ERRO GERAL NO UPLOAD: {str(e)}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
         # Limpar arquivo temporário em caso de erro
         try:
             if 'file_path' in locals():
                 os.remove(file_path)
         except:
             pass
-        return jsonify({'error': str(e)}), 500
+        
+        print(f"❌ Erro durante upload: {e}", file=sys.stderr)
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+
+
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -666,57 +914,63 @@ def get_collection_content(collection_name: str):
                 # Primeiro, tentar encontrar o documento na collection para obter o caminho processado
                 documents = vector_store.list_collection_documents(collection_name)
                 
+                # DEBUG: Mostrar todos os documentos disponíveis
+                print(f"🔍 DEBUG [CONTENT_SEARCH] Procurando documento: '{document_name}'", file=sys.stderr)
+                print(f"🔍 DEBUG [CONTENT_AVAILABLE] Documentos disponíveis na collection '{collection_name}':", file=sys.stderr)
+                for i, doc in enumerate(documents):
+                    print(f"  📄 {i+1}. name='{doc.get('name')}', file_name='{doc.get('file_name')}', minio_path='{doc.get('minio_path')}'", file=sys.stderr)
+                
                 # Encontrar o documento específico por nome original
                 target_doc = None
                 for doc in documents:
-                    # Comparar pelo nome do arquivo original ou pelo minio_original_path
-                    if (doc.get('name') == document_name or 
-                        doc.get('file_name') == document_name or
-                        doc.get('minio_original_path') == document_name or
-                        doc.get('original_path') == document_name):
+                    # Comparar pelos campos disponíveis
+                    doc_name = doc.get('name', '')
+                    doc_file_name = doc.get('file_name', '')
+                    doc_minio_path = doc.get('minio_path', '')
+                    
+                    print(f"🔍 DEBUG [CONTENT_COMPARE] Comparando '{document_name}' com:", file=sys.stderr)
+                    print(f"  - name: '{doc_name}'", file=sys.stderr)
+                    print(f"  - file_name: '{doc_file_name}'", file=sys.stderr)
+                    print(f"  - minio_path: '{doc_minio_path}'", file=sys.stderr)
+                    
+                    # Tentar várias formas de match
+                    matches = [
+                        doc_name == document_name,
+                        doc_file_name == document_name,
+                        doc_minio_path == document_name,
+                        document_name in doc_minio_path,  # Match parcial
+                        doc_name in document_name,        # Nome contém o documento
+                        document_name.endswith(doc_name), # Document name termina com o nome do doc
+                    ]
+                    
+                    print(f"  - Matches: {matches}", file=sys.stderr)
+                    
+                    if any(matches):
                         target_doc = doc
+                        print(f"✅ DEBUG [CONTENT_FOUND] Documento encontrado via: {['name==', 'file_name==', 'minio_path==', 'in_minio_path', 'name_in', 'ends_with_name'][matches.index(True)]}", file=sys.stderr)
                         break
                 
                 if not target_doc:
                     return jsonify({'error': f'Documento {document_name} não encontrado na collection {collection_name}'}), 404
                 
-                # Usar o caminho processado se disponível, senão o original
-                processed_path = target_doc.get('minio_processed_path')
-                if not processed_path:
-                    return jsonify({'error': f'Documento {document_name} não possui versão processada disponível'}), 404
+                # Usar os chunks do documento que já temos disponíveis
+                chunks = target_doc.get('chunks', [])
+                if not chunks:
+                    print(f"❌ DEBUG [CONTENT_ERROR] Documento encontrado mas sem chunks disponíveis", file=sys.stderr)
+                    return jsonify({'error': f'Documento {document_name} não possui chunks disponíveis para geração de Q&A'}), 404
                 
-                print(f"🔍 Buscando documento processado: {processed_path}", file=sys.stderr)
+                print(f"✅ DEBUG [CONTENT_CHUNKS] Documento tem {len(chunks)} chunks disponíveis", file=sys.stderr)
                 
-                if storage_manager.use_minio:
-                    # MinIO storage
-                    content_bytes = storage_manager.storage.download_file(processed_path)
-                    # Tentar diferentes codificações
-                    try:
-                        content = content_bytes.decode('utf-8')
-                    except UnicodeDecodeError:
-                        try:
-                            content = content_bytes.decode('latin-1')
-                            print(f"⚠️ Usando codificação latin-1 para {processed_path}", file=sys.stderr)
-                        except UnicodeDecodeError:
-                            try:
-                                content = content_bytes.decode('cp1252')
-                                print(f"⚠️ Usando codificação cp1252 para {processed_path}", file=sys.stderr)
-                            except UnicodeDecodeError:
-                                # Como último recurso, usar utf-8 com erro 'ignore'
-                                content = content_bytes.decode('utf-8', errors='ignore')
-                                print(f"⚠️ Usando UTF-8 com ignore para {processed_path}", file=sys.stderr)
-                else:
-                    # Local storage
-                    try:
-                        content = storage_manager.storage.read_file(processed_path)
-                    except UnicodeDecodeError:
-                        # Tentar ler como binário e decodificar
-                        with open(processed_path, 'rb') as f:
-                            content_bytes = f.read()
-                        try:
-                            content = content_bytes.decode('utf-8')
-                        except UnicodeDecodeError:
-                            content = content_bytes.decode('utf-8', errors='ignore')
+                # Concatenar todos os chunks para formar o conteúdo completo
+                content_parts = []
+                for chunk in sorted(chunks, key=lambda x: x.get('chunk_index', 0)):
+                    chunk_content = chunk.get('content', '')
+                    if chunk_content and chunk_content.strip():
+                        content_parts.append(chunk_content.strip())
+                        print(f"📄 DEBUG [CONTENT_CHUNK] Chunk {chunk.get('chunk_index', '?')}: {len(chunk_content)} chars", file=sys.stderr)
+                
+                content = '\n\n'.join(content_parts)
+                print(f"✅ DEBUG [CONTENT_ASSEMBLED] Conteúdo montado: {len(content)} caracteres totais", file=sys.stderr)
                 
                 print(f"✅ Conteúdo obtido com sucesso. Tamanho: {len(content)} caracteres", file=sys.stderr)
                 
@@ -724,7 +978,8 @@ def get_collection_content(collection_name: str):
                     'success': True,
                     'content': content,
                     'document_name': target_doc.get('name', document_name),
-                    'processed_path': processed_path,
+                    'chunks_count': len(chunks),
+                    'source': 'chunks_from_qdrant',
                     'document_count': 1
                 })
             except Exception as e:
@@ -802,8 +1057,12 @@ def generate_qa():
             print("❌ Conteúdo vazio ou não fornecido", file=sys.stderr)
             return jsonify({'error': 'Conteúdo é obrigatório'}), 400
         
+        # Sanitizar conteúdo antes do processamento
+        content = sanitize_content(content)
+        print(f"🧼 Conteúdo sanitizado para processamento Q&A", file=sys.stderr)
+        
         if not content.strip():
-            print("❌ Conteúdo contém apenas espaços em branco", file=sys.stderr)
+            print("❌ Conteúdo contém apenas espaços em branco após sanitização", file=sys.stderr)
             return jsonify({'error': 'Conteúdo não pode estar vazio'}), 400
         
         print(f"✅ Validações passadas. qa_generator: {type(qa_generator)}", file=sys.stderr)
@@ -834,14 +1093,21 @@ def generate_qa():
         print(f"🚀 Iniciando geração de Q&A com {len(content)} caracteres...", file=sys.stderr)
         print(f"📋 Parâmetros completos: {params}", file=sys.stderr)
         
+        emit_qa_progress('generating', 10, 'Iniciando geração de Q&As...')
+        
         try:
             print("⚡ Prestes a chamar qa_generator.generate_qa_pairs()", file=sys.stderr)
+            emit_qa_progress('generating', 30, 'Processando conteúdo com IA...')
+            
             qa_content = qa_generator.generate_qa_pairs(content, params)
+            
+            emit_qa_progress('generating', 80, 'Formatando perguntas e respostas...')
             print(f"✅ Função generate_qa_pairs retornou!", file=sys.stderr)
             print(f"📊 Resultado da geração: {type(qa_content)}, length: {len(qa_content) if qa_content else 0}", file=sys.stderr)
             if qa_content:
                 print(f"📄 Preview: {repr(qa_content[:100])}", file=sys.stderr)
         except Exception as gen_error:
+            emit_qa_progress('error', 0, f'Erro na geração: {str(gen_error)}')
             print(f"❌ Erro durante geração: {str(gen_error)}", file=sys.stderr)
             import traceback
             traceback.print_exc()
@@ -856,7 +1122,10 @@ def generate_qa():
             return jsonify({'error': 'Conteúdo Q&A gerado está vazio'}), 400
         
         # Converter para documentos (apenas para contar)
+        emit_qa_progress('generating', 95, 'Finalizando geração...')
         documents = qa_generator.qa_to_documents(qa_content, "temp")
+        
+        emit_qa_progress('completed', 100, f'{len(documents)} pares de Q&A gerados com sucesso!')
         
         return jsonify({
             'success': True,
@@ -887,8 +1156,12 @@ def vectorize_qa():
         if not qa_content or not collection_name:
             return jsonify({'error': 'Conteúdo Q&A e collection são obrigatórios'}), 400
         
+        emit_qa_progress('vectorizing', 10, 'Preparando documentos para vetorização...')
+        
         # Converter para documentos
         documents = qa_generator.qa_to_documents(qa_content, collection_name)
+        
+        emit_qa_progress('vectorizing', 30, f'Vetorizando {len(documents)} pares de Q&A...')
         
         # Inserir no banco de vetores
         success = vector_store.insert_documents(
@@ -896,13 +1169,17 @@ def vectorize_qa():
             documents=documents
         )
         
+        emit_qa_progress('vectorizing', 90, 'Finalizando inserção na collection...')
+        
         if success:
+            emit_qa_progress('completed', 100, f'{len(documents)} pares de Q&A vetorizados com sucesso!')
             return jsonify({
                 'success': True,
                 'message': f'{len(documents)} pares de Q&A inseridos com sucesso na collection {collection_name}',
                 'qa_count': len(documents)
             })
         else:
+            emit_qa_progress('error', 0, 'Erro ao inserir Q&A no banco de vetores')
             return jsonify({'error': 'Erro ao inserir Q&A no banco de vetores'}), 500
             
     except Exception as e:
@@ -956,14 +1233,21 @@ def create_qa_embeddings():
 def semantic_search():
     """Endpoint para busca semântica que aciona o N8N."""
     try:
+        from src.semantic_search_service import SemanticSearchService
+        
         data = request.get_json()
         
         if not data:
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
         question = data.get('question')
-        collection_name = data.get('collection_name', '')
+        collection_names = data.get('collection_names', [])
+        collection_name = data.get('collection_name', '')  # Compatibilidade com versão anterior
         models = data.get('models', {})
+        
+        # Se não há collection_names mas há collection_name, usar como lista
+        if not collection_names and collection_name:
+            collection_names = [collection_name]
         
         if not question:
             return jsonify({'error': 'Pergunta é obrigatória'}), 400
@@ -975,73 +1259,324 @@ def semantic_search():
         if not openai_enabled and not gemini_enabled:
             return jsonify({'error': 'Pelo menos um modelo deve ser selecionado'}), 400
         
-        # Configuração do N8N
-        n8n_webhook_url = os.getenv('N8N_WEBHOOK_URL')
-        if not n8n_webhook_url:
-            return jsonify({'error': 'N8N_WEBHOOK_URL não configurada no .env'}), 500
+        # Usar o serviço de busca semântica
+        semantic_service = SemanticSearchService()
+        result = semantic_service.search_with_n8n(
+            question=question,
+            collection_names=collection_names,
+            openai_enabled=openai_enabled,
+            gemini_enabled=gemini_enabled
+        )
         
-        # Ajustar URL para o webhook de busca semântica
-        if '/webhook-test/' in n8n_webhook_url:
-            # Se for um webhook de teste, usar o mesmo padrão para semantic-search
-            n8n_webhook_url = n8n_webhook_url.replace('/webhook-test/', '/webhook/semantic-search/')
-        elif not n8n_webhook_url.endswith('/semantic-search'):
-            # Se não terminar com /semantic-search, adicionar
-            n8n_webhook_url = n8n_webhook_url.rstrip('/') + '/semantic-search'
-        
-        # Preparar dados para o N8N
-        n8n_payload = {
-            'question': question,
-            'collection_name': collection_name,
-            'models': {
-                'openai': openai_enabled,
-                'gemini': gemini_enabled
-            },
-            'timestamp': time.time()
-        }
-        
-        # Fazer requisição para o N8N
-        import requests
-        try:
-            response = requests.post(
-                n8n_webhook_url,
-                json=n8n_payload,
-                headers={'Content-Type': 'application/json'},
-                timeout=60  # Timeout de 60 segundos
-            )
-            
-            if response.status_code == 200:
-                n8n_result = response.json()
-                
-                # Processar resposta do N8N
-                responses = {}
-                
-                if openai_enabled and 'openai_response' in n8n_result:
-                    responses['openai'] = n8n_result['openai_response']
-                
-                if gemini_enabled and 'gemini_response' in n8n_result:
-                    responses['gemini'] = n8n_result['gemini_response']
-                
-                return jsonify({
-                    'success': True,
-                    'responses': responses,
-                    'n8n_workflow_id': n8n_result.get('workflow_id'),
-                    'processing_time': n8n_result.get('processing_time')
-                })
+        if result['success']:
+            return jsonify(result)
+        else:
+            # Determinar o status code baseado no tipo de erro
+            if 'não configurada' in result.get('error', ''):
+                status_code = 500
+            elif 'não está acessível' in result.get('error', '') or 'conexão' in result.get('error', ''):
+                status_code = 503
+            elif 'Timeout' in result.get('error', ''):
+                status_code = 504
+            elif 'Webhook' in result.get('error', ''):
+                status_code = 503
             else:
-                return jsonify({
-                    'error': f'Erro no N8N: {response.status_code} - {response.text}'
-                }), 500
-                
-        except requests.exceptions.RequestException as e:
-            return jsonify({
-                'error': f'Erro de conexão com N8N: {str(e)}'
-            }), 500
+                status_code = 500
+            
+            return jsonify(result), status_code
             
     except Exception as e:
         print(f"❌ Erro na busca semântica: {str(e)}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/collections-by-model', methods=['GET'])
+def debug_collections_by_model():
+    """Endpoint de debug para verificar collections por modelo."""
+    try:
+        from src.semantic_search_by_model_service import SemanticSearchByModelService
+        
+        service = SemanticSearchByModelService()
+        all_collections = service.vector_store.list_collections()
+        
+        debug_info = {
+            'total_collections': len(all_collections),
+            'collections': [],
+            'models_available': list(config.EMBEDDING_MODELS.keys())
+        }
+        
+        for collection in all_collections:
+            collection_debug = {
+                'name': collection.get('name'),
+                'exists_in_qdrant': collection.get('exists_in_qdrant'),
+                'embedding_model': collection.get('embedding_model'),
+                'model_config': collection.get('model_config', {}),
+                'document_count': collection.get('document_count', 0),
+                'created_at': collection.get('created_at')
+            }
+            debug_info['collections'].append(collection_debug)
+        
+        # Testar cada modelo
+        debug_info['collections_by_model'] = {}
+        for model_id in config.EMBEDDING_MODELS.keys():
+            model_collections = service.get_collections_by_model(model_id)
+            debug_info['collections_by_model'][model_id] = model_collections
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro no debug de collections: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/fix-collections-status', methods=['POST'])
+def fix_collections_status():
+    """Corrige o status exists_in_qdrant das collections verificando diretamente no Qdrant."""
+    try:
+        from src.semantic_search_by_model_service import SemanticSearchByModelService
+        
+        service = SemanticSearchByModelService()
+        all_collections = service.vector_store.list_collections()
+        
+        fixed_collections = []
+        errors = []
+        
+        for collection in all_collections:
+            collection_name = collection.get('name')
+            current_status = collection.get('exists_in_qdrant', False)
+            
+            if collection_name:
+                # Verificar status real no Qdrant
+                real_status = service._check_collection_exists_in_qdrant(collection_name)
+                
+                if current_status != real_status:
+                    try:
+                        # Tentar atualizar o status no sistema
+                        # Isso depende de como o vector_store salva os metadados
+                        print(f"🔄 Corrigindo status de '{collection_name}': {current_status} → {real_status}")
+                        fixed_collections.append({
+                            'name': collection_name,
+                            'old_status': current_status,
+                            'new_status': real_status
+                        })
+                    except Exception as e:
+                        errors.append({
+                            'collection': collection_name,
+                            'error': str(e)
+                        })
+        
+        return jsonify({
+            'success': True,
+            'fixed_collections': fixed_collections,
+            'errors': errors,
+            'message': f'Verificadas {len(all_collections)} collections, {len(fixed_collections)} corrigidas'
+        })
+        
+    except Exception as e:
+        print(f"❌ Erro ao corrigir status das collections: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/semantic-search-by-model', methods=['POST'])
+def semantic_search_by_model():
+    """Busca semântica por modelo específico com retorno de chunks."""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+        
+        query = data.get('query', '').strip()
+        model_id = data.get('model', '').strip()
+        top_k = data.get('top_k', 20)  # Aumentado para busca mais robusta
+        similarity_threshold = data.get('similarity_threshold', 0.3)  # Threshold mais restritivo (30%)
+        
+        if not query:
+            return jsonify({'success': False, 'error': 'Query não fornecida'}), 400
+        
+        if not model_id:
+            return jsonify({'success': False, 'error': 'Modelo não especificado'}), 400
+        
+        # Verificar se o modelo existe
+        if model_id not in config.EMBEDDING_MODELS:
+            return jsonify({
+                'success': False, 
+                'error': f'Modelo {model_id} não encontrado'
+            }), 400
+        
+        # Importar e usar o serviço
+        from src.semantic_search_by_model_service import SemanticSearchByModelService
+        
+        search_service = SemanticSearchByModelService()
+        result = search_service.search_and_generate_response(
+            query=query,
+            model_id=model_id,
+            top_k=top_k,
+            similarity_threshold=similarity_threshold
+        )
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        print(f"❌ Erro na busca semântica por modelo: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'Erro interno do servidor: {str(e)}'
+        }), 500
+
+
+@app.route('/api/debug/gemini-models', methods=['GET'])
+def debug_gemini_models():
+    """Lista modelos Gemini disponíveis para debug."""
+    try:
+        import google.generativeai as genai
+        
+        if not config.GEMINI_API_KEY:
+            return jsonify({
+                'success': False,
+                'error': 'GEMINI_API_KEY não configurada'
+            })
+        
+        genai.configure(api_key=config.GEMINI_API_KEY)
+        
+        # Testar modelos conhecidos
+        models_to_test = [
+            "gemini-1.5-flash",
+            "gemini-1.5-pro", 
+            "gemini-pro-1.5",
+            "gemini-1.0-pro",
+            "gemini-pro"  # modelo antigo para verificar
+        ]
+        
+        available_models = []
+        unavailable_models = []
+        
+        for model_name in models_to_test:
+            try:
+                model = genai.GenerativeModel(model_name)
+                # Fazer um teste simples
+                response = model.generate_content("Teste", generation_config={"max_output_tokens": 10})
+                if response and response.text:
+                    available_models.append(model_name)
+                else:
+                    unavailable_models.append(f"{model_name} (resposta vazia)")
+            except Exception as e:
+                unavailable_models.append(f"{model_name} (erro: {str(e)[:100]})")
+        
+        return jsonify({
+            'success': True,
+            'available_models': available_models,
+            'unavailable_models': unavailable_models,
+            'current_config': config.GEMINI_MODEL,
+            'api_key_configured': bool(config.GEMINI_API_KEY)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/debug/collections-count-comparison', methods=['GET'])
+def debug_collections_count_comparison():
+    """Compara as contagens entre collections view e busca semântica."""
+    try:
+        from src.semantic_search_by_model_service import SemanticSearchByModelService
+        
+        semantic_service = SemanticSearchByModelService()
+        
+        # Obter informações das collections
+        all_collections = vector_store.list_collections()
+        
+        comparison = {
+            'collections_view': {},
+            'semantic_search': {},
+            'differences': []
+        }
+        
+        # Para cada modelo, verificar contagens
+        for model_id in ['openai', 'gemini']:
+            # Collections view - contagem do metadata
+            model_collections = [c for c in all_collections 
+                               if c.get('model_config', {}).get('provider') == model_id 
+                               or c.get('embedding_model') == model_id]
+            
+            collections_view_total = sum(c.get('chunks_count', 0) for c in model_collections)
+            collections_view_names = [c.get('name') for c in model_collections]
+            
+            # Semantic search - contagem real do Qdrant
+            semantic_collections = semantic_service.get_collections_by_model(model_id)
+            semantic_total = 0
+            qdrant_counts = {}
+            
+            for collection_name in semantic_collections:
+                try:
+                    collection_info = vector_store.client.get_collection(collection_name)
+                    count = collection_info.points_count
+                    qdrant_counts[collection_name] = count
+                    semantic_total += count
+                except Exception as e:
+                    qdrant_counts[collection_name] = f"erro: {str(e)}"
+            
+            comparison['collections_view'][model_id] = {
+                'collections': collections_view_names,
+                'total_chunks': collections_view_total,
+                'source': 'metadata_cache'
+            }
+            
+            comparison['semantic_search'][model_id] = {
+                'collections': semantic_collections,
+                'total_chunks': semantic_total,
+                'qdrant_counts': qdrant_counts,
+                'source': 'qdrant_real_time'
+            }
+            
+            if collections_view_total != semantic_total:
+                comparison['differences'].append({
+                    'model': model_id,
+                    'collections_view': collections_view_total,
+                    'semantic_search': semantic_total,
+                    'difference': abs(collections_view_total - semantic_total),
+                    'issue': 'metadata vs real count mismatch'
+                })
+        
+        return jsonify({
+            'success': True,
+            'comparison': comparison,
+            'explanation': {
+                'collections_view': 'Usa contagem do metadata cache (pode estar desatualizada)',
+                'semantic_search': 'Usa contagem real do Qdrant (sempre atual)'
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

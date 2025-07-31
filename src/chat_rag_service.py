@@ -9,6 +9,7 @@ from dataclasses import dataclass, asdict
 
 from src.config import get_config
 from src.vector_store import QdrantVectorStore
+from src.multi_agent_chat_service import MultiAgentChatService
 
 config = get_config()
 
@@ -75,6 +76,7 @@ class RAGChatService:
     def __init__(self):
         """Inicializa o serviço de chat."""
         self.vector_store = QdrantVectorStore()
+        self.multi_agent_service = MultiAgentChatService()
         self.use_qdrant = True
         self.use_n8n = True  # Flag para habilitar/desabilitar N8N
         self.sessions: Dict[str, ChatSession] = {}
@@ -167,45 +169,6 @@ class RAGChatService:
                 "error": f"Erro ao processar com N8N: {str(e)}"
             }
     
-    def get_collections_info(self, collection_names: List[str] = None) -> List[Dict[str, Any]]:
-        """Obtém informações detalhadas das collections selecionadas."""
-        try:
-            all_collections = self.vector_store.list_collections()
-            
-            if collection_names:
-                # Filtrar apenas as collections selecionadas
-                selected_collections = [
-                    col for col in all_collections 
-                    if col["name"] in collection_names and col.get("exists_in_qdrant", True)
-                ]
-            else:
-                # Se não especificado, usar todas as collections existentes
-                selected_collections = [
-                    col for col in all_collections 
-                    if col.get("exists_in_qdrant", True)
-                ]
-            
-            # Enriquecer com informações adicionais
-            collections_info = []
-            for col in selected_collections:
-                collection_info = {
-                    "name": col["name"],
-                    "embedding_model": col.get("embedding_model", "unknown"),
-                    "model_config": col.get("model_config", {}),
-                    "description": col.get("description", ""),
-                    "document_count": col.get("document_count", 0),
-                    "created_at": col.get("created_at", ""),
-                    "vector_dimension": col.get("model_config", {}).get("dimension", 0),
-                    "model_provider": col.get("model_config", {}).get("provider", "unknown")
-                }
-                collections_info.append(collection_info)
-            
-            return collections_info
-            
-        except Exception as e:
-            print(f"❌ Erro ao obter informações das collections: {e}")
-            return []
-    
     def chat(self, session_id: str, message: str, 
              collection_names: Union[str, List[str]] = None, 
              similarity_threshold: float = 0.0) -> Dict[str, Any]:
@@ -235,7 +198,7 @@ class RAGChatService:
                 collection_names = []
             
             # Obter informações das collections
-            collections_info = self.get_collections_info(collection_names)
+            collections_info = self.multi_agent_service.get_knowledge_sources_info(collection_names)
             
             if not collections_info:
                 print("⚠️ Nenhuma collection válida encontrada")
@@ -263,7 +226,7 @@ class RAGChatService:
                     print("⚠️ N8N falhou, usando processamento local como fallback")
             
             # Processamento local (fallback ou quando N8N está desabilitado)
-            relevant_docs = self.search_relevant_documents_multiple(message, collection_names, similarity_threshold=similarity_threshold)
+            relevant_docs = self.multi_agent_service.query_knowledge_sources(message, collection_names, similarity_threshold=similarity_threshold)
             response = self.generate_response(message, relevant_docs, session.messages)
             
             # Adicionar resposta do assistente
@@ -286,74 +249,6 @@ class RAGChatService:
                 "collections_used": [],
                 "processed_by": "error"
             }
-    
-    def search_relevant_documents_multiple(self, query: str, collection_names: List[str] = None, 
-                                         top_k: int = 5, similarity_threshold: float = 0.0) -> List[Dict[str, Any]]:
-        """
-        Busca documentos relevantes em múltiplas collections com threshold de similaridade.
-        
-        Args:
-            query: Query de busca
-            collection_names: Lista de collections para buscar
-            top_k: Número máximo de resultados por collection
-            similarity_threshold: Threshold de similaridade (0.0 a 1.0, onde 0.0 = 0% e 1.0 = 100%)
-        """
-        try:
-            if not self.use_qdrant:
-                return []
-            
-            all_results = []
-            
-            if collection_names:
-                # Buscar nas collections especificadas
-                for collection_name in collection_names:
-                    try:
-                        results = self.vector_store.search_similar(
-                            collection_name, 
-                            query, 
-                            top_k, 
-                            similarity_threshold=similarity_threshold
-                        )
-                        # Adicionar informação da collection de origem
-                        for result in results:
-                            result["source_collection"] = collection_name
-                        all_results.extend(results)
-                    except Exception as e:
-                        print(f"Erro ao buscar na collection {collection_name}: {e}")
-                        continue
-            else:
-                # Buscar em todas as collections disponíveis
-                collections = self.vector_store.list_collections()
-                
-                for collection_info in collections:
-                    if collection_info.get("exists_in_qdrant"):
-                        try:
-                            results = self.vector_store.search_similar(
-                                collection_info["name"], query, top_k
-                            )
-                            # Adicionar informação da collection de origem
-                            for result in results:
-                                result["source_collection"] = collection_info["name"]
-                            all_results.extend(results)
-                        except Exception as e:
-                            print(f"Erro ao buscar na collection {collection_info['name']}: {e}")
-                            continue
-            
-            # Ordenar por score e retornar os melhores
-            all_results.sort(key=lambda x: x.get('score', 0), reverse=True)
-            return all_results[:top_k]
-            
-        except Exception as e:
-            print(f"Erro na busca de documentos: {e}")
-            return []
-
-    # Manter método antigo para compatibilidade
-    def search_relevant_documents(self, query: str, collection_name: str = None, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Busca documentos relevantes para a consulta. (Método de compatibilidade)"""
-        if collection_name:
-            return self.search_relevant_documents_multiple(query, [collection_name], top_k)
-        else:
-            return self.search_relevant_documents_multiple(query, None, top_k)
     
     def generate_response(self, query: str, relevant_docs: List[Dict[str, Any]], 
                          chat_history: List[ChatMessage]) -> str:
@@ -409,15 +304,11 @@ Resposta:"""
     
     def get_collections(self) -> List[str]:
         """Retorna lista de collections disponíveis."""
-        try:
-            if self.use_qdrant:
-                collections = self.vector_store.list_collections()
-                return [c['name'] for c in collections if c.get('exists_in_qdrant')]
-            else:
-                return ["default"]
-        except Exception as e:
-            print(f"Erro ao listar collections: {e}")
-            return ["default"]
+        return self.multi_agent_service.get_knowledge_sources()
+    
+    def get_collections_info(self, collection_names: List[str] = None) -> List[Dict[str, Any]]:
+        """Obtém informações detalhadas das collections. (Método de compatibilidade)"""
+        return self.multi_agent_service.get_knowledge_sources_info(collection_names)
 
 
 class ChatManager:
@@ -507,4 +398,4 @@ class ChatManager:
     
     def get_collections(self) -> List[str]:
         """Lista collections disponíveis."""
-        return self.chat_service.get_collections() 
+        return self.chat_service.get_collections()
