@@ -351,7 +351,7 @@ perform_complete_cleanup() {
         fi
         
         # Remover outros diretórios de dados se existirem
-        for dir in data uploads/__pycache__ .pytest_cache; do
+        for dir in data uploads .pytest_cache; do
             if [ -d "$dir" ]; then
                 rm -rf "$dir" 2>/dev/null || true
                 log_info "Diretório '$dir' removido"

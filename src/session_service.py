@@ -146,7 +146,7 @@ class SessionService:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                        INSERT INTO chat_sessions (session_id, name, created_at, last_activity)
+                        INSERT INTO chat_sessions (session_id, session_name, created_at, last_activity)
                         VALUES (%s, %s, %s, %s)
                     """, (session_id, name, datetime.now(), datetime.now()))
                     conn.commit()

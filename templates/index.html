@@ -1525,7 +1525,7 @@ DOCUMENTO:
                     chatMessages.innerHTML = '';
                     
                     // Mudar para aba de chat
-                    showContentSection('chat-content');
+                    showContent('chat');
                     
                     // Recarregar lista de sessões
                     await loadSessions();
@@ -3650,7 +3650,7 @@ DOCUMENTO:
                     }
                     
                     // Mudar para aba de chat
-                    showContentSection('chat-content');
+                    showContent('chat');
                     
                     showToast(`✅ Sessão "${sessionName}" carregada com sucesso`, 'success');
                 } else {

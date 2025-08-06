@@ -592,6 +592,357 @@ docker-compose exec postgres pg_dump -U chat_user chat_memory > backup.sql
 
 Para mais detalhes, consulte: [docs/postgres-chat-memory.md](docs/postgres-chat-memory.md)
 
+## 🗄️ Estrutura Completa de Banco de Dados
+
+### 📊 Visão Geral da Arquitetura de Dados
+
+O RAG-Demo utiliza uma arquitetura de múltiplos bancos especializados para máxima eficiência:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │     Qdrant      │    │     MinIO       │
+│                 │    │                 │    │                 │
+│ • Chat Memory   │    │ • Vector DB     │    │ • File Storage  │
+│ • Sessions      │    │ • Embeddings    │    │ • Documents     │
+│ • Analytics     │    │ • Similarity    │    │ • Uploads       │
+│ • Feedback      │    │ • Search        │    │ • Assets        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 🏗️ Schema PostgreSQL Detalhado
+
+#### **Tabelas Principais:**
+
+**1. `chat_messages` - Histórico de Conversas (n8n compatibility)**
+```sql
+CREATE TABLE chat_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,              -- Conteúdo principal (usado pelo n8n)
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**2. `chat_sessions` - Configurações de Sessão**
+```sql
+CREATE TABLE chat_sessions (
+    session_id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255),
+    session_name VARCHAR(500),
+    context_window_length INTEGER DEFAULT 10,     -- Tamanho da janela de contexto
+    model_preference VARCHAR(100) DEFAULT 'gpt-4o-mini',  -- Modelo preferido
+    temperature FLOAT DEFAULT 0.7,               -- Criatividade (0.0-1.0)
+    max_tokens INTEGER DEFAULT 2000,             -- Limite de tokens
+    is_active BOOLEAN DEFAULT true,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**3. `session_analytics` - Estatísticas de Uso (Beta)**
+```sql
+CREATE TABLE session_analytics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
+    total_messages INTEGER DEFAULT 0,
+    total_tokens_used INTEGER DEFAULT 0,
+    avg_response_time FLOAT DEFAULT 0.0,
+    collections_used JSONB DEFAULT '[]',
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**4. `user_feedback` - Avaliações de Qualidade (Beta)**
+```sql
+CREATE TABLE user_feedback (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
+    message_id UUID REFERENCES chat_messages(id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    feedback_text TEXT,
+    feedback_type VARCHAR(50) DEFAULT 'quality',  -- quality, relevance, accuracy
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 🔧 Gerenciamento de Banco de Dados
+
+#### **Criação/Recriação da Estrutura**
+
+**Método 1: Automático (Recomendado)**
+```bash
+# Setup completo - cria tudo automaticamente
+./setup.sh
+
+# Ou com limpeza completa
+./setup.sh --clean
+```
+
+**Método 2: Manual**
+```bash
+# Conectar ao PostgreSQL
+docker-compose exec postgres psql -U chat_user -d chat_memory
+
+# Executar script de inicialização
+\i /docker-entrypoint-initdb.d/init-postgres.sql
+```
+
+**Método 3: Reinicialização Completa**
+```bash
+# Parar serviços
+docker-compose down
+
+# Remover volumes (CUIDADO: apaga dados!)
+docker volume rm $(docker volume ls -q | grep pln)
+
+# Reiniciar
+./setup.sh
+```
+
+#### **Testes de Conectividade**
+
+**Teste Automatizado:**
+```bash
+python scripts/test-postgres-connection.py
+```
+
+**Teste Manual:**
+```bash
+# Conectar ao banco
+docker-compose exec postgres psql -U chat_user -d chat_memory
+
+# Verificar tabelas
+\dt
+
+# Ver estrutura de uma tabela
+\d chat_messages
+
+# Verificar dados
+SELECT COUNT(*) FROM chat_messages;
+SELECT COUNT(*) FROM chat_sessions;
+```
+
+### 📊 Comandos de Manutenção
+
+#### **Backup e Restauração**
+```bash
+# Backup completo
+docker-compose exec postgres pg_dump -U chat_user chat_memory > backup.sql
+
+# Backup apenas estrutura
+docker-compose exec postgres pg_dump -U chat_user -s chat_memory > schema.sql
+
+# Restaurar backup
+docker-compose exec -T postgres psql -U chat_user chat_memory < backup.sql
+```
+
+#### **Limpeza de Dados**
+```bash
+# Limpar mensagens antigas (30 dias)
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT cleanup_old_sessions(30);"
+
+# Limpar todas as mensagens (CUIDADO!)
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "TRUNCATE chat_messages CASCADE;"
+```
+
+### 📈 Analytics e Monitoramento
+
+#### **Views e Consultas Úteis**
+
+**View Consolidada de Sessões:**
+```sql
+CREATE VIEW session_summary AS
+SELECT 
+    cs.session_id,
+    cs.user_id,
+    cs.session_name,
+    cs.created_at,
+    cs.last_activity,
+    cs.is_active,
+    COUNT(cm.id) as message_count,
+    sa.total_tokens_used,
+    sa.avg_response_time,
+    AVG(uf.rating) as avg_rating
+FROM chat_sessions cs
+LEFT JOIN chat_messages cm ON cs.session_id = cm.session_id
+LEFT JOIN session_analytics sa ON cs.session_id = sa.session_id
+LEFT JOIN user_feedback uf ON cs.session_id = uf.session_id
+GROUP BY cs.session_id, cs.user_id, cs.session_name, cs.created_at, 
+         cs.last_activity, cs.is_active, sa.total_tokens_used, sa.avg_response_time;
+```
+
+**Estatísticas de Uso:**
+```sql
+-- Sessões mais ativas
+SELECT session_id, session_name, message_count, last_activity 
+FROM session_summary 
+ORDER BY message_count DESC 
+LIMIT 10;
+
+-- Feedback médio por tipo
+SELECT feedback_type, AVG(rating) as rating_medio, COUNT(*) as total_feedbacks
+FROM user_feedback 
+GROUP BY feedback_type;
+
+-- Tokens consumidos por dia
+SELECT DATE(created_at) as dia, SUM(total_tokens_used) as tokens_dia
+FROM session_analytics 
+GROUP BY DATE(created_at) 
+ORDER BY dia DESC;
+```
+
+#### **Performance e Monitoramento**
+```sql
+-- Índices existentes
+SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public';
+
+-- Tamanho das tabelas
+SELECT 
+    schemaname, 
+    tablename, 
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public';
+
+-- Estatísticas de uso de índices
+SELECT 
+    schemaname, 
+    tablename, 
+    indexname, 
+    idx_tup_read, 
+    idx_tup_fetch
+FROM pg_stat_user_indexes;
+```
+
+### 🔒 Segurança e Permissões
+
+#### **Configuração de Usuários**
+```sql
+-- Verificar permissões atuais
+\dp chat_messages
+
+-- Usuário dedicado para aplicação
+GRANT ALL PRIVILEGES ON TABLE chat_messages TO chat_user;
+GRANT ALL PRIVILEGES ON TABLE chat_sessions TO chat_user;
+GRANT ALL PRIVILEGES ON TABLE session_analytics TO chat_user;
+GRANT ALL PRIVILEGES ON TABLE user_feedback TO chat_user;
+GRANT SELECT ON session_summary TO chat_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chat_user;
+```
+
+#### **Boas Práticas de Segurança**
+- ✅ **Usuário dedicado** (`chat_user`) - nunca usar superuser
+- ✅ **Conexões limitadas** - apenas da aplicação
+- ✅ **Backup regular** - dados críticos protegidos
+- ✅ **Logs auditoria** - rastreamento de atividades
+- ✅ **Senhas seguras** - configuradas via variáveis de ambiente
+
+### 🚀 Funcionalidades Avançadas
+
+#### **Triggers Automáticos**
+```sql
+-- Atualizar timestamp automaticamente
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Aplicar trigger
+CREATE TRIGGER update_chat_messages_updated_at
+    BEFORE UPDATE ON chat_messages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+```
+
+#### **Funções de Limpeza**
+```sql
+-- Função para limpar dados antigos
+CREATE OR REPLACE FUNCTION cleanup_old_sessions(days_old INTEGER DEFAULT 30)
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM chat_messages 
+    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '1 day' * days_old;
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    
+    DELETE FROM chat_sessions 
+    WHERE last_activity < CURRENT_TIMESTAMP - INTERVAL '1 day' * days_old;
+    
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 🔄 Integração com n8n
+
+#### **Configuração no n8n:**
+1. **Ir para Settings → Credentials**
+2. **Criar nova credencial PostgreSQL:**
+   - Host: `postgres`
+   - Port: `5432`
+   - Database: `chat_memory`
+   - User: `chat_user`
+   - Password: `chat_password`
+
+3. **Usar PostgreSQL Chat Memory node:**
+   - Table Name: `chat_messages`
+   - Session Key: `{{ $json.session_id }}`
+   - Context Window Length: `10`
+
+#### **Exemplo de Workflow n8n:**
+```json
+{
+  "nodes": [
+    {
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "parameters": {
+        "tableName": "chat_messages",
+        "sessionKey": "={{ $json.session_id }}",
+        "contextWindowLength": 10
+      }
+    }
+  ]
+}
+```
+
+### 📱 Integração com Frontend
+
+#### **APIs de Sessão:**
+```javascript
+// Criar nova sessão
+const response = await fetch('/api/sessions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: 'Nova Sessão' })
+});
+
+// Listar sessões
+const sessions = await fetch('/api/sessions').then(r => r.json());
+
+// Carregar mensagens de uma sessão
+const messages = await fetch(`/api/sessions/${sessionId}`).then(r => r.json());
+```
+
+### 📊 Dashboard de Analytics (Beta)
+
+O sistema inclui funcionalidades beta para analytics avançadas:
+
+- **📈 Métricas de Uso**: Mensagens por dia, tokens consumidos
+- **⭐ Qualidade**: Ratings médios, feedback por categoria  
+- **🎯 Performance**: Tempo de resposta, eficiência do modelo
+- **📊 Relatórios**: Exportação de dados para análise externa
+
+Para ativar as funcionalidades beta, todas as tabelas são criadas automaticamente durante o setup.
+
 ## 🐛 Troubleshooting
 
 ### Problemas Comuns

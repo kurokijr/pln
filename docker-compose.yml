@@ -100,7 +100,7 @@ services:
   # n8n - Automação e Orquestração de Workflows
   n8n:
     container_name: n8n
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.38.2
     ports:
       - "5678:5678"
     environment:
