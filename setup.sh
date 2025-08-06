@@ -250,6 +250,9 @@ if [ "$CLEAN_MODE" = true ]; then
     find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
     find . -name "*.pyc" -delete 2>/dev/null || true
     
+    log_info "Limpando diretório uploads..."
+    rm -rf uploads 2>/dev/null || true
+    
     log_success "Limpeza concluída"
 fi
 
@@ -272,6 +275,10 @@ mkdir -p src
 mkdir -p templates
 mkdir -p scripts
 mkdir -p docs
+
+# Corrigir permissões do diretório n8n para evitar problemas de acesso
+log_info "Configurando permissões do n8n..."
+chown -R 1000:1000 volumes/n8n 2>/dev/null || true
 
 log_success "Diretórios criados"
 
@@ -525,7 +532,7 @@ check_service() {
 # Verificar serviços
 log_info "Verificando saúde dos serviços..."
 
-check_service "Qdrant" "http://localhost:6333/health"
+check_service "Qdrant" "http://localhost:6333/collections"
 check_service "MinIO" "http://localhost:9000/minio/health/live"
 
 # Verificar PostgreSQL
@@ -541,11 +548,21 @@ check_service "RAG-Demo App" "http://localhost:5000/api/test"
 
 # Verificar n8n (em desenvolvimento e produção)
 log_info "Verificando n8n (pode demorar mais)..."
-sleep 5  # n8n demora mais para inicializar
-if curl -f "http://localhost:5678" &> /dev/null; then
-    log_success "n8n está rodando"
-else
-    log_warning "n8n ainda está inicializando (normal)"
+n8n_ready=false
+for i in {1..6}; do
+    sleep 10
+    if curl -f "http://localhost:5678" &> /dev/null; then
+        log_success "n8n está rodando"
+        n8n_ready=true
+        break
+    else
+        log_info "Aguardando n8n... (tentativa $i/6)"
+    fi
+done
+
+if [ "$n8n_ready" = false ]; then
+    log_warning "n8n ainda está inicializando (normal para primeira execução)"
+    log_info "Acesse http://localhost:5678 em alguns minutos"
 fi
 
 # Executar verificações adicionais
@@ -653,6 +670,13 @@ echo "   • O PostgreSQL está configurado como memória do chat para o n8n"
 echo "   • Database: chat_memory"
 echo "   • Tabela principal: chat_messages"
 echo "   • Para mais detalhes, consulte: docs/postgres-chat-memory.md"
+
+echo ""
+log_info "🔧 Informações sobre n8n:"
+echo "   • Versão estável: 1.38.2 (evita problemas com 'latest')"
+echo "   • Permissões configuradas automaticamente"
+echo "   • Primeiro acesso pode demorar 2-3 minutos"
+echo "   • Acesso: http://localhost:5678 (admin/admin123)"
 
 echo ""
 log_info "🆕 Novidades da versão Beta:"

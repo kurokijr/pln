@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Criar tabela de sessões
 CREATE TABLE IF NOT EXISTS chat_sessions (
     session_id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL DEFAULT 'Nova Sessão',
+    session_name VARCHAR(255) NOT NULL DEFAULT 'Nova Sessão',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB DEFAULT '{}'
@@ -65,7 +65,7 @@ $$ LANGUAGE plpgsql;
 -- Comentários para documentação
 COMMENT ON TABLE chat_sessions IS 'Tabela para armazenar sessões de chat';
 COMMENT ON COLUMN chat_sessions.session_id IS 'Identificador único da sessão';
-COMMENT ON COLUMN chat_sessions.name IS 'Nome da sessão definido pelo usuário';
+COMMENT ON COLUMN chat_sessions.session_name IS 'Nome da sessão definido pelo usuário';
 COMMENT ON COLUMN chat_sessions.created_at IS 'Timestamp de criação da sessão';
 COMMENT ON COLUMN chat_sessions.last_activity IS 'Timestamp da última atividade na sessão';
 COMMENT ON COLUMN chat_sessions.metadata IS 'Metadados adicionais em formato JSON';
@@ -84,7 +84,7 @@ GRANT ALL PRIVILEGES ON TABLE session_messages TO chat_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chat_user;
 
 -- Inserir dados de exemplo (opcional)
-INSERT INTO chat_sessions (session_id, name, created_at, last_activity) 
+INSERT INTO chat_sessions (session_id, session_name, created_at, last_activity) 
 VALUES 
     ('test-session-1', 'Sessão de Teste 1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('test-session-2', 'Sessão de Teste 2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
