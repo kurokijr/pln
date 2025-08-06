@@ -29,6 +29,9 @@ langchain-qdrant==0.1.0
 # Storage
 minio==7.2.0
 
+# Database - PostgreSQL
+psycopg2-binary==2.9.9
+
 # Utilitários
 requests==2.31.0
 Werkzeug==3.0.1

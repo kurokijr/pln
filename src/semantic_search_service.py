@@ -60,7 +60,8 @@ class SemanticSearchService:
         return models
     
     def search_with_n8n(self, question: str, collection_names: List[str] = None, 
-                       openai_enabled: bool = False, gemini_enabled: bool = False) -> Dict[str, Any]:
+                       openai_enabled: bool = False, gemini_enabled: bool = False,
+                       session_id: str = None) -> Dict[str, Any]:
         """
         Executa busca semântica usando N8N para orquestração de múltiplos modelos de IA.
         
@@ -69,6 +70,7 @@ class SemanticSearchService:
             collection_names: Lista de nomes das collections para buscar
             openai_enabled: Se deve usar OpenAI
             gemini_enabled: Se deve usar Gemini
+            session_id: ID da sessão de chat
         
         Returns:
             Dict com os resultados da busca semântica
@@ -82,7 +84,15 @@ class SemanticSearchService:
                 }
             
             # Verificar conectividade com N8N antes de fazer a requisição
-            n8n_base_url = self.n8n_webhook_url.split('/webhook-test/')[0]
+            # Extrair URL base do N8N removendo o caminho do webhook
+            if '/webhook-test/' in self.n8n_webhook_url:
+                n8n_base_url = self.n8n_webhook_url.split('/webhook-test/')[0]
+            elif '/webhook/' in self.n8n_webhook_url:
+                n8n_base_url = self.n8n_webhook_url.split('/webhook/')[0]
+            else:
+                # Fallback: extrair apenas protocolo + host + porta
+                parts = self.n8n_webhook_url.split('/')
+                n8n_base_url = f"{parts[0]}//{parts[2]}"
             
             try:
                 health_check = requests.get(f"{n8n_base_url}/healthz", timeout=5)
@@ -105,6 +115,7 @@ class SemanticSearchService:
             # Preparar dados para o N8N com estrutura agrupada por modelo
             n8n_payload = {
                 'question': question,
+                'session_id': session_id,
                 'models': organized_models,
                 'timestamp': time.time()
             }

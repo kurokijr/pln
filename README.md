@@ -24,8 +24,8 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
                                 │
                                 ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   MinIO         │    │   n8n           │    │   OpenAI API    │
-│   (Storage)     │◄──►│   (Workflows)   │◄──►│   (LLMs)        │
+│   MinIO         │    │   n8n           │    │OpenAI/GEMINI API│
+│   (Storage)     │◄──►│   (Workflows)   │◄──►│      (LLMs)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -35,28 +35,170 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 - **Backend**: Flask com APIs REST e Socket.IO para tempo real
 - **Vector Store**: Qdrant como única fonte de dados (sem SQL)
 - **Storage**: MinIO para armazenamento de arquivos
+- **Database**: PostgreSQL para memória do chat do n8n e sessões
+- **Session System**: Sistema completo de gerenciamento de sessões de chat
 - **Automation**: n8n para workflows e orquestração avançada
 - **LLMs**: OpenAI GPT-4o-mini para processamento e geração
 - **Containers**: Docker Compose para orquestração completa
 
-## 🚀 Instalação Rápida
+## 🚀 Instalação e Configuração
 
-### Pré-requisitos
+### 📋 Pré-requisitos
 
-- **Docker** e **Docker Compose**
+- **Windows 10/11** (versão 2004 ou superior)
+- **WSL2** instalado e configurado
+- **Docker Desktop** com integração WSL2
 - **OpenAI API Key** (obrigatório)
 - **Git** para clone do repositório
 
-### 1. Setup Automatizado
+### 🔧 Tutorial Completo: Windows + WSL2 + Docker
+
+#### 1. Instalação do WSL2 no Windows
+
+**Opção A: Instalação Automática (Windows 11/10 versão 2004+)**
+
+```powershell
+# Abrir PowerShell como Administrador e executar:
+wsl --install
+```
+
+**Opção B: Instalação Manual**
+
+```powershell
+# 1. Habilitar recursos do Windows
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+# 2. Reiniciar o computador
+
+# 3. Baixar e instalar o pacote de atualização do kernel WSL2
+# Download: https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi
+
+# 4. Definir WSL2 como padrão
+wsl --set-default-version 2
+
+# 5. Instalar distribuição Linux (recomendado: Ubuntu 22.04 LTS)
+wsl --install -d Ubuntu-22.04
+```
+
+#### 2. Configuração Inicial do Ubuntu no WSL2
 
 ```bash
-# Clone do repositório
-git clone <repository-url>
-cd rag-demo
+# Após a instalação, configurar usuário e senha
+# Atualizar sistema
+sudo apt update && sudo apt upgrade -y
 
-# Execute o script de setup
+# Instalar dependências essenciais
+sudo apt install -y curl wget git unzip
+```
+
+#### 3. Instalação e Configuração do Docker Desktop
+
+**3.1. Download e Instalação**
+
+1. Baixar Docker Desktop: https://docs.docker.com/desktop/install/windows-install/
+2. Executar o instalador como Administrador
+3. **IMPORTANTE**: Marcar "Use WSL 2 instead of Hyper-V" durante instalação
+
+**3.2. Configuração da Integração WSL2**
+
+1. Abrir Docker Desktop
+2. Ir em **Settings** → **General**
+3. Marcar ✅ "Use the WSL 2 based engine"
+4. Ir em **Settings** → **Resources** → **WSL Integration**
+5. Marcar ✅ "Enable integration with my default WSL distro"
+6. Marcar ✅ sua distribuição Ubuntu
+7. Clicar **Apply & Restart**
+
+**3.3. Verificação da Integração**
+
+```bash
+# No terminal WSL2 Ubuntu, verificar se Docker está disponível:
+docker --version
+docker-compose --version
+
+# Testar com container simples:
+docker run hello-world
+```
+
+#### 4. Otimizações Recomendadas
+
+**4.1. Limitar Uso de Memória do WSL2**
+
+Criar arquivo `.wslconfig` no diretório do usuário Windows:
+
+```ini
+# C:\Users\[SeuUsuario]\.wslconfig
+[wsl2]
+memory=8GB
+processors=4
+swap=2GB
+localhostForwarding=true
+```
+
+**4.2. Configurar Git no WSL2**
+
+```bash
+git config --global user.name "Seu Nome"
+git config --global user.email "seu@email.com"
+git config --global init.defaultBranch main
+```
+
+#### 5. Instalação do Projeto RAG-Demo
+
+**5.1. Clonar o Repositório**
+
+```bash
+# No terminal WSL2 Ubuntu:
+cd ~
+git clone [URL-DO-REPOSITORIO]
+cd rag-demo
+```
+
+**5.2. Verificar Requisitos**
+
+```bash
+# Verificar Docker
+docker --version
+docker-compose --version
+
+# Verificar se Docker daemon está rodando
+docker info
+```
+
+### 🚀 Instalação Automática (Recomendado)
+
+```bash
+# No terminal WSL2 Ubuntu:
+# Execute o script de setup automatizado
 chmod +x setup.sh
 ./setup.sh
+
+# Para primeiro uso (modo desenvolvimento com todos os serviços):
+./setup.sh --dev
+
+# Para ambiente de produção:
+./setup.sh
+```
+
+### ⚠️ Troubleshooting WSL2 + Docker
+
+**Problema: Docker não encontrado no WSL2**
+```bash
+# Verificar se Docker Desktop está rodando no Windows
+# Reiniciar Docker Desktop e verificar integração WSL2
+```
+
+**Problema: Permissões de arquivo**
+```bash
+# No WSL2, garantir que está no diretório home do usuário Linux
+cd ~ && pwd  # deve mostrar /home/username
+```
+
+**Problema: Portas não acessíveis**
+```bash
+# Verificar se localhostForwarding está habilitado no .wslconfig
+# Reiniciar WSL: wsl --shutdown (no PowerShell Windows)
 ```
 
 ### 2. Configuração Manual
@@ -83,6 +225,7 @@ docker-compose logs -f rag-demo-app
 - 🌐 **RAG-Demo**: http://localhost:5000
 - 🔍 **Qdrant Dashboard**: http://localhost:6333/dashboard
 - 📦 **MinIO Console**: http://localhost:9001 (`minioadmin` / `minioadmin`)
+- 🗄️ **PostgreSQL**: localhost:5432 (`chat_user` / `chat_password`)
 - 🔧 **n8n Workflows**: http://localhost:5678 (`admin` / `admin123`)
 
 ## 📱 Funcionalidades
@@ -95,6 +238,35 @@ docker-compose logs -f rag-demo-app
 - **Armazenamento**: Documentos no MinIO, vetores no Qdrant
 
 ### 2. 🗂️ Gerenciamento de Collections
+
+### 3. 💬 Sistema de Sessões de Chat
+
+- **Sessões únicas**: Cada conversa tem um sessionID único
+- **Persistência completa**: Histórico salvo no PostgreSQL
+- **Recuperação de conversas**: Clique no sessionID para carregar histórico
+- **Integração com N8N**: sessionID sempre enviado ao multiagente
+- **Interface intuitiva**: Gerenciamento de sessões no frontend
+
+#### Como usar o sistema de sessões:
+
+1. **Acesse a aba "Histórico"**
+2. **Clique em "Nova Sessão"** para criar uma conversa
+3. **Vá para "Chat Multi-Agente"** e digite sua pergunta
+4. **O sessionID será enviado automaticamente** ao N8N
+5. **Volte ao histórico** para ver todas as sessões salvas
+6. **Clique em uma sessão** para carregar a conversa completa
+
+#### Setup do sistema de sessões:
+
+```bash
+# Inicializar banco de dados de sessões
+./scripts/setup-session-system.sh
+
+# Testar o sistema
+python scripts/test_session_system.py
+```
+
+### 4. 💬 Chat Multi-Agente
 
 - **Criação inteligente**: Collections baseadas em modelo de embedding
 - **Múltiplos modelos**: Suporte a diferentes dimensões de vetores
@@ -314,6 +486,51 @@ curl http://localhost:5000/api/collections
 curl http://localhost:6333/health
 ```
 
+## 🗄️ PostgreSQL - Memória do Chat
+
+O PostgreSQL foi configurado como serviço de memória do chat para o n8n, seguindo a [documentação oficial](https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.memorypostgreschat/).
+
+### Configuração Rápida
+
+```bash
+# Setup automatizado do PostgreSQL
+./scripts/setup-postgres.sh
+
+# Ou manualmente
+docker-compose up -d postgres
+```
+
+### Estrutura do Banco
+
+- **Database**: `chat_memory`
+- **Tabela principal**: `chat_messages`
+- **Usuário**: `chat_user`
+- **Senha**: `chat_password`
+
+### Como Usar no n8n
+
+1. **Configurar credenciais** no n8n (Settings > Credentials > Postgres)
+2. **Adicionar Postgres Chat Memory node** ao workflow
+3. **Configurar parâmetros**:
+   - Session Key: Identificador único da sessão
+   - Table Name: `chat_messages`
+   - Context Window Length: Número de mensagens para contexto
+
+### Testes e Manutenção
+
+```bash
+# Testar conexão
+python scripts/test-postgres-connection.py
+
+# Conectar via CLI
+docker-compose exec postgres psql -U chat_user -d chat_memory
+
+# Backup do banco
+docker-compose exec postgres pg_dump -U chat_user chat_memory > backup.sql
+```
+
+Para mais detalhes, consulte: [docs/postgres-chat-memory.md](docs/postgres-chat-memory.md)
+
 ## 🐛 Troubleshooting
 
 ### Problemas Comuns
@@ -363,6 +580,21 @@ open http://localhost:5678
 - Verificar se há documentos na collection
 - Confirmar OpenAI API Key válida
 - Verificar logs de erro no console
+
+**7. PostgreSQL não conecta**
+```bash
+# Verificar se o serviço está rodando
+docker-compose ps postgres
+
+# Verificar logs
+docker-compose logs postgres
+
+# Testar conexão
+python scripts/test-postgres-connection.py
+
+# Reiniciar serviço
+docker-compose restart postgres
+```
 
 ### Reset Completo
 
@@ -419,8 +651,76 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
+## 🎯 Versão Beta v3.0
+
+### 🆕 Novidades da Versão Beta
+
+- **✅ Suporte Completo WSL2**: Instalação e configuração otimizada para Windows + WSL2
+- **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
+- **✅ Sistema de Analytics**: Estatísticas avançadas de uso das sessões de chat
+- **✅ Feedback de Usuários**: Sistema para avaliação da qualidade das respostas
+- **✅ Configurações Avançadas**: Preferências de modelo, temperatura e contexto por sessão
+- **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
+- **✅ PostgreSQL Otimizado**: Base de dados com funcionalidades beta incluídas
+
+### 🔧 Para Desenvolvedores
+
+```bash
+# Modo desenvolvimento (hot-reload ativado)
+./setup.sh --dev
+
+# Verificar logs em tempo real
+docker-compose logs -f rag-demo-app
+
+# Reset completo do ambiente
+./setup.sh --clean --rebuild
+```
+
+### 📊 Funcionalidades Beta
+
+#### Sistema de Analytics
+- Estatísticas de uso por sessão
+- Contagem de tokens consumidos
+- Tempo médio de resposta
+- Collections mais utilizadas
+
+#### Feedback de Usuários
+- Avaliação de respostas (1-5 estrelas)
+- Comentários sobre qualidade
+- Análise de relevância
+
+#### Configurações Avançadas
+- Escolha de modelo de LLM por sessão
+- Controle de temperatura (criatividade)
+- Ajuste de janela de contexto
+- Personalização de parâmetros
+
+### 🐛 Reportar Issues
+
+Como esta é uma versão beta, sua contribuição é valiosa:
+
+1. **Bugs**: Reporte via [GitHub Issues](https://github.com/seu-usuario/rag-demo/issues)
+2. **Sugestões**: Use [GitHub Discussions](https://github.com/seu-usuario/rag-demo/discussions)
+3. **Documentação**: Contribua com melhorias na documentação
+
+### 📈 Roadmap
+
+- [ ] Suporte a mais provedores de LLM (Anthropic, Google)
+- [ ] Sistema de autenticação de usuários
+- [ ] Dashboard de analytics em tempo real
+- [ ] Integração com mais formatos de documento
+- [ ] API REST completa para integrações externas
+
 ---
 
-**RAG-Demo** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.0 Beta** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
-> _"A melhor forma de aprender é praticando com ferramentas reais."_ 
+> _"A melhor forma de aprender é praticando com ferramentas reais."_
+
+### 🎓 Versão Educacional
+
+Esta versão beta foi especialmente preparada para:
+- **Estudantes de PLN**: Experimentação prática com RAG
+- **Pesquisadores**: Plataforma para testes e desenvolvimento
+- **Educadores**: Ferramenta de ensino completa e funcional
+- **Desenvolvedores**: Base sólida para projetos RAG 

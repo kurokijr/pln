@@ -110,9 +110,10 @@ Path("data").mkdir(exist_ok=True)
 
 @socketio.on('chat_message')
 def handle_chat_message(data):
-    """Handler para mensagens de busca por similaridade via WebSocket."""
+    """Handler para mensagens de chat via WebSocket com suporte a sessões."""
     try:
         message = data.get('message')
+        session_id = data.get('session_id')
         collection_name = data.get('collection_name')
         similarity_threshold = data.get('similarity_threshold', 0.0)
         
@@ -124,44 +125,27 @@ def handle_chat_message(data):
         if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0.0 or similarity_threshold > 1.0:
             similarity_threshold = 0.0
         
-        # Buscar documentos similares diretamente
-        if collection_name:
-            collection_names = [collection_name]
-        else:
-            # Buscar em todas as collections
-            collections = vector_store.list_collections()
-            collection_names = [c['name'] for c in collections]
-        
-        all_results = []
-        for coll_name in collection_names:
-            try:
-                results = vector_store.search_similar(
-                    collection_name=coll_name,
-                    query=message,
-                    top_k=10,
-                    similarity_threshold=similarity_threshold
-                )
-                # Adicionar informação da collection e número do chunk
-                for i, result in enumerate(results, 1):
-                    result['source_collection'] = coll_name
-                    result['chunk_number'] = i
-                all_results.extend(results)
-            except Exception as e:
-                print(f"Erro ao buscar na collection {coll_name}: {e}")
-                continue
-        
-        # Ordenar por similaridade (maior primeiro)
-        all_results.sort(key=lambda x: x.get('similarity_percentage', x.get('score', 0) * 100), reverse=True)
+        # Processar mensagem usando o ChatManager
+        result = chat_manager.chat(
+            session_id=session_id or "",
+            message=message,
+            collection_names=collection_name,
+            similarity_threshold=similarity_threshold
+        )
         
         # Enviar resposta via WebSocket
         emit('chat_response', {
             'success': True,
-            'response': f"Encontrados {len(all_results)} documentos com similaridade ≥ {(similarity_threshold * 100):.0f}%",
-            'sources': all_results,
+            'response': result['response'],
+            'sources': result.get('sources', []),
+            'session_id': result.get('session_id'),
+            'collections_used': result.get('collections_used', []),
+            'processed_by': result.get('processed_by', 'unknown'),
             'similarity_threshold': similarity_threshold
         })
         
     except Exception as e:
+        print(f"❌ Erro no handle_chat_message: {e}")
         emit('chat_response', {'error': str(e)})
 
 
@@ -781,10 +765,13 @@ def list_sessions():
 def create_session():
     """Cria uma nova sessão de chat."""
     try:
-        data = request.get_json()
+        print(f"🔍 Criando sessão...", file=sys.stderr)
+        data = request.get_json() or {}
         session_name = data.get('name', 'Nova Sessão')
+        print(f"📝 Nome da sessão: {session_name}", file=sys.stderr)
         
         session_id = chat_manager.create_session(session_name)
+        print(f"✅ Sessão criada com ID: {session_id}", file=sys.stderr)
         
         return jsonify({
             'success': True,
@@ -792,6 +779,9 @@ def create_session():
             'session_name': session_name
         })
     except Exception as e:
+        print(f"❌ Erro ao criar sessão: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -805,6 +795,62 @@ def delete_session(session_id: str):
             return jsonify({
                 'success': True,
                 'message': 'Sessão deletada com sucesso'
+            })
+        else:
+            return jsonify({'error': 'Sessão não encontrada'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sessions/<session_id>', methods=['GET'])
+def get_session(session_id: str):
+    """Obtém uma sessão específica com suas mensagens."""
+    try:
+        session = chat_manager.get_session(session_id)
+        
+        if session:
+            return jsonify({
+                'success': True,
+                'session': session
+            })
+        else:
+            return jsonify({'error': 'Sessão não encontrada'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sessions/<session_id>/messages', methods=['GET'])
+def get_session_messages(session_id: str):
+    """Obtém as mensagens de uma sessão específica."""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        messages = chat_manager.get_session_messages(session_id, limit)
+        
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'session_id': session_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/sessions/<session_id>/name', methods=['PUT'])
+def update_session_name(session_id: str):
+    """Atualiza o nome de uma sessão."""
+    try:
+        data = request.get_json()
+        name = data.get('name', 'Nova Sessão')
+        
+        success = chat_manager.session_service.update_session_name(session_id, name)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Nome da sessão atualizado com sucesso'
             })
         else:
             return jsonify({'error': 'Sessão não encontrada'}), 404
@@ -1241,6 +1287,7 @@ def semantic_search():
             return jsonify({'error': 'Dados não fornecidos'}), 400
         
         question = data.get('question')
+        session_id = data.get('session_id')
         collection_names = data.get('collection_names', [])
         collection_name = data.get('collection_name', '')  # Compatibilidade com versão anterior
         models = data.get('models', {})
@@ -1263,12 +1310,41 @@ def semantic_search():
         semantic_service = SemanticSearchService()
         result = semantic_service.search_with_n8n(
             question=question,
+            session_id=session_id,
             collection_names=collection_names,
             openai_enabled=openai_enabled,
             gemini_enabled=gemini_enabled
         )
         
         if result['success']:
+            # Salvar a pergunta do usuário e as respostas no banco de dados
+            try:
+                from src.session_service import SessionService
+                session_service = SessionService()
+                
+                # Salvar a pergunta do usuário
+                if session_id:
+                    session_service.add_message(session_id, 'user', question)
+                    
+                    # Salvar as respostas dos modelos
+                    responses = result.get('responses', {})
+                    for model_name, response_data in responses.items():
+                        if response_data and isinstance(response_data, dict):
+                            response_content = response_data.get('response', '')
+                            if response_content:
+                                # Criar conteúdo formatado para a resposta do modelo
+                                formatted_response = f"**{model_name.upper()} Response:**\n{response_content}"
+                                session_service.add_message(session_id, 'assistant', formatted_response, 
+                                                          sources=response_data.get('sources', []))
+                        elif response_data and isinstance(response_data, str):
+                            # Caso a resposta seja apenas uma string
+                            formatted_response = f"**{model_name.upper()} Response:**\n{response_data}"
+                            session_service.add_message(session_id, 'assistant', formatted_response)
+                            
+            except Exception as save_error:
+                # Log do erro, mas não interrompe o fluxo
+                print(f"⚠️ Erro ao salvar mensagens: {save_error}", file=sys.stderr)
+            
             return jsonify(result)
         else:
             # Determinar o status code baseado no tipo de erro

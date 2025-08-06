@@ -10,6 +10,7 @@ from dataclasses import dataclass, asdict
 from src.config import get_config
 from src.vector_store import QdrantVectorStore
 from src.multi_agent_chat_service import MultiAgentChatService
+from src.session_service import SessionService
 
 config = get_config()
 
@@ -312,57 +313,43 @@ Resposta:"""
 
 
 class ChatManager:
-    """Gerenciador de chat com persistência."""
+    """Gerenciador de chat com persistência PostgreSQL."""
     
-    def __init__(self, storage_file: str = "data/chat_sessions.json"):
+    def __init__(self):
         """Inicializa o gerenciador de chat."""
-        self.storage_file = storage_file
         self.chat_service = RAGChatService()
-        self._load_sessions()
+        self.session_service = SessionService()
     
     def _load_sessions(self):
-        """Carrega sessões do arquivo."""
-        try:
-            import json
-            from pathlib import Path
-            
-            file_path = Path(self.storage_file)
-            if file_path.exists():
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    sessions_data = json.load(f)
-                
-                for session_data in sessions_data:
-                    session = ChatSession(session_data["session_id"])
-                    session.messages = session_data.get("messages", [])
-                    session.created_at = datetime.fromisoformat(session_data["created_at"])
-                    session.last_activity = datetime.fromisoformat(session_data["last_activity"])
-                    self.chat_service.sessions[session.session_id] = session
-                    
-        except Exception as e:
-            print(f"Erro ao carregar sessões: {e}")
+        """Método mantido para compatibilidade - não usado mais."""
+        pass
     
     def _save_sessions(self):
-        """Salva sessões no arquivo."""
-        try:
-            import json
-            from pathlib import Path
-            
-            file_path = Path(self.storage_file)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            sessions_data = [session.to_dict() for session in self.chat_service.sessions.values()]
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(sessions_data, f, indent=2, ensure_ascii=False)
-                
-        except Exception as e:
-            print(f"Erro ao salvar sessões: {e}")
+        """Método mantido para compatibilidade - não usado mais."""
+        pass
     
     def chat(self, session_id: str, message: str, collection_names: Union[str, List[str]] = None, 
              similarity_threshold: float = 0.0) -> Dict[str, Any]:
-        """Processa mensagem de chat com persistência e threshold de similaridade."""
+        """Processa mensagem de chat com persistência PostgreSQL e threshold de similaridade."""
+        # Verificar se a sessão existe no PostgreSQL
+        if not session_id or not self.session_service.get_session(session_id):
+            session_id = self.create_session()
+        
+        # Adicionar mensagem do usuário ao PostgreSQL
+        self.session_service.add_message(session_id, "user", message)
+        
+        # Processar com o chat service
         result = self.chat_service.chat(session_id, message, collection_names, similarity_threshold)
-        self._save_sessions()
+        
+        # Adicionar resposta do assistente ao PostgreSQL
+        if result.get("response"):
+            self.session_service.add_message(
+                session_id, 
+                "assistant", 
+                result["response"], 
+                result.get("sources", [])
+            )
+        
         return result
     
     # Método de compatibilidade para código antigo
@@ -379,22 +366,26 @@ class ChatManager:
         except Exception as e:
             return f"Erro ao gerar resposta: {str(e)}"
     
-    def create_session(self) -> str:
-        """Cria nova sessão com persistência."""
-        session_id = self.chat_service.create_session()
-        self._save_sessions()
-        return session_id
+    def create_session(self, name: str = "Nova Sessão") -> str:
+        """Cria nova sessão com persistência PostgreSQL."""
+        return self.session_service.create_session(name)
     
     def delete_session(self, session_id: str) -> bool:
-        """Deleta sessão com persistência."""
-        result = self.chat_service.delete_session(session_id)
-        if result:
-            self._save_sessions()
-        return result
+        """Deleta sessão com persistência PostgreSQL."""
+        return self.session_service.delete_session(session_id)
     
     def list_sessions(self) -> List[Dict[str, Any]]:
-        """Lista todas as sessões."""
-        return self.chat_service.list_sessions()
+        """Lista todas as sessões do PostgreSQL."""
+        return self.session_service.list_sessions()
+    
+    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Obtém uma sessão específica com suas mensagens."""
+        session = self.session_service.get_session(session_id)
+        return session.to_dict() if session else None
+    
+    def get_session_messages(self, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Obtém as mensagens de uma sessão específica."""
+        return self.session_service.get_session_messages(session_id, limit)
     
     def get_collections(self) -> List[str]:
         """Lista collections disponíveis."""

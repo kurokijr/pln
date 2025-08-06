@@ -25,6 +25,14 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     
     <style>
+        /* Reset básico para evitar margens e paddings desnecessários */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        
         /* Animações e estilos customizados */
         .chat-message {
             animation: fadeIn 0.3s ease-in;
@@ -141,13 +149,30 @@
         
         /* Estilos para layout de altura fixa */
         .main-container {
-            height: calc(100vh - 64px); /* Subtrair altura do header */
+            height: 100vh; /* Usar toda a altura da tela */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Garantir que o header não ocupe espaço desnecessário */
+        .main-container header {
+            flex-shrink: 0;
+        }
+        
+        /* Garantir que o conteúdo principal use o espaço restante */
+        .main-container > div:last-child {
+            flex: 1;
+            overflow: auto;
         }
         
         .semantic-layout {
-            height: 100%;
+            height: calc(100vh - 80px); /* Subtrair altura do header */
             display: flex;
             flex-direction: column;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
         
         .semantic-chat-area {
@@ -155,6 +180,69 @@
             min-height: 0; /* Importante para flexbox funcionar */
             display: flex;
             flex-direction: column;
+            height: calc(100vh - 120px); /* 80px header + 40px padding/margins */
+            overflow: hidden;
+        }
+        
+        /* Garantir que o semantic-messages use toda a altura disponível */
+        .semantic-chat-area #semantic-messages {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: none;
+        }
+        
+        /* Garantir que o header do chat seja fixo */
+        .semantic-chat-area > div:first-child {
+            flex-shrink: 0;
+            min-height: auto;
+        }
+        
+        /* Garantir que o input seja fixo */
+        .semantic-chat-area > div:last-child {
+            flex-shrink: 0;
+            min-height: auto;
+        }
+        
+        /* Garantir que o semantic-content use toda a altura sem rolagem */
+        #semantic-content:not(.hidden) {
+            height: calc(100vh - 120px) !important; /* 80px header + 40px padding/margins */
+            max-height: calc(100vh - 120px) !important;
+            overflow: hidden !important;
+        }
+        
+        /* Garantir que o content-section não adicione margens */
+        #semantic-content.content-section:not(.hidden) {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        /* Apenas o semantic-messages deve ter rolagem */
+        #semantic-messages {
+            flex: 1 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            height: auto !important;
+        }
+        
+        /* Garantir que o semantic-chat-area use flexbox corretamente */
+        #semantic-content:not(.hidden) .semantic-chat-area {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            overflow: hidden !important;
+        }
+        
+        /* Garantir que o header e input sejam fixos */
+        .semantic-chat-area > div:first-child,
+        .semantic-chat-area > div:last-child {
+            flex-shrink: 0 !important;
         }
         
         /* Forçar layout lado a lado para collections e modelos */
@@ -207,6 +295,30 @@
         
         /* Layout responsivo */
         @media (max-width: 768px) {
+            .semantic-layout {
+                height: calc(100vh - 120px);
+                margin: 0;
+                padding: 0.5rem;
+            }
+            
+            .semantic-chat-area {
+                height: calc(100vh - 120px - 1rem);
+            }
+            
+            #semantic-messages {
+                min-height: 0 !important;
+                max-height: none !important;
+            }
+            
+            .semantic-layout-row {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+            }
+            
+            .semantic-layout-col {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
             .sidebar {
                 transform: translateX(-100%);
                 position: fixed;
@@ -815,6 +927,25 @@ DOCUMENTO:
                                 <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
                             </div>
                             
+                            <!-- Session Selection -->
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sessão de Chat:</label>
+                                <div class="flex space-x-2">
+                                    <select id="chat-session-select" class="flex-1 border border-gray-300 rounded-md px-3 py-2">
+                                        <option value="">Nova sessão</option>
+                                    </select>
+                                    <button id="refresh-sessions-btn" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors" title="Atualizar lista de sessões">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between mt-1">
+                                    <p class="text-xs text-gray-500">Selecione uma sessão existente ou crie uma nova</p>
+                                    <span id="current-session-info" class="text-xs text-blue-600 font-medium hidden">
+                                        Sessão ativa: <span id="current-session-name">-</span>
+                                    </span>
+                                </div>
+                            </div>
+                            
                             <!-- Similarity Threshold Control -->
                             <div class="mt-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -852,60 +983,101 @@ DOCUMENTO:
                     </div>
                 </div>
 
-                <!-- Busca Semântica -->
+                <!-- Chat Multi-Agente -->
                 <div id="semantic-content" class="content-section hidden semantic-layout">
                     <div class="bg-white rounded-lg shadow semantic-chat-area overflow-hidden">
                         <!-- Search Header (Fixed) -->
-                        <div class="border-b px-6 py-4 flex-shrink-0">
-                            <div class="flex justify-between items-center mb-4">
-                                <h2 class="text-xl font-semibold text-gray-900">🤖 Chat Multi-Agente</h2>
+                        <div class="border-b px-6 py-3 flex-shrink-0">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="text-lg font-semibold text-gray-900">🤖 Chat Multi-Agente</h2>
                             </div>
                             
-                            <!-- Collections and Models Side by Side (No Scrollbar) -->
+                            <!-- Session Selection -->
+                            <div class="mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <label class="text-sm font-medium text-gray-700">Sessão:</label>
+                                    <select id="semantic-session-select" class="flex-1 border border-gray-300 rounded-md px-3 py-1 text-sm">
+                                        <option value="">Nova sessão</option>
+                                    </select>
+                                    <button id="refresh-semantic-sessions-btn" class="px-2 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors" title="Atualizar lista de sessões">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between mt-1">
+                                    <span id="current-semantic-session-info" class="text-xs text-blue-600 font-medium hidden">
+                                        Sessão ativa: <span id="current-semantic-session-name">-</span>
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- OpenAI and Gemini Side by Side with Dependent Collections -->
                             <div class="semantic-layout-row">
-                                <!-- Knowledge Sources Selection -->
+                                <!-- OpenAI Section -->
                                 <div class="semantic-layout-col">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Fontes de Conhecimento:</label>
-                                    <div id="semantic-collection-checkboxes" class="flex flex-wrap gap-1 border border-gray-200 rounded-md p-2 bg-gray-50 min-h-[80px]">
-                                        <!-- Knowledge sources will be loaded here -->
-                                        <div class="text-xs text-gray-500 w-full">Carregando fontes de conhecimento...</div>
+                                    <div class="border border-blue-200 rounded-lg p-2 bg-blue-50">
+                                        <!-- OpenAI Model Header -->
+                                        <div class="mb-2">
+                                            <label class="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" id="openai-model-checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3" checked>
+                                                <span class="text-xs font-semibold text-blue-800">🤖 OpenAI GPT</span>
+                                            </label>
+                                        </div>
+                                        
+                                        <!-- OpenAI Collections -->
+                                        <div class="ml-4">
+                                            <label class="block text-xs font-medium text-blue-700 mb-1">Collections:</label>
+                                            <div id="openai-collections" class="flex flex-wrap gap-1">
+                                                <!-- OpenAI collections will be loaded here -->
+                                                <div class="text-xs text-blue-500">Carregando...</div>
+                                            </div>
+                                        </div>
                                     </div>
-
                                 </div>
                                 
-                                <!-- Model Selection -->
+                                <!-- Gemini Section -->
                                 <div class="semantic-layout-col">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Modelos de IA:</label>
-                                    <div id="semantic-models-checkboxes" class="flex flex-wrap gap-1 border border-gray-200 rounded-md p-2 bg-gray-50 min-h-[80px]">
-                                        <label class="flex items-center space-x-1">
-                                            <input type="checkbox" id="openai-checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-                                            <span class="text-sm text-gray-700">🤖 OpenAI GPT</span>
-                                        </label>
-                                        <label class="flex items-center space-x-1">
-                                            <input type="checkbox" id="gemini-checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-                                            <span class="text-sm text-gray-700">🤖 Google Gemini</span>
-                                        </label>
-                                        <div class="text-xs text-purple-600 text-center mt-2 cursor-pointer hover:text-purple-800 border-t pt-2 w-full" onclick="toggleAllSemanticModels()">
-                                            Selecionar todas
+                                    <div class="border border-green-200 rounded-lg p-2 bg-green-50">
+                                        <!-- Gemini Model Header -->
+                                        <div class="mb-2">
+                                            <label class="flex items-center space-x-2 cursor-pointer">
+                                                <input type="checkbox" id="gemini-model-checkbox" class="rounded border-gray-300 text-green-600 focus:ring-green-500 w-3 h-3" checked>
+                                                <span class="text-xs font-semibold text-green-800">🤖 Google Gemini</span>
+                                            </label>
+                                        </div>
+                                        
+                                        <!-- Gemini Collections -->
+                                        <div class="ml-4">
+                                            <label class="block text-xs font-medium text-green-700 mb-1">Collections:</label>
+                                            <div id="gemini-collections" class="flex flex-wrap gap-1">
+                                                <!-- Gemini collections will be loaded here -->
+                                                <div class="text-xs text-green-500">Carregando...</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Quick Actions -->
+                            <div class="mt-2 text-center">
+                                <button onclick="toggleAllModelsAndCollections()" class="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 px-2 py-1 rounded-full bg-purple-50 hover:bg-purple-100 transition-colors">
+                                    Selecionar todos os modelos
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Semantic Search Results (Flexible Height with Scroll) -->
-                        <div id="semantic-messages" class="flex-1 p-6 overflow-y-auto" style="min-height: 300px;">
+                        <div id="semantic-messages" class="flex-1 p-6 overflow-y-auto" style="min-height: 0; max-height: none; overflow-y: auto;">
                             <div class="text-center text-gray-500 text-sm">
                                 💬 Faça uma pergunta para obter respostas dos modelos de IA selecionados...
                             </div>
                         </div>
                         
                         <!-- Search Input at Bottom (Fixed) -->
-                        <div class="border-t px-6 py-4 flex-shrink-0 bg-white">
+                        <div class="border-t px-6 py-3 flex-shrink-0 bg-white">
                             <div class="flex space-x-3">
-                                <textarea id="semantic-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-3 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="Digite sua pergunta para o chat multi-agente..."></textarea>
+                                <textarea id="semantic-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="Digite sua pergunta para o chat multi-agente..."></textarea>
                                 <button id="send-semantic-btn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 self-end transition-colors duration-200">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="m22 2-7 20-4-9-9-4Z"/>
                                         <path d="M22 2 11 13"/>
                                     </svg>
@@ -981,12 +1153,18 @@ DOCUMENTO:
                 <!-- Histórico -->
                 <div id="history-content" class="content-section hidden">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-6">Histórico de Sessões</h2>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">Histórico de Sessões</h2>
+                            <button id="new-session-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Nova Sessão
+                            </button>
+                        </div>
                         
                         <div id="sessions-list" class="space-y-4">
                             <!-- Sessões serão carregadas aqui -->
-            </div>
-        </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -1148,6 +1326,16 @@ DOCUMENTO:
                 // Update page title and subtitle
                 updatePageHeader(navId);
                 
+                // Load sessions when chat or semantic tab is opened
+                if (navId === 'chat' || navId === 'semantic') {
+                    console.log('📁 Carregando sessões para aba:', navId);
+                    if (navId === 'semantic') {
+                        loadSessionsForSemanticSelector();
+                    } else {
+                        loadSessionsForSelector();
+                    }
+                }
+                
                 // Close mobile menu if open
                 if (window.innerWidth <= 768) {
                     sidebar.classList.remove('open');
@@ -1276,6 +1464,12 @@ DOCUMENTO:
             addChatMessage('assistant', data.response, data);
             isProcessing = false;
             updateSendButton();
+            
+            // Atualizar seletor de sessões se uma nova sessão foi criada
+            if (data.session_id && data.session_id !== currentSessionId) {
+                currentSessionId = data.session_id;
+                loadSessionsForSelector();
+            }
         });
         
         socket.on('chat_error', (data) => {
@@ -1289,6 +1483,61 @@ DOCUMENTO:
         let uploadZone, uploadPlaceholder, filePreview, fileName, fileSize, removeFileBtn;
         let filesQueue, filesList, charsetTestBtn, charsetTestResults, charsetTestContent;
         let selectedFiles = []; // Array para armazenar arquivos selecionados
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Botão de nova sessão
+            const newSessionBtn = document.getElementById('new-session-btn');
+            if (newSessionBtn) {
+                newSessionBtn.addEventListener('click', createNewSession);
+            }
+        });
+        
+        async function createNewSession() {
+            try {
+                const sessionName = prompt('Digite um nome para a nova sessão:', 'Nova Sessão');
+                if (!sessionName) return;
+                
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: sessionName })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`✅ Sessão "${sessionName}" criada com sucesso`, 'success');
+                    
+                    // Atualizar sessão atual
+                    currentSessionId = result.session_id;
+                    
+                    // Atualizar interface da sessão atual
+                    const currentSessionName = document.getElementById('current-session-name');
+                    if (currentSessionName) {
+                        currentSessionName.textContent = sessionName;
+                    }
+                    
+                    // Limpar chat
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = '';
+                    
+                    // Mudar para aba de chat
+                    showContentSection('chat-content');
+                    
+                    // Recarregar lista de sessões
+                    await loadSessions();
+                    await loadSessionsForSelector();
+                } else {
+                    showToast('❌ Erro ao criar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao criar sessão:', error);
+                showToast('❌ Erro ao criar sessão', 'error');
+            }
+        }
         
         // Initialize upload functionality
         function initializeUpload() {
@@ -2101,8 +2350,6 @@ DOCUMENTO:
         const semanticInput = document.getElementById('semantic-input');
         const sendSemanticBtn = document.getElementById('send-semantic-btn');
         const semanticMessages = document.getElementById('semantic-messages');
-        const openaiCheckbox = document.getElementById('openai-checkbox');
-        const geminiCheckbox = document.getElementById('gemini-checkbox');
         
 
         
@@ -2123,9 +2370,371 @@ DOCUMENTO:
             }
         });
         
+        // Session selector functionality
+        let sessionsList = [];
+        
+        async function loadSessionsForSelector() {
+            try {
+                const response = await fetch('/api/sessions');
+                const result = await response.json();
+                
+                if (result.success) {
+                    sessionsList = result.sessions || [];
+                    updateSessionSelector();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar sessões para o seletor:', error);
+            }
+        }
+        
+        function updateSessionSelector() {
+            const sessionSelect = document.getElementById('chat-session-select');
+            const currentSessionInfo = document.getElementById('current-session-info');
+            const currentSessionName = document.getElementById('current-session-name');
+            
+            // Limpar opções existentes
+            sessionSelect.innerHTML = '<option value="">Nova sessão</option>';
+            
+            // Adicionar sessões existentes
+            sessionsList.forEach(session => {
+                const option = document.createElement('option');
+                option.value = session.session_id;
+                option.textContent = `${session.name} (${session.message_count} mensagens)`;
+                sessionSelect.appendChild(option);
+            });
+            
+            // Atualizar informação da sessão atual
+            if (currentSessionId) {
+                const currentSession = sessionsList.find(s => s.session_id === currentSessionId);
+                if (currentSession) {
+                    currentSessionInfo.classList.remove('hidden');
+                    currentSessionName.textContent = currentSession.name;
+                    sessionSelect.value = currentSessionId;
+                } else {
+                    currentSessionInfo.classList.add('hidden');
+                }
+            } else {
+                currentSessionInfo.classList.add('hidden');
+            }
+        }
+        
+        async function handleSessionSelection() {
+            const sessionSelect = document.getElementById('chat-session-select');
+            const selectedSessionId = sessionSelect.value;
+            
+            if (selectedSessionId) {
+                // Carregar sessão selecionada
+                loadSessionMessages(selectedSessionId);
+            } else {
+                // Nova sessão - criar automaticamente
+                await createNewSessionForChat();
+            }
+        }
+        
+        async function createNewSessionForChat() {
+            const sessionName = prompt('Digite um nome para a nova sessão:', 'Nova Sessão');
+            if (!sessionName) {
+                // Se cancelou, voltar para a sessão anterior
+                if (currentSessionId) {
+                    const sessionSelect = document.getElementById('chat-session-select');
+                    sessionSelect.value = currentSessionId;
+                }
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: sessionName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Atualizar sessão atual
+                    currentSessionId = result.session_id;
+                    
+                    // Limpar chat
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Nova sessão criada. Digite sua primeira mensagem...</div>';
+                    
+                    // Atualizar interface
+                    document.getElementById('current-session-name').textContent = sessionName;
+                    document.getElementById('current-session-info').classList.remove('hidden');
+                    
+                    // Recarregar lista de sessões
+                    await loadSessionsForSelector();
+                    
+                    showToast(`✅ Sessão "${sessionName}" criada`, 'success');
+                } else {
+                    showToast('❌ Erro ao criar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao criar sessão:', error);
+                showToast('❌ Erro ao criar sessão', 'error');
+            }
+        }
+        
+        // Funções para o seletor de sessões na aba semantic
+        async function loadSessionsForSemanticSelector() {
+            console.log('🔍 Carregando sessões para o seletor semantic...');
+            try {
+                const response = await fetch('/api/sessions');
+                const result = await response.json();
+                
+                console.log('📡 Response sessões semantic:', response.status, result);
+                
+                if (result.success) {
+                    sessionsList = result.sessions || [];
+                    console.log('📁 Sessões carregadas:', sessionsList.length);
+                    updateSemanticSessionSelector();
+                } else {
+                    console.error('❌ Erro na resposta da API:', result);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar sessões para o seletor semantic:', error);
+            }
+        }
+        
+        function updateSemanticSessionSelector() {
+            console.log('🔄 Atualizando seletor de sessões semantic...');
+            const sessionSelect = document.getElementById('semantic-session-select');
+            const currentSessionInfo = document.getElementById('current-semantic-session-info');
+            const currentSessionName = document.getElementById('current-semantic-session-name');
+            
+            if (!sessionSelect) {
+                console.error('❌ Elemento semantic-session-select não encontrado!');
+                return;
+            }
+            
+            console.log('📁 Sessões disponíveis:', sessionsList);
+            
+            // Limpar opções existentes
+            sessionSelect.innerHTML = '<option value="">Nova sessão</option>';
+            
+            // Adicionar sessões existentes
+            sessionsList.forEach(session => {
+                const option = document.createElement('option');
+                option.value = session.session_id;
+                option.textContent = `${session.name} (${session.message_count} mensagens)`;
+                sessionSelect.appendChild(option);
+                console.log('➕ Opção adicionada:', session.name);
+            });
+            
+            // Atualizar informação da sessão atual
+            if (currentSessionId) {
+                const currentSession = sessionsList.find(s => s.session_id === currentSessionId);
+                if (currentSession) {
+                    currentSessionInfo.classList.remove('hidden');
+                    currentSessionName.textContent = currentSession.name;
+                    sessionSelect.value = currentSessionId;
+                }
+            }
+            
+            console.log('✅ Seletor de sessões semantic atualizado');
+        }
+        
+        async function handleSemanticSessionSelection() {
+            const sessionSelect = document.getElementById('semantic-session-select');
+            const selectedSessionId = sessionSelect.value;
+            
+            if (selectedSessionId) {
+                // Carregar sessão selecionada
+                loadSemanticSessionMessages(selectedSessionId);
+            } else {
+                // Nova sessão - criar automaticamente
+                await createNewSessionForSemantic();
+            }
+        }
+        
+        async function loadSemanticSessionMessages(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`);
+                const result = await response.json();
+                
+                if (result.success && result.session) {
+                    const session = result.session;
+                    
+                    // Atualizar sessão atual
+                    currentSessionId = sessionId;
+                    const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
+                    
+                    // Atualizar interface
+                    document.getElementById('current-semantic-session-name').textContent = sessionName;
+                    document.getElementById('current-semantic-session-info').classList.remove('hidden');
+                    
+                    // Limpar chat atual
+                    const semanticMessages = document.getElementById('semantic-messages');
+                    semanticMessages.innerHTML = '';
+                    
+                    // Carregar mensagens da sessão
+                    if (session.messages && session.messages.length > 0) {
+                        session.messages.forEach(message => {
+                            addSemanticMessage(message.role, message.content, {
+                                sources: message.sources || [],
+                                fromHistory: true
+                            });
+                        });
+                    } else {
+                        addSemanticMessage('system', 'Sessão carregada. Você pode continuar a conversa.', {
+                            fromHistory: true
+                        });
+                    }
+                    
+                    showToast(`✅ Sessão "${sessionName}" carregada`, 'success');
+                } else {
+                    showToast('❌ Erro ao carregar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar mensagens da sessão semantic:', error);
+                showToast('❌ Erro ao carregar sessão', 'error');
+            }
+        }
+        
+        async function createNewSessionForSemantic() {
+            const sessionName = prompt('Digite um nome para a nova sessão:', 'Nova Sessão');
+            if (!sessionName) {
+                // Se cancelou, voltar para a sessão anterior
+                if (currentSessionId) {
+                    const sessionSelect = document.getElementById('semantic-session-select');
+                    sessionSelect.value = currentSessionId;
+                }
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: sessionName })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Atualizar sessão atual
+                    currentSessionId = result.session_id;
+                    
+                    // Limpar chat
+                    const semanticMessages = document.getElementById('semantic-messages');
+                    semanticMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Nova sessão criada. Digite sua primeira mensagem...</div>';
+                    
+                    // Atualizar interface
+                    document.getElementById('current-semantic-session-name').textContent = sessionName;
+                    document.getElementById('current-semantic-session-info').classList.remove('hidden');
+                    
+                    // Recarregar lista de sessões
+                    await loadSessionsForSemanticSelector();
+                    
+                    showToast(`✅ Sessão "${sessionName}" criada`, 'success');
+                } else {
+                    showToast('❌ Erro ao criar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao criar sessão:', error);
+                showToast('❌ Erro ao criar sessão', 'error');
+            }
+        }
+        
+        async function loadSessionMessages(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`);
+                const result = await response.json();
+                
+                if (result.success && result.session) {
+                    const session = result.session;
+                    
+                    // Atualizar sessão atual
+                    currentSessionId = sessionId;
+                    const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
+                    
+                    // Atualizar interface
+                    document.getElementById('current-session-name').textContent = sessionName;
+                    document.getElementById('current-session-info').classList.remove('hidden');
+                    
+                    // Limpar chat atual
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = '';
+                    
+                    // Carregar mensagens da sessão
+                    if (session.messages && session.messages.length > 0) {
+                        session.messages.forEach(message => {
+                            addChatMessage(message.role, message.content, {
+                                sources: message.sources || [],
+                                fromHistory: true
+                            });
+                        });
+                    } else {
+                        addChatMessage('system', 'Sessão carregada. Você pode continuar a conversa.', {
+                            fromHistory: true
+                        });
+                    }
+                    
+                    showToast(`✅ Sessão "${sessionName}" carregada`, 'success');
+                } else {
+                    showToast('❌ Erro ao carregar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar mensagens da sessão:', error);
+                showToast('❌ Erro ao carregar sessão', 'error');
+            }
+        }
+        
+        // Event listeners para o seletor de sessões
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado! Verificando elementos do seletor...');
+            
+            // Verificar se os elementos existem
+            const semanticSessionSelect = document.getElementById('semantic-session-select');
+            const refreshSemanticSessionsBtn = document.getElementById('refresh-semantic-sessions-btn');
+            
+            console.log('🔍 Elemento semantic-session-select encontrado:', !!semanticSessionSelect);
+            console.log('🔍 Elemento refresh-semantic-sessions-btn encontrado:', !!refreshSemanticSessionsBtn);
+            const sessionSelect = document.getElementById('chat-session-select');
+            const refreshSessionsBtn = document.getElementById('refresh-sessions-btn');
+            
+            if (sessionSelect) {
+                sessionSelect.addEventListener('change', handleSessionSelection);
+            }
+            
+            if (refreshSessionsBtn) {
+                refreshSessionsBtn.addEventListener('click', loadSessionsForSelector);
+            }
+            
+            if (semanticSessionSelect) {
+                semanticSessionSelect.addEventListener('change', handleSemanticSessionSelection);
+            }
+            
+            if (refreshSemanticSessionsBtn) {
+                refreshSemanticSessionsBtn.addEventListener('click', loadSessionsForSemanticSelector);
+            }
+            
+            // Carregar sessões se estiver na aba de chat
+            if (document.getElementById('chat-content') && !document.getElementById('chat-content').classList.contains('hidden')) {
+                loadSessionsForSelector();
+            }
+            
+            // Carregar sessões se estiver na aba de semantic
+            if (document.getElementById('semantic-content') && !document.getElementById('semantic-content').classList.contains('hidden')) {
+                console.log('🚀 Carregando sessões na inicialização para aba semantic');
+                loadSessionsForSemanticSelector();
+            }
+            
+
+        });
+        
         async function sendMessage() {
             const message = chatInput.value.trim();
             if (!message || isProcessing) return;
+            
+            // Verificar se há uma sessão ativa
+            if (!currentSessionId) {
+                showToast('⚠️ Selecione uma sessão ou escolha "Nova sessão"', 'warning');
+                return;
+            }
             
             // Limpar resultados anteriores
             clearSearchResults();
@@ -2145,6 +2754,7 @@ DOCUMENTO:
             
             socket.emit('chat_message', {
                 message: message,
+                session_id: currentSessionId,
                 collection_name: document.getElementById('chat-collection-select').value,
                 similarity_threshold: similarityThreshold
             });
@@ -2154,17 +2764,27 @@ DOCUMENTO:
             const message = semanticInput.value.trim();
             if (!message || isProcessing) return;
             
-            // Verificar se pelo menos um modelo foi selecionado
-            const openaiSelected = openaiCheckbox.checked;
-            const geminiSelected = geminiCheckbox.checked;
+            // Verificar se há uma sessão ativa
+            if (!currentSessionId) {
+                showToast('⚠️ Selecione uma sessão ou escolha "Nova sessão"', 'warning');
+                return;
+            }
             
-            if (!openaiSelected && !geminiSelected) {
+            // Verificar se pelo menos um modelo foi selecionado
+            const selectedModels = getSelectedSemanticModels();
+            
+            if (selectedModels.length === 0) {
                 showToast('Selecione pelo menos um modelo de IA', 'warning');
                 return;
             }
             
-            // Limpar resultados anteriores
-            clearSemanticResults();
+            // Verificar se pelo menos uma collection foi selecionada
+            const selectedCollections = getSelectedSemanticCollections();
+            
+            if (selectedCollections.length === 0) {
+                showToast('Selecione pelo menos uma collection do modelo ativo', 'warning');
+                return;
+            }
             
             // Add user message
             addSemanticMessage('user', message);
@@ -2172,7 +2792,7 @@ DOCUMENTO:
             // Clear input
             semanticInput.value = '';
             
-            // Send via HTTP request to N8N
+            // Send via HTTP request
             isProcessing = true;
             updateSemanticButton();
             
@@ -2184,10 +2804,11 @@ DOCUMENTO:
                     },
                     body: JSON.stringify({
                         question: message,
-                        collection_names: getSelectedSemanticCollections(),
+                        session_id: currentSessionId,
+                        collection_names: selectedCollections,
                         models: {
-                            openai: openaiSelected,
-                            gemini: geminiSelected
+                            openai: selectedModels.includes('openai'),
+                            gemini: selectedModels.includes('gemini')
                         }
                     })
                 });
@@ -2270,6 +2891,23 @@ DOCUMENTO:
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                                     <circle cx="12" cy="7" r="4"/>
                                 </svg>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (role === 'assistant') {
+                messageDiv.innerHTML = `
+                    <div class="flex justify-start mb-6">
+                        <div class="flex items-start space-x-3 max-w-4xl">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 1v6m0 6v6"/>
+                                    <path d="m1 12 6 0m6 0 6 0"/>
+                                </svg>
+                            </div>
+                            <div class="bg-white rounded-2xl px-4 py-3 border border-gray-200 shadow-sm">
+                                <div class="text-sm leading-relaxed whitespace-pre-wrap">${content}</div>
                             </div>
                         </div>
                     </div>
@@ -2903,30 +3541,163 @@ DOCUMENTO:
                 const sessionsList = document.getElementById('sessions-list');
                 sessionsList.innerHTML = '';
                 
-                result.sessions.forEach(session => {
-                    const sessionDiv = document.createElement('div');
-                    sessionDiv.className = 'border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50';
-                    sessionDiv.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h4 class="font-medium text-gray-900">Sessão ${session.session_id.substring(0, 8)}...</h4>
-                                <p class="text-sm text-gray-600">${session.message_count} mensagens</p>
-                            </div>
-                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+                if (!result.sessions || result.sessions.length === 0) {
+                    sessionsList.innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <i data-lucide="message-circle" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
+                            <p>Nenhuma sessão encontrada</p>
+                            <p class="text-sm">Crie uma nova sessão para começar a conversar</p>
                         </div>
                     `;
-                    sessionDiv.onclick = () => {
-                        currentSessionId = session.session_id;
-                        currentSessionSpan.textContent = `Sessão: ${session.session_id.substring(0, 8)}...`;
-                        // TODO: Load session messages
-                    };
+                    lucide.createIcons();
+                    return;
+                }
+                
+                result.sessions.forEach(session => {
+                    const sessionDiv = document.createElement('div');
+                    sessionDiv.className = 'border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors';
+                    
+                    // Formatar data
+                    const lastActivity = session.last_activity ? new Date(session.last_activity).toLocaleString('pt-BR') : 'Desconhecido';
+                    const sessionName = session.name || `Sessão ${session.session_id.substring(0, 8)}...`;
+                    
+                    sessionDiv.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <h4 class="font-medium text-gray-900">${sessionName}</h4>
+                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                        ${session.message_count} mensagens
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600">Última atividade: ${lastActivity}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button class="load-session-btn p-2 text-blue-600 hover:bg-blue-50 rounded-full" 
+                                        data-session-id="${session.session_id}" title="Carregar sessão">
+                                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                                <button class="delete-session-btn p-2 text-red-600 hover:bg-red-50 rounded-full" 
+                                        data-session-id="${session.session_id}" title="Deletar sessão">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
                     sessionsList.appendChild(sessionDiv);
+                });
+                
+                // Adicionar event listeners
+                document.querySelectorAll('.load-session-btn').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const sessionId = btn.dataset.sessionId;
+                        loadSessionMessages(sessionId);
+                    };
+                });
+                
+                document.querySelectorAll('.delete-session-btn').forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const sessionId = btn.dataset.sessionId;
+                        deleteSession(sessionId);
+                    };
                 });
                 
                 // Reinitialize icons
                 lucide.createIcons();
             } catch (error) {
                 console.error('Erro ao carregar sessões:', error);
+                showToast('❌ Erro ao carregar sessões', 'error');
+            }
+        }
+        
+        async function loadSessionMessages(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`);
+                const result = await response.json();
+                
+                if (result.success && result.session) {
+                    const session = result.session;
+                    
+                    // Atualizar sessão atual
+                    currentSessionId = sessionId;
+                    const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
+                    
+                    // Atualizar interface da sessão atual
+                    const currentSessionName = document.getElementById('current-session-name');
+                    if (currentSessionName) {
+                        currentSessionName.textContent = sessionName;
+                    }
+                    
+                    // Limpar chat atual
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = '';
+                    
+                    // Carregar mensagens da sessão
+                    if (session.messages && session.messages.length > 0) {
+                        session.messages.forEach(message => {
+                            addChatMessage(message.role, message.content, {
+                                sources: message.sources || [],
+                                fromHistory: true
+                            });
+                        });
+                    } else {
+                        addChatMessage('system', 'Sessão carregada. Você pode continuar a conversa.', {
+                            fromHistory: true
+                        });
+                    }
+                    
+                    // Mudar para aba de chat
+                    showContentSection('chat-content');
+                    
+                    showToast(`✅ Sessão "${sessionName}" carregada com sucesso`, 'success');
+                } else {
+                    showToast('❌ Erro ao carregar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar mensagens da sessão:', error);
+                showToast('❌ Erro ao carregar sessão', 'error');
+            }
+        }
+        
+        async function deleteSession(sessionId) {
+            if (!confirm('Tem certeza que deseja deletar esta sessão? Esta ação não pode ser desfeita.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('✅ Sessão deletada com sucesso', 'success');
+                    
+                    // Se a sessão deletada era a atual, limpar
+                    if (currentSessionId === sessionId) {
+                        currentSessionId = null;
+                        
+                        // Limpar interface da sessão atual
+                        const currentSessionName = document.getElementById('current-session-name');
+                        if (currentSessionName) {
+                            currentSessionName.textContent = 'Nenhuma sessão';
+                        }
+                        
+                        const chatMessages = document.getElementById('chat-messages');
+                        chatMessages.innerHTML = '';
+                    }
+                    
+                    // Recarregar lista de sessões
+                    await loadSessions();
+                } else {
+                    showToast('❌ Erro ao deletar sessão', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao deletar sessão:', error);
+                showToast('❌ Erro ao deletar sessão', 'error');
             }
         }
         
@@ -3205,66 +3976,151 @@ DOCUMENTO:
                 }
             });
             
-            // Atualizar checkboxes de fontes de conhecimento para chat multi-agente
-            updateSemanticCollectionCheckboxes();
+            // Atualizar checkboxes organizados por modelo para chat multi-agente
+            updateModelBasedCollections();
         }
         
-        function updateSemanticCollectionCheckboxes() {
-            const container = document.getElementById('semantic-collection-checkboxes');
+        function updateModelBasedCollections() {
+            console.log('🔧 Atualizando collections organizadas por modelo...');
+            
+            if (!collections || collections.length === 0) {
+                // Se não há collections, mostrar mensagem nos dois containers
+                const openaiContainer = document.getElementById('openai-collections');
+                const geminiContainer = document.getElementById('gemini-collections');
+                
+                if (openaiContainer) {
+                    openaiContainer.innerHTML = '<div class="text-xs text-blue-500">Nenhuma collection OpenAI</div>';
+                }
+                if (geminiContainer) {
+                    geminiContainer.innerHTML = '<div class="text-xs text-green-500">Nenhuma collection Gemini</div>';
+                }
+                return;
+            }
+            
+            // Separar collections por modelo
+            const openaiCollections = collections.filter(collection => 
+                collection.embedding_model === 'openai' || 
+                (collection.model_config && collection.model_config.provider === 'openai')
+            );
+            
+            const geminiCollections = collections.filter(collection => 
+                collection.embedding_model === 'gemini' || 
+                (collection.model_config && collection.model_config.provider === 'gemini')
+            );
+            
+            console.log('📁 OpenAI Collections:', openaiCollections);
+            console.log('📁 Gemini Collections:', geminiCollections);
+            
+            // Atualizar collections OpenAI
+            updateModelCollections('openai-collections', openaiCollections, 'openai', 'blue');
+            
+            // Atualizar collections Gemini  
+            updateModelCollections('gemini-collections', geminiCollections, 'gemini', 'green');
+            
+            // Configurar eventos para controle de dependência
+            setupModelDependencyControls();
+        }
+        
+        function updateModelCollections(containerId, collectionsForModel, modelId, colorTheme) {
+            const container = document.getElementById(containerId);
             if (!container) return;
             
-            console.log('🔧 Atualizando collection checkboxes para busca semântica...');
+            if (collectionsForModel.length === 0) {
+                container.innerHTML = `<div class="text-xs text-${colorTheme}-500">Nenhuma collection ${modelId.toUpperCase()}</div>`;
+                return;
+            }
             
-            if (collections && collections.length > 0) {
-                container.innerHTML = '';
+            container.innerHTML = '';
+            
+            collectionsForModel.forEach((collection, index) => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-1 cursor-pointer hover:bg-gray-100 p-1 rounded text-xs border border-gray-200';
                 
-                // Mostrar todas as collections em grid 2x2
-                const collectionsToShow = collections;
-                const hasMore = false; // Não precisamos mais do botão "mais"
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `${modelId}-collection-${index}`;
+                checkbox.value = collection.name;
+                checkbox.className = `rounded border-gray-300 text-${colorTheme}-600 focus:ring-${colorTheme}-500 h-3 w-3 collection-checkbox`;
+                checkbox.checked = true;
+                checkbox.dataset.model = modelId;
                 
-                collectionsToShow.forEach((collection, index) => {
-                    const label = document.createElement('label');
-                    label.className = 'flex items-center space-x-1 cursor-pointer hover:bg-gray-100 p-1 rounded text-xs';
-                    
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.id = `semantic-collection-${index}`;
-                    checkbox.value = collection.name;
-                    checkbox.className = 'rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-3 w-3';
-                    checkbox.checked = true; // Por padrão, todas selecionadas
-                    
-                    const textContainer = document.createElement('div');
-                    textContainer.className = 'flex-1 min-w-0';
-                    
-                    const span = document.createElement('span');
-                    span.className = 'text-xs text-gray-700 truncate block';
-                    span.textContent = `📁 ${collection.name}`;
-                    span.title = collection.name; // Tooltip para nome completo
-                    
-                    const small = document.createElement('small');
-                    small.className = 'text-xs text-gray-400 truncate block';
-                    small.textContent = collection.embedding_model;
-                    small.title = collection.embedding_model; // Tooltip para modelo completo
-                    
-                    textContainer.appendChild(span);
-                    textContainer.appendChild(small);
-                    
-                    label.appendChild(checkbox);
-                    label.appendChild(textContainer);
-                    container.appendChild(label);
+                const span = document.createElement('span');
+                span.className = `text-xs text-${colorTheme}-700 whitespace-nowrap`;
+                span.textContent = collection.name;
+                span.title = collection.name;
+                
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                container.appendChild(label);
+            });
+        }
+        
+        function setupModelDependencyControls() {
+            console.log('🔧 Configurando controles de dependência modelo-collection...');
+            
+            // Event listeners para checkboxes dos modelos
+            const openaiModelCheckbox = document.getElementById('openai-model-checkbox');
+            const geminiModelCheckbox = document.getElementById('gemini-model-checkbox');
+            
+            if (openaiModelCheckbox) {
+                openaiModelCheckbox.addEventListener('change', function() {
+                    toggleModelCollections('openai', this.checked);
                 });
+            }
+            
+            if (geminiModelCheckbox) {
+                geminiModelCheckbox.addEventListener('change', function() {
+                    toggleModelCollections('gemini', this.checked);
+                });
+            }
+        }
+        
+        function toggleModelCollections(modelId, isEnabled) {
+            console.log(`🔧 ${isEnabled ? 'Habilitando' : 'Desabilitando'} collections do modelo ${modelId}`);
+            
+            // Buscar todas as collections deste modelo
+            const modelCollections = document.querySelectorAll(`input.collection-checkbox[data-model="${modelId}"]`);
+            
+            modelCollections.forEach(checkbox => {
+                checkbox.disabled = !isEnabled;
+                if (!isEnabled) {
+                    checkbox.checked = false; // Desmarcar se modelo desabilitado
+                } else {
+                    checkbox.checked = true; // Marcar se modelo habilitado
+                }
                 
-                // Não precisamos mais do botão "mais" pois todas as collections são visíveis
-                
-                // Botão para selecionar/deselecionar todas
-                const toggleDiv = document.createElement('div');
-                toggleDiv.className = 'text-xs text-purple-600 text-center mt-2 cursor-pointer hover:text-purple-800 border-t pt-2 w-full';
-                toggleDiv.textContent = 'Selecionar todas';
-                toggleDiv.onclick = () => toggleAllSemanticCollections();
-                container.appendChild(toggleDiv);
-                
-            } else {
-                container.innerHTML = '<div class="text-xs text-gray-500 text-center py-2">Nenhuma collection disponível</div>';
+                // Aplicar estilo visual
+                const label = checkbox.closest('label');
+                if (label) {
+                    if (isEnabled) {
+                        label.classList.remove('opacity-50', 'cursor-not-allowed');
+                        label.classList.add('cursor-pointer');
+                    } else {
+                        label.classList.add('opacity-50', 'cursor-not-allowed');
+                        label.classList.remove('cursor-pointer');
+                    }
+                }
+            });
+        }
+        
+        function toggleAllModelsAndCollections() {
+            const openaiModelCheckbox = document.getElementById('openai-model-checkbox');
+            const geminiModelCheckbox = document.getElementById('gemini-model-checkbox');
+            
+            // Verificar se todos estão selecionados
+            const allSelected = openaiModelCheckbox?.checked && geminiModelCheckbox?.checked;
+            
+            // Alternar estado
+            const newState = !allSelected;
+            
+            if (openaiModelCheckbox) {
+                openaiModelCheckbox.checked = newState;
+                toggleModelCollections('openai', newState);
+            }
+            
+            if (geminiModelCheckbox) {
+                geminiModelCheckbox.checked = newState;
+                toggleModelCollections('gemini', newState);
             }
         }
         
@@ -3286,8 +4142,26 @@ DOCUMENTO:
         }
         
         function getSelectedSemanticCollections() {
-            const checkboxes = document.querySelectorAll('#semantic-collection-checkboxes input[type="checkbox"]:checked');
+            // Buscar collections selecionadas em ambos os modelos
+            const checkboxes = document.querySelectorAll('.collection-checkbox:checked');
             return Array.from(checkboxes).map(checkbox => checkbox.value);
+        }
+        
+        function getSelectedSemanticModels() {
+            const models = [];
+            
+            const openaiModelCheckbox = document.getElementById('openai-model-checkbox');
+            const geminiModelCheckbox = document.getElementById('gemini-model-checkbox');
+            
+            if (openaiModelCheckbox?.checked) {
+                models.push('openai');
+            }
+            
+            if (geminiModelCheckbox?.checked) {
+                models.push('gemini');
+            }
+            
+            return models;
         }
 
         

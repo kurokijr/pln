@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag-demo"
-version = "1.0.0"
-description = "Aplicação educacional RAG para demonstração de PLN"
+version = "3.0.0-beta"
+description = "Aplicação educacional RAG para demonstração de PLN - Versão Beta"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [

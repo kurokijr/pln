@@ -2,7 +2,7 @@
 
 # RAG-Demo Setup Script
 # Este script configura o ambiente RAG-Demo para desenvolvimento e produção
-# Versão: 2.0
+# Versão: 3.0 Beta - Pronto para primeira versão pública
 
 set -e
 
@@ -33,8 +33,9 @@ log_error() {
 # Banner
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║                    RAG-Demo Setup v2.0                      ║"
+echo "║                    RAG-Demo Setup v3.0 Beta                 ║"
 echo "║           Plataforma Educacional de PLN                     ║"
+echo "║                 Versão Beta Pública                         ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -61,15 +62,21 @@ while [[ $# -gt 0 ]]; do
             echo "Uso: $0 [OPÇÕES]"
             echo ""
             echo "OPÇÕES:"
-            echo "  --dev      Modo desenvolvimento (não inicia n8n)"
-            echo "  --clean    Limpar dados existentes antes de iniciar"
+            echo "  --dev      Modo desenvolvimento (inclui todos os serviços)"
+            echo "  --clean    Limpar dados existentes (pergunta sobre preservação)"
             echo "  --rebuild  Rebuild completo dos containers"
             echo "  --help     Mostrar esta ajuda"
             echo ""
             echo "EXEMPLOS:"
             echo "  $0                    # Setup padrão"
             echo "  $0 --dev             # Setup para desenvolvimento"
+            echo "  $0 --clean           # Limpar dados (preserva volumes importantes)"
             echo "  $0 --clean --rebuild # Reset completo"
+            echo ""
+            echo "NOTAS:"
+            echo "  • O modo --clean preserva automaticamente volumes com dados"
+            echo "  • Volumes preservados: n8n, postgres, qdrant, minio"
+            echo "  • Use --clean para gerenciar dados existentes"
             exit 0
             ;;
         *)
@@ -80,31 +87,119 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Verificar dependências do sistema
-log_info "Verificando dependências do sistema..."
+# Verificar ambiente e dependências do sistema
+log_info "Verificando ambiente e dependências do sistema..."
+
+# Verificar se está rodando no WSL2 (recomendado)
+if [ -f /proc/version ] && grep -q microsoft /proc/version; then
+    log_success "Executando no WSL2 - ambiente recomendado"
+    WSL_ENVIRONMENT=true
+    
+    # Verificar se é WSL2 (não WSL1)
+    if grep -q WSL2 /proc/version 2>/dev/null; then
+        log_success "WSL2 detectado - versão correta"
+    else
+        log_warning "WSL1 detectado - recomendamos atualizar para WSL2"
+        log_info "Para atualizar: wsl --set-version Ubuntu 2"
+    fi
+else
+    log_info "Executando em ambiente Linux nativo"
+    WSL_ENVIRONMENT=false
+fi
 
 # Verificar Docker
 if ! command -v docker &> /dev/null; then
     log_error "Docker não está instalado"
-    log_info "Instale o Docker: https://docs.docker.com/get-docker/"
+    if [ "$WSL_ENVIRONMENT" = true ]; then
+        log_info "No WSL2, instale o Docker Desktop no Windows com integração WSL2"
+        log_info "Guia: https://docs.docker.com/desktop/install/windows-install/"
+    else
+        log_info "Instale o Docker: https://docs.docker.com/get-docker/"
+    fi
     exit 1
 fi
 
 # Verificar Docker Compose
 if ! command -v docker-compose &> /dev/null; then
     log_error "Docker Compose não está instalado"
-    log_info "Instale o Docker Compose: https://docs.docker.com/compose/install/"
+    if [ "$WSL_ENVIRONMENT" = true ]; then
+        log_info "Docker Compose deve vir com Docker Desktop"
+        log_info "Verifique a integração WSL2 no Docker Desktop"
+    else
+        log_info "Instale o Docker Compose: https://docs.docker.com/compose/install/"
+    fi
     exit 1
 fi
 
 # Verificar se Docker está rodando
 if ! docker info &> /dev/null; then
     log_error "Docker não está rodando"
-    log_info "Inicie o Docker e tente novamente"
+    if [ "$WSL_ENVIRONMENT" = true ]; then
+        log_info "Inicie o Docker Desktop no Windows"
+        log_info "Verifique se a integração WSL2 está habilitada"
+    else
+        log_info "Inicie o Docker daemon e tente novamente"
+    fi
     exit 1
 fi
 
+# Verificações específicas do WSL2
+if [ "$WSL_ENVIRONMENT" = true ]; then
+    log_info "Executando verificações específicas do WSL2..."
+    
+    # Verificar se consegue acessar localhost
+    if curl -s --connect-timeout 2 http://localhost &> /dev/null; then
+        log_success "Localhost acessível - configuração WSL2 correta"
+    else
+        log_warning "Problemas com localhost - verifique .wslconfig"
+        log_info "Adicione 'localhostForwarding=true' em ~/.wslconfig"
+    fi
+    
+    # Verificar memória disponível
+    memory_gb=$(free -g | grep '^Mem:' | awk '{print $2}')
+    if [ "$memory_gb" -ge 4 ]; then
+        log_success "Memória disponível: ${memory_gb}GB (suficiente)"
+    else
+        log_warning "Memória disponível: ${memory_gb}GB (recomendado: 4GB+)"
+        log_info "Configure limites de memória no arquivo .wslconfig"
+    fi
+fi
+
 log_success "Dependências do sistema verificadas"
+
+# Função para verificar se volume tem dados
+check_volume_data() {
+    local volume_path=$1
+    local volume_name=$2
+    
+    if [ -d "$volume_path" ] && [ "$(ls -A "$volume_path" 2>/dev/null)" ]; then
+        local size=$(du -sh "$volume_path" 2>/dev/null | cut -f1)
+        log_warning "Volume $volume_name contém dados existentes ($size)"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Função para preservar volume
+preserve_volume() {
+    local volume_path=$1
+    local volume_name=$2
+    
+    if check_volume_data "$volume_path" "$volume_name"; then
+        read -p "Preservar dados do $volume_name? (Y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            log_info "Removendo dados do $volume_name..."
+            rm -rf "$volume_path"/*
+            return 1
+        else
+            log_success "Dados do $volume_name serão preservados"
+            return 0
+        fi
+    fi
+    return 1
+}
 
 # Limpeza se solicitada
 if [ "$CLEAN_MODE" = true ]; then
@@ -117,9 +212,38 @@ if [ "$CLEAN_MODE" = true ]; then
     fi
     
     log_info "Parando containers..."
-    docker-compose down -v --remove-orphans 2>/dev/null || true
+    docker-compose down --remove-orphans 2>/dev/null || true
     
-    log_info "Removendo volumes..."
+    log_info "Verificando volumes existentes..."
+    
+    # Verificar e preservar volumes importantes
+    volumes_to_preserve=()
+    
+    if preserve_volume "volumes/n8n" "n8n"; then
+        volumes_to_preserve+=("n8n")
+    fi
+    
+    if preserve_volume "volumes/postgres" "PostgreSQL"; then
+        volumes_to_preserve+=("postgres")
+    fi
+    
+    if preserve_volume "volumes/qdrant" "Qdrant"; then
+        volumes_to_preserve+=("qdrant")
+    fi
+    
+    if preserve_volume "volumes/minio" "MinIO"; then
+        volumes_to_preserve+=("minio")
+    fi
+    
+    # Resumo dos volumes preservados
+    if [ ${#volumes_to_preserve[@]} -gt 0 ]; then
+        log_info "Volumes preservados: ${volumes_to_preserve[*]}"
+    else
+        log_info "Nenhum volume será preservado"
+    fi
+    
+    # Limpar volumes Docker não utilizados
+    log_info "Limpando volumes Docker não utilizados..."
     docker volume prune -f 2>/dev/null || true
     
     log_info "Limpando cache Python..."
@@ -142,11 +266,41 @@ mkdir -p uploads
 mkdir -p volumes/minio
 mkdir -p volumes/qdrant
 mkdir -p volumes/n8n
+mkdir -p volumes/postgres
 mkdir -p static/css static/js static/images
 mkdir -p src
 mkdir -p templates
+mkdir -p scripts
+mkdir -p docs
 
 log_success "Diretórios criados"
+
+# Verificar volumes existentes (apenas informativo)
+log_info "Verificando volumes existentes..."
+volumes_with_data=()
+
+if check_volume_data "volumes/n8n" "n8n"; then
+    volumes_with_data+=("n8n")
+fi
+
+if check_volume_data "volumes/postgres" "PostgreSQL"; then
+    volumes_with_data+=("postgres")
+fi
+
+if check_volume_data "volumes/qdrant" "Qdrant"; then
+    volumes_with_data+=("qdrant")
+fi
+
+if check_volume_data "volumes/minio" "MinIO"; then
+    volumes_with_data+=("minio")
+fi
+
+if [ ${#volumes_with_data[@]} -gt 0 ]; then
+    log_info "Volumes com dados existentes: ${volumes_with_data[*]}"
+    log_info "Use --clean para gerenciar esses dados"
+else
+    log_success "Nenhum volume com dados existentes encontrado"
+fi
 
 # Verificar/criar arquivo .env
 if [ ! -f .env ]; then
@@ -159,6 +313,9 @@ if [ ! -f .env ]; then
         cat > .env << 'EOF'
 # OpenAI (Obrigatório)
 OPENAI_API_KEY=
+
+# Google Gemini (Opcional)
+GEMINI_API_KEY=
 
 # Modelo para geração de Q&A
 MODEL_QA_GENERATOR=gpt-4o-mini
@@ -173,12 +330,32 @@ MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET_NAME=documents
 
+# PostgreSQL - Memória do Chat
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=chat_memory
+POSTGRES_USER=chat_user
+POSTGRES_PASSWORD=chat_password
+
+# n8n
+N8N_WEBHOOK_URL=http://localhost:5678/webhook-test/2d388a36-490f-4dfd-952a-6c5c63dac146
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=admin123
+
 # Flask
 FLASK_ENV=production
 FLASK_DEBUG=false
 
 # Embedding
 DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
+
+# Processamento
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+
+# Diretórios
+UPLOAD_FOLDER=uploads
+DATA_FOLDER=data
 EOF
     fi
     
@@ -218,6 +395,13 @@ if [[ ! "$OPENAI_API_KEY" =~ ^sk-[a-zA-Z0-9]{48,}$ ]]; then
     log_info "Chaves OpenAI começam com 'sk-' seguido de 48+ caracteres"
 fi
 
+# Verificar GEMINI_API_KEY (opcional)
+if [ -n "$GEMINI_API_KEY" ] && [ "$GEMINI_API_KEY" != "your-key-here" ]; then
+    log_success "GEMINI_API_KEY configurada (opcional)"
+else
+    log_warning "GEMINI_API_KEY não configurada (opcional - usado como fallback)"
+fi
+
 log_success "Configuração validada"
 
 # Verificar arquivos essenciais
@@ -230,6 +414,44 @@ for file in "${essential_files[@]}"; do
         exit 1
     fi
 done
+
+# Verificar scripts do PostgreSQL
+if [ ! -f "scripts/init-postgres.sql" ]; then
+    log_warning "Script de inicialização do PostgreSQL não encontrado"
+    log_info "Criando script básico..."
+    mkdir -p scripts
+    cat > scripts/init-postgres.sql << 'EOF'
+-- Script básico de inicialização do PostgreSQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) NOT NULL,
+    message_type VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+
+GRANT ALL PRIVILEGES ON TABLE chat_messages TO chat_user;
+EOF
+fi
+
+# Verificar e tornar executável o script de setup do PostgreSQL
+if [ -f "scripts/setup-postgres.sh" ]; then
+    chmod +x scripts/setup-postgres.sh
+    log_success "Script setup-postgres.sh configurado como executável"
+fi
+
+# Verificar e tornar executável o script de teste do PostgreSQL
+if [ -f "scripts/test-postgres-connection.py" ]; then
+    chmod +x scripts/test-postgres-connection.py
+    log_success "Script test-postgres-connection.py configurado como executável"
+fi
 
 log_success "Arquivos do projeto verificados"
 
@@ -264,8 +486,8 @@ fi
 log_info "Iniciando serviços Docker..."
 
 if [ "$DEV_MODE" = true ]; then
-    docker-compose up -d qdrant minio n8n rag-demo-app
-    log_info "Serviços iniciados em modo desenvolvimento (incluindo n8n)"
+    docker-compose up -d qdrant minio postgres n8n rag-demo-app
+    log_info "Serviços iniciados em modo desenvolvimento (incluindo PostgreSQL e n8n)"
 else
     docker-compose up -d
     log_info "Todos os serviços iniciados"
@@ -305,6 +527,16 @@ log_info "Verificando saúde dos serviços..."
 
 check_service "Qdrant" "http://localhost:6333/health"
 check_service "MinIO" "http://localhost:9000/minio/health/live"
+
+# Verificar PostgreSQL
+log_info "Verificando PostgreSQL..."
+sleep 5  # PostgreSQL demora um pouco para inicializar
+if docker-compose exec postgres pg_isready -U chat_user -d chat_memory &> /dev/null; then
+    log_success "PostgreSQL está rodando"
+else
+    log_warning "PostgreSQL ainda está inicializando (normal)"
+fi
+
 check_service "RAG-Demo App" "http://localhost:5000/api/test"
 
 # Verificar n8n (em desenvolvimento e produção)
@@ -333,6 +565,22 @@ else
     log_warning "Qdrant API pode não estar pronta"
 fi
 
+# Verificar PostgreSQL (teste de conexão)
+log_info "Testando conexão com PostgreSQL..."
+if [ -f "scripts/test-postgres-connection.py" ]; then
+    # Aguardar um pouco mais para o PostgreSQL inicializar completamente
+    sleep 10
+    if python scripts/test-postgres-connection.py &> /dev/null; then
+        log_success "PostgreSQL - teste de conexão passou"
+    else
+        log_warning "PostgreSQL - teste de conexão falhou (pode estar inicializando)"
+        log_info "Você pode testar manualmente com: python scripts/test-postgres-connection.py"
+    fi
+else
+    log_warning "Script de teste PostgreSQL não encontrado"
+    log_info "Para testar PostgreSQL manualmente, execute: docker-compose exec postgres psql -U chat_user -d chat_memory"
+fi
+
 # Resultados finais
 echo ""
 log_success "RAG-Demo está pronto!"
@@ -344,6 +592,7 @@ echo "╠═══════════════════════�
 echo "║  🌐 RAG-Demo:        http://localhost:5000                  ║"
 echo "║  🔍 Qdrant:          http://localhost:6333/dashboard        ║"
 echo "║  📦 MinIO:           http://localhost:9001                  ║"
+echo "║  🗄️  PostgreSQL:      localhost:5432                        ║"
 echo "║  🔧 n8n:             http://localhost:5678                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -351,6 +600,7 @@ echo -e "${NC}"
 echo -e "${GREEN}"
 echo "🔑 Credenciais:"
 echo "   • MinIO: minioadmin / minioadmin"
+echo "   • PostgreSQL: chat_user / chat_password"
 echo "   • n8n: admin / admin123"
 echo -e "${NC}"
 
@@ -358,10 +608,12 @@ echo -e "${YELLOW}"
 echo "📚 Próximos passos:"
 echo "   1. Acesse http://localhost:5000"
 echo "   2. Configure workflows no n8n (http://localhost:5678)"
-echo "   3. Crie uma nova collection"
-echo "   4. Faça upload de um documento"
-echo "   5. Teste o gerador de Q&A"
-echo "   6. Experimente o chat RAG"
+echo "   3. Configure credenciais PostgreSQL no n8n"
+echo "   4. Use o Postgres Chat Memory node nos workflows"
+echo "   5. Crie uma nova collection"
+echo "   6. Faça upload de um documento"
+echo "   7. Teste o gerador de Q&A"
+echo "   8. Experimente o chat RAG"
 echo -e "${NC}"
 
 # Comandos úteis
@@ -369,6 +621,8 @@ echo -e "${BLUE}"
 echo "🛠️  Comandos úteis:"
 echo "   • Ver logs:           docker-compose logs -f"
 echo "   • Parar serviços:     docker-compose down"
+echo "   • Testar PostgreSQL:  python scripts/test-postgres-connection.py"
+echo "   • Setup PostgreSQL:   ./scripts/setup-postgres.sh"
 echo "   • Reset completo:     $0 --clean --rebuild"
 if [ "$DEV_MODE" = true ]; then
 echo "   • Modo produção:      $0"
@@ -386,4 +640,51 @@ if docker-compose ps | grep -q "unhealthy\|exited"; then
     log_info "Execute 'docker-compose logs [serviço]' para investigar"
 fi
 
-log_success "Setup concluído! Bom uso do RAG-Demo! 🚀" 
+# Informações específicas da versão beta
+echo ""
+echo -e "${BLUE}"
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║                    🎉 VERSÃO BETA v3.0                      ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
+
+log_info "📖 Informações sobre PostgreSQL:"
+echo "   • O PostgreSQL está configurado como memória do chat para o n8n"
+echo "   • Database: chat_memory"
+echo "   • Tabela principal: chat_messages"
+echo "   • Para mais detalhes, consulte: docs/postgres-chat-memory.md"
+
+echo ""
+log_info "🆕 Novidades da versão Beta:"
+echo "   • ✅ Suporte completo ao WSL2 + Docker Desktop"
+echo "   • ✅ Verificações automáticas de ambiente"
+echo "   • ✅ Sistema de sessões de chat aprimorado"
+echo "   • ✅ Interface web otimizada e responsiva"
+echo "   • ✅ Integração completa com n8n workflows"
+echo "   • ✅ PostgreSQL configurado automaticamente"
+echo "   • ✅ Suporte a múltiplos modelos de embedding"
+
+echo ""
+log_info "🔧 Para desenvolvimento:"
+echo "   • Execute: ./setup.sh --dev (inclui hot-reload)"
+echo "   • Logs em tempo real: docker-compose logs -f"
+echo "   • Reset completo: ./setup.sh --clean --rebuild"
+
+echo ""
+log_info "🌐 Ambiente WSL2 detectado:" 
+if [ "$WSL_ENVIRONMENT" = true ]; then
+echo "   • ✅ Configuração otimizada para Windows + WSL2"
+echo "   • ✅ Docker Desktop integração verificada"
+echo "   • 💡 Dica: Configure .wslconfig para melhor performance"
+else
+echo "   • ℹ️  Executando em ambiente Linux nativo"
+fi
+
+echo ""
+log_info "📧 Suporte e Feedback:"
+echo "   • 🐛 Reporte bugs via GitHub Issues"
+echo "   • 💡 Sugestões são bem-vindas"
+echo "   • 📚 Documentação completa no README.md"
+echo ""
+
+log_success "🎯 RAG-Demo Beta está pronto para uso! Bom aprendizado! 🚀" 
