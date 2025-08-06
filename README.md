@@ -8,8 +8,9 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 
 - 📄 **Upload e processamento** de documentos (PDF, DOCX, TXT, MD)
 - 🔍 **Vetorização inteligente** usando modelos de embedding via API
-- 🗄️ **Armazenamento vetorial** no Qdrant (única fonte de dados)
-- 💬 **Chat RAG** com múltiplas sessões e contexto
+- 🗄️ **Armazenamento vetorial** no Qdrant (vetores e embeddings)
+- 🗃️ **Banco de dados PostgreSQL** para histórico de conversas e sessões
+- 💬 **Chat RAG** com múltiplas sessões e contexto persistente
 - ❓ **Geração automática** de perguntas e respostas
 - ✏️ **Editor de conteúdo** com Markdown e preview
 - 🎨 **Interface web moderna** e responsiva
@@ -27,18 +28,25 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 │   MinIO         │    │   n8n           │    │OpenAI/GEMINI API│
 │   (Storage)     │◄──►│   (Workflows)   │◄──►│      (LLMs)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+┌─────────────────┐
+│   PostgreSQL    │
+│   (Chat Memory) │
+└─────────────────┘
 ```
 
 ### 🔧 Componentes Principais
 
 - **Frontend**: Interface responsiva com Tailwind CSS e JavaScript vanilla
 - **Backend**: Flask com APIs REST e Socket.IO para tempo real
-- **Vector Store**: Qdrant como única fonte de dados (sem SQL)
-- **Storage**: MinIO para armazenamento de arquivos
-- **Database**: PostgreSQL para memória do chat do n8n e sessões
-- **Session System**: Sistema completo de gerenciamento de sessões de chat
+- **Vector Store**: Qdrant para armazenamento de vetores e embeddings
+- **Storage**: MinIO para armazenamento de arquivos e documentos
+- **Database**: PostgreSQL para histórico de conversas e sessões de chat
+- **Session System**: Sistema completo de gerenciamento de sessões com persistência
+- **Chat Memory**: PostgreSQL integrado ao n8n para memória de conversas
 - **Automation**: n8n para workflows e orquestração avançada
-- **LLMs**: OpenAI GPT-4o-mini para processamento e geração
+- **LLMs**: OpenAI GPT-4o-mini e Google Gemini para processamento
 - **Containers**: Docker Compose para orquestração completa
 
 ## 🚀 Instalação e Configuração
@@ -228,6 +236,46 @@ docker-compose logs -f rag-demo-app
 - 🗄️ **PostgreSQL**: localhost:5432 (`chat_user` / `chat_password`)
 - 🔧 **n8n Workflows**: http://localhost:5678 (`admin` / `admin123`)
 
+### 4. 🗄️ Banco de Dados PostgreSQL
+
+O PostgreSQL é utilizado para **dois propósitos principais**:
+
+#### **A. Histórico de Conversas e Sessões**
+- **Tabela `chat_sessions`**: Armazena informações das sessões de chat
+- **Tabela `session_messages`**: Histórico completo de todas as mensagens
+- **Persistência**: Conversas são mantidas entre reinicializações
+- **Recuperação**: Sistema de carregamento de sessões antigas
+
+#### **B. Memória do Chat para n8n**
+- **Tabela `chat_messages`**: Usada pelo n8n para memória de conversas
+- **Integração LangChain**: Compatível com PostgresChatMemory
+- **Contexto persistente**: n8n mantém histórico entre execuções
+- **Session tracking**: Rastreamento automático de sessões
+
+#### **Configuração do PostgreSQL:**
+```bash
+# Credenciais padrão
+Host: localhost:5432
+Database: chat_memory
+User: chat_user
+Password: chat_password
+
+# Inicialização automática
+docker-compose up postgres
+```
+
+#### **Estrutura do Banco:**
+```sql
+-- Sessões de chat
+chat_sessions (session_id, name, created_at, last_activity, metadata)
+
+-- Mensagens das sessões
+session_messages (id, session_id, role, content, sources, created_at)
+
+-- Memória do n8n
+chat_messages (id, session_id, message, metadata, created_at, updated_at)
+```
+
 ## 📱 Funcionalidades
 
 ### 1. 📤 Upload de Documentos
@@ -369,6 +417,7 @@ GET    http://localhost:5678/api     # API n8n
 │   └── 📁 images/                 # Imagens e ícones
 ├── 📁 volumes/                     # Dados persistentes
 │   ├── 📁 minio/                  # Arquivos no MinIO
+│   ├── 📁 postgres/               # Dados do PostgreSQL
 │   ├── 📁 qdrant/                 # Vetores no Qdrant
 │   └── 📁 n8n/                    # Workflows n8n
 ├── 📄 app.py                       # Aplicação Flask principal
@@ -387,7 +436,7 @@ Arquivo → Upload → LLM Processing → Chunking → Embedding → Qdrant
 
 ### 2. 💬 Chat RAG
 ```
-Pergunta → Embedding → Busca Qdrant → Contexto → LLM → Resposta
+Pergunta → Embedding → Busca Qdrant → Contexto → LLM → Resposta → PostgreSQL (Histórico)
 ```
 
 ### 3. ❓ Geração Q&A
@@ -398,6 +447,11 @@ Documento → Chunking → LLM Generate → Q&A Pairs → Vetorização → Qdra
 ### 4. 🔍 Busca Semântica
 ```
 Query → Embedding → Similarity Search → Ranking → Results
+```
+
+### 5. 💾 Persistência de Sessões
+```
+Chat → PostgreSQL (session_messages) → Recuperação → Interface
 ```
 
 ## ⚙️ Configuração Avançada
@@ -423,6 +477,13 @@ MINIO_BUCKET_NAME=documents
 N8N_WEBHOOK_URL=http://localhost:5678/webhook
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=admin123
+
+# PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=chat_memory
+POSTGRES_USER=chat_user
+POSTGRES_PASSWORD=chat_password
 
 # Flask
 FLASK_ENV=production
@@ -594,6 +655,24 @@ python scripts/test-postgres-connection.py
 
 # Reiniciar serviço
 docker-compose restart postgres
+
+# Verificar tabelas
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "\dt"
+
+# Verificar sessões
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM chat_sessions;"
+```
+
+**8. Histórico de conversas não carrega**
+```bash
+# Verificar tabela de mensagens
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM session_messages;"
+
+# Verificar sessões ativas
+docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT session_id, name, message_count FROM chat_sessions ORDER BY last_activity DESC LIMIT 5;"
+
+# Reinicializar sistema de sessões
+./scripts/setup-session-system.sh
 ```
 
 ### Reset Completo
@@ -633,6 +712,7 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 
 - **[Qdrant](https://qdrant.tech/)** - Vector Database de alta performance
 - **[MinIO](https://min.io/)** - Object Storage compatível com S3
+- **[PostgreSQL](https://www.postgresql.org/)** - Sistema de banco de dados relacional
 - **[OpenAI](https://openai.com/)** - APIs de Language Models
 - **[LangChain](https://langchain.com/)** - Framework para aplicações LLM
 - **[Flask](https://flask.palletsprojects.com/)** - Web framework Python
