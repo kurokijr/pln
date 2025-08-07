@@ -265,16 +265,73 @@ fi
 
 # Criar diretórios necessários
 log_info "Criando estrutura de diretórios..."
-mkdir -p uploads
-mkdir -p volumes/minio
-mkdir -p volumes/qdrant
-mkdir -p volumes/n8n
-mkdir -p volumes/postgres
-mkdir -p static/css static/js static/images
-mkdir -p src
-mkdir -p templates
-mkdir -p scripts
-mkdir -p docs
+
+# Função para criar diretório com permissões adequadas
+create_directory_with_permissions() {
+    local dir_path=$1
+    local owner_uid=${2:-1000}
+    local owner_gid=${3:-1000}
+    
+    if [ ! -d "$dir_path" ]; then
+        if command -v sudo &> /dev/null; then
+            sudo mkdir -p "$dir_path" 2>/dev/null || {
+                log_warning "Não foi possível criar $dir_path com sudo, tentando sem..."
+                mkdir -p "$dir_path" 2>/dev/null || {
+                    log_error "Falha ao criar diretório: $dir_path"
+                    return 1
+                }
+            }
+            sudo chown -R "$owner_uid:$owner_gid" "$dir_path" 2>/dev/null || {
+                log_warning "Não foi possível alterar permissões de $dir_path"
+            }
+        else
+            mkdir -p "$dir_path" 2>/dev/null || {
+                log_error "Falha ao criar diretório: $dir_path"
+                return 1
+            }
+            chown -R "$owner_uid:$owner_gid" "$dir_path" 2>/dev/null || {
+                log_warning "Não foi possível alterar permissões de $dir_path"
+            }
+        fi
+    else
+        # Diretório já existe, apenas corrigir permissões
+        if command -v sudo &> /dev/null; then
+            sudo chown -R "$owner_uid:$owner_gid" "$dir_path" 2>/dev/null || {
+                log_warning "Não foi possível alterar permissões de $dir_path existente"
+            }
+        else
+            chown -R "$owner_uid:$owner_gid" "$dir_path" 2>/dev/null || {
+                log_warning "Não foi possível alterar permissões de $dir_path existente"
+            }
+        fi
+    fi
+}
+
+# Criar diretórios principais
+create_directory_with_permissions "uploads"
+create_directory_with_permissions "volumes/minio"
+create_directory_with_permissions "volumes/qdrant"
+create_directory_with_permissions "volumes/n8n" 1000 1000
+create_directory_with_permissions "volumes/postgres"
+create_directory_with_permissions "static/css"
+create_directory_with_permissions "static/js"
+create_directory_with_permissions "static/images"
+create_directory_with_permissions "src"
+create_directory_with_permissions "templates"
+create_directory_with_permissions "scripts"
+create_directory_with_permissions "docs"
+
+# Verificar se todos os diretórios foram criados
+log_info "Verificando diretórios criados..."
+required_dirs=("uploads" "volumes/minio" "volumes/qdrant" "volumes/n8n" "volumes/postgres" "static/css" "static/js" "static/images" "src" "templates" "scripts" "docs")
+
+for dir in "${required_dirs[@]}"; do
+    if [ -d "$dir" ]; then
+        log_success "✓ $dir"
+    else
+        log_error "✗ $dir - não foi criado"
+    fi
+done
 
 # Corrigir permissões do diretório n8n para evitar problemas de acesso
 log_info "Configurando permissões do n8n..."

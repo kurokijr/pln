@@ -237,3 +237,6 @@ Desktop.ini
 
 # Cursor IDE
 .cursor/
+
+# Docs
+docs/
