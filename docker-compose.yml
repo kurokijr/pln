@@ -100,7 +100,7 @@ services:
   # n8n - Automação e Orquestração de Workflows
   n8n:
     container_name: n8n
-    image: n8nio/n8n:1.38.2
+    image: n8nio/n8n:latest
     ports:
       - "5678:5678"
     environment:
@@ -115,6 +115,7 @@ services:
       - N8N_LOG_LEVEL=info
       - N8N_LOG_OUTPUT=console
       - N8N_METRICS=true
+      - N8N_RUNNERS_ENABLED=true
       # Configurações do PostgreSQL para memória do chat
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
