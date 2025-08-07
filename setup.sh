@@ -333,6 +333,10 @@ for dir in "${required_dirs[@]}"; do
     fi
 done
 
+# Corrigir permissões do diretório n8n para evitar problemas de acesso
+log_info "Configurando permissões do n8n..."
+chown -R 1000:1000 volumes/n8n 2>/dev/null || true
+
 log_success "Diretórios criados"
 
 # Verificar volumes existentes (apenas informativo)
