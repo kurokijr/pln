@@ -125,9 +125,13 @@ def handle_chat_message(data):
         if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0.0 or similarity_threshold > 1.0:
             similarity_threshold = 0.0
         
+        # Para busca por similaridade, criar sessão temporária se não fornecida
+        if not session_id:
+            session_id = chat_manager.create_session("Busca por Similaridade")
+        
         # Processar mensagem usando o ChatManager
         result = chat_manager.chat(
-            session_id=session_id or "",
+            session_id=session_id,
             message=message,
             collection_names=collection_name,
             similarity_threshold=similarity_threshold
@@ -722,13 +726,17 @@ def chat():
         if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0.0 or similarity_threshold > 1.0:
             similarity_threshold = 0.0
         
+        # Para busca por similaridade, criar sessão temporária se não fornecida
+        if not session_id:
+            session_id = chat_manager.create_session("Busca por Similaridade")
+        
         # Suporte a compatibilidade: se collection_name foi fornecido mas collection_names não
         if collection_name and not collection_names:
             collection_names = collection_name
         
         # Processar mensagem usando o ChatManager
         result = chat_manager.chat(
-            session_id=session_id or "",
+            session_id=session_id,
             message=message,
             collection_names=collection_names,
             similarity_threshold=similarity_threshold

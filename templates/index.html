@@ -927,25 +927,6 @@ DOCUMENTO:
                                 <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
                             </div>
                             
-                            <!-- Session Selection -->
-                            <div class="mt-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Sessão de Chat:</label>
-                                <div class="flex space-x-2">
-                                    <select id="chat-session-select" class="flex-1 border border-gray-300 rounded-md px-3 py-2">
-                                        <option value="">Nova sessão</option>
-                                    </select>
-                                    <button id="refresh-sessions-btn" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors" title="Atualizar lista de sessões">
-                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                                <div class="flex items-center justify-between mt-1">
-                                    <p class="text-xs text-gray-500">Selecione uma sessão existente ou crie uma nova</p>
-                                    <span id="current-session-info" class="text-xs text-blue-600 font-medium hidden">
-                                        Sessão ativa: <span id="current-session-name">-</span>
-                                    </span>
-                                </div>
-                            </div>
-                            
                             <!-- Similarity Threshold Control -->
                             <div class="mt-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -1326,14 +1307,10 @@ DOCUMENTO:
                 // Update page title and subtitle
                 updatePageHeader(navId);
                 
-                // Load sessions when chat or semantic tab is opened
-                if (navId === 'chat' || navId === 'semantic') {
+                // Load sessions when semantic tab is opened
+                if (navId === 'semantic') {
                     console.log('📁 Carregando sessões para aba:', navId);
-                    if (navId === 'semantic') {
-                        loadSessionsForSemanticSelector();
-                    } else {
-                        loadSessionsForSelector();
-                    }
+                    loadSessionsForSemanticSelector();
                 }
                 
                 // Close mobile menu if open
@@ -1465,11 +1442,7 @@ DOCUMENTO:
             isProcessing = false;
             updateSendButton();
             
-            // Atualizar seletor de sessões se uma nova sessão foi criada
-            if (data.session_id && data.session_id !== currentSessionId) {
-                currentSessionId = data.session_id;
-                loadSessionsForSelector();
-            }
+
         });
         
         socket.on('chat_error', (data) => {
@@ -1514,11 +1487,7 @@ DOCUMENTO:
                     // Atualizar sessão atual
                     currentSessionId = result.session_id;
                     
-                    // Atualizar interface da sessão atual
-                    const currentSessionName = document.getElementById('current-session-name');
-                    if (currentSessionName) {
-                        currentSessionName.textContent = sessionName;
-                    }
+
                     
                     // Limpar chat
                     const chatMessages = document.getElementById('chat-messages');
@@ -1529,7 +1498,6 @@ DOCUMENTO:
                     
                     // Recarregar lista de sessões
                     await loadSessions();
-                    await loadSessionsForSelector();
                 } else {
                     showToast('❌ Erro ao criar sessão', 'error');
                 }
@@ -2373,109 +2341,9 @@ DOCUMENTO:
         // Session selector functionality
         let sessionsList = [];
         
-        async function loadSessionsForSelector() {
-            try {
-                const response = await fetch('/api/sessions');
-                const result = await response.json();
-                
-                if (result.success) {
-                    sessionsList = result.sessions || [];
-                    updateSessionSelector();
-                }
-            } catch (error) {
-                console.error('Erro ao carregar sessões para o seletor:', error);
-            }
-        }
+
         
-        function updateSessionSelector() {
-            const sessionSelect = document.getElementById('chat-session-select');
-            const currentSessionInfo = document.getElementById('current-session-info');
-            const currentSessionName = document.getElementById('current-session-name');
-            
-            // Limpar opções existentes
-            sessionSelect.innerHTML = '<option value="">Nova sessão</option>';
-            
-            // Adicionar sessões existentes
-            sessionsList.forEach(session => {
-                const option = document.createElement('option');
-                option.value = session.session_id;
-                option.textContent = `${session.name} (${session.message_count} mensagens)`;
-                sessionSelect.appendChild(option);
-            });
-            
-            // Atualizar informação da sessão atual
-            if (currentSessionId) {
-                const currentSession = sessionsList.find(s => s.session_id === currentSessionId);
-                if (currentSession) {
-                    currentSessionInfo.classList.remove('hidden');
-                    currentSessionName.textContent = currentSession.name;
-                    sessionSelect.value = currentSessionId;
-                } else {
-                    currentSessionInfo.classList.add('hidden');
-                }
-            } else {
-                currentSessionInfo.classList.add('hidden');
-            }
-        }
-        
-        async function handleSessionSelection() {
-            const sessionSelect = document.getElementById('chat-session-select');
-            const selectedSessionId = sessionSelect.value;
-            
-            if (selectedSessionId) {
-                // Carregar sessão selecionada
-                loadSessionMessages(selectedSessionId);
-            } else {
-                // Nova sessão - criar automaticamente
-                await createNewSessionForChat();
-            }
-        }
-        
-        async function createNewSessionForChat() {
-            const sessionName = prompt('Digite um nome para a nova sessão:', 'Nova Sessão');
-            if (!sessionName) {
-                // Se cancelou, voltar para a sessão anterior
-                if (currentSessionId) {
-                    const sessionSelect = document.getElementById('chat-session-select');
-                    sessionSelect.value = currentSessionId;
-                }
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/sessions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name: sessionName })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    // Atualizar sessão atual
-                    currentSessionId = result.session_id;
-                    
-                    // Limpar chat
-                    const chatMessages = document.getElementById('chat-messages');
-                    chatMessages.innerHTML = '<div class="text-center text-gray-500 text-sm">Nova sessão criada. Digite sua primeira mensagem...</div>';
-                    
-                    // Atualizar interface
-                    document.getElementById('current-session-name').textContent = sessionName;
-                    document.getElementById('current-session-info').classList.remove('hidden');
-                    
-                    // Recarregar lista de sessões
-                    await loadSessionsForSelector();
-                    
-                    showToast(`✅ Sessão "${sessionName}" criada`, 'success');
-                } else {
-                    showToast('❌ Erro ao criar sessão', 'error');
-                }
-            } catch (error) {
-                console.error('Erro ao criar sessão:', error);
-                showToast('❌ Erro ao criar sessão', 'error');
-            }
-        }
+
         
         // Funções para o seletor de sessões na aba semantic
         async function loadSessionsForSemanticSelector() {
@@ -2651,9 +2519,7 @@ DOCUMENTO:
                     currentSessionId = sessionId;
                     const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
                     
-                    // Atualizar interface
-                    document.getElementById('current-session-name').textContent = sessionName;
-                    document.getElementById('current-session-info').classList.remove('hidden');
+
                     
                     // Limpar chat atual
                     const chatMessages = document.getElementById('chat-messages');
@@ -2693,16 +2559,8 @@ DOCUMENTO:
             
             console.log('🔍 Elemento semantic-session-select encontrado:', !!semanticSessionSelect);
             console.log('🔍 Elemento refresh-semantic-sessions-btn encontrado:', !!refreshSemanticSessionsBtn);
-            const sessionSelect = document.getElementById('chat-session-select');
-            const refreshSessionsBtn = document.getElementById('refresh-sessions-btn');
             
-            if (sessionSelect) {
-                sessionSelect.addEventListener('change', handleSessionSelection);
-            }
-            
-            if (refreshSessionsBtn) {
-                refreshSessionsBtn.addEventListener('click', loadSessionsForSelector);
-            }
+
             
             if (semanticSessionSelect) {
                 semanticSessionSelect.addEventListener('change', handleSemanticSessionSelection);
@@ -2712,10 +2570,7 @@ DOCUMENTO:
                 refreshSemanticSessionsBtn.addEventListener('click', loadSessionsForSemanticSelector);
             }
             
-            // Carregar sessões se estiver na aba de chat
-            if (document.getElementById('chat-content') && !document.getElementById('chat-content').classList.contains('hidden')) {
-                loadSessionsForSelector();
-            }
+
             
             // Carregar sessões se estiver na aba de semantic
             if (document.getElementById('semantic-content') && !document.getElementById('semantic-content').classList.contains('hidden')) {
@@ -2729,12 +2584,6 @@ DOCUMENTO:
         async function sendMessage() {
             const message = chatInput.value.trim();
             if (!message || isProcessing) return;
-            
-            // Verificar se há uma sessão ativa
-            if (!currentSessionId) {
-                showToast('⚠️ Selecione uma sessão ou escolha "Nova sessão"', 'warning');
-                return;
-            }
             
             // Limpar resultados anteriores
             clearSearchResults();
@@ -2754,7 +2603,7 @@ DOCUMENTO:
             
             socket.emit('chat_message', {
                 message: message,
-                session_id: currentSessionId,
+                session_id: null, // Busca por similaridade não precisa de sessão
                 collection_name: document.getElementById('chat-collection-select').value,
                 similarity_threshold: similarityThreshold
             });
@@ -3625,11 +3474,7 @@ DOCUMENTO:
                     currentSessionId = sessionId;
                     const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
                     
-                    // Atualizar interface da sessão atual
-                    const currentSessionName = document.getElementById('current-session-name');
-                    if (currentSessionName) {
-                        currentSessionName.textContent = sessionName;
-                    }
+
                     
                     // Limpar chat atual
                     const chatMessages = document.getElementById('chat-messages');
@@ -3680,11 +3525,7 @@ DOCUMENTO:
                     if (currentSessionId === sessionId) {
                         currentSessionId = null;
                         
-                        // Limpar interface da sessão atual
-                        const currentSessionName = document.getElementById('current-session-name');
-                        if (currentSessionName) {
-                            currentSessionName.textContent = 'Nenhuma sessão';
-                        }
+
                         
                         const chatMessages = document.getElementById('chat-messages');
                         chatMessages.innerHTML = '';
