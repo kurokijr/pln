@@ -1055,6 +1055,15 @@ DOCUMENTO:
                         
                         <!-- Search Input at Bottom (Fixed) -->
                         <div class="border-t px-6 py-3 flex-shrink-0 bg-white">
+                            <!-- Webhook Test Checkbox -->
+                            <div class="mb-3 flex items-center space-x-2">
+                                <input type="checkbox" id="use-test-webhook" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2">
+                                <label for="use-test-webhook" class="text-sm text-gray-700">
+                                    <span class="font-medium">Usar webhook de teste</span>
+                                    <span class="text-gray-500 ml-1">(mesmo formato de produção)</span>
+                                </label>
+                            </div>
+                            
                             <div class="flex space-x-3">
                                 <textarea id="semantic-input" rows="2" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" placeholder="Digite sua pergunta para o chat multi-agente..."></textarea>
                                 <button id="send-semantic-btn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 self-end transition-colors duration-200">
@@ -1291,7 +1300,54 @@ DOCUMENTO:
         const sidebar = document.querySelector('.sidebar');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
         
-        // Navigation functionality
+        // Navigation functionality - Global function (defined early and robust)
+        function showContent(contentId) {
+            try {
+                console.log('🔍 showContent chamada com:', contentId);
+                
+                // Hide all content sections
+                if (contentSections && contentSections.length > 0) {
+                    contentSections.forEach(section => section.classList.add('hidden'));
+                }
+                
+                // Show target content section
+                const targetContent = document.getElementById(`${contentId}-content`);
+                if (targetContent) {
+                    targetContent.classList.remove('hidden');
+                    console.log('✅ Conteúdo exibido:', `${contentId}-content`);
+                } else {
+                    console.warn('⚠️ Conteúdo não encontrado:', `${contentId}-content`);
+                }
+                
+                // Update active nav button
+                if (navButtons && navButtons.length > 0) {
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    const activeNav = document.getElementById(`${contentId}-nav`);
+                    if (activeNav) {
+                        activeNav.classList.add('active');
+                        console.log('✅ Navegação ativada:', `${contentId}-nav`);
+                    } else {
+                        console.warn('⚠️ Botão de navegação não encontrado:', `${contentId}-nav`);
+                    }
+                }
+                
+                // Update page title and subtitle
+                if (typeof updatePageHeader === 'function') {
+                    updatePageHeader(contentId);
+                }
+                
+                console.log('✅ showContent executada com sucesso');
+            } catch (error) {
+                console.error('❌ Erro em showContent:', error);
+            }
+        }
+        
+        // Make function globally available
+        window.showContent = showContent;
+        
+        // Also make it available as a global variable
+        window.showContentFunction = showContent;
+        
         navButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const navId = button.id.replace('-nav', '');
@@ -1487,14 +1543,52 @@ DOCUMENTO:
                     // Atualizar sessão atual
                     currentSessionId = result.session_id;
                     
-
+                    console.log('🔍 DEBUG: showContent disponível?', typeof showContent);
+                    console.log('🔍 DEBUG: window.showContent disponível?', typeof window.showContent);
+                    console.log('🔍 DEBUG: window.showContentFunction disponível?', typeof window.showContentFunction);
                     
-                    // Limpar chat
-                    const chatMessages = document.getElementById('chat-messages');
-                    chatMessages.innerHTML = '';
+                    // Limpar chat multi-agente
+                    const semanticMessages = document.getElementById('semantic-messages');
+                    if (semanticMessages) {
+                        semanticMessages.innerHTML = '';
+                    }
                     
-                    // Mudar para aba de chat
-                    showContent('chat');
+                    // Mudar para aba do chat multi-agente (semantic)
+                    if (typeof showContent === 'function') {
+                        console.log('✅ Usando showContent local');
+                        showContent('semantic');
+                        navigationSuccess = true;
+                    } else if (typeof window.showContent === 'function') {
+                        console.log('✅ Usando window.showContent');
+                        window.showContent('semantic');
+                        navigationSuccess = true;
+                    } else if (typeof window.showContentFunction === 'function') {
+                        console.log('✅ Usando window.showContentFunction');
+                        window.showContentFunction('semantic');
+                        navigationSuccess = true;
+                    } else {
+                        console.error('❌ Nenhuma versão de showContent está disponível!');
+                        console.log('🔍 Tentando navegação manual...');
+                        
+                        // Tentar navegação manual como fallback
+                        try {
+                            const contentSections = document.querySelectorAll('.content-section');
+                            contentSections.forEach(section => section.classList.add('hidden'));
+                            
+                            const semanticContent = document.getElementById('semantic-content');
+                            if (semanticContent) {
+                                semanticContent.classList.remove('hidden');
+                                console.log('✅ Navegação manual bem-sucedida');
+                                navigationSuccess = true;
+                            }
+                        } catch (manualError) {
+                            console.error('❌ Navegação manual também falhou:', manualError);
+                        }
+                    }
+                    
+                    if (!navigationSuccess) {
+                        showToast('❌ Erro de navegação - função não encontrada', 'error');
+                    }
                     
                     // Recarregar lista de sessões
                     await loadSessions();
@@ -2338,6 +2432,14 @@ DOCUMENTO:
             }
         });
         
+        // Event listener para o checkbox de webhook de teste
+        const useTestWebhookCheckbox = document.getElementById('use-test-webhook');
+        if (useTestWebhookCheckbox) {
+            useTestWebhookCheckbox.addEventListener('change', () => {
+                updateSemanticButton();
+            });
+        }
+        
         // Session selector functionality
         let sessionsList = [];
         
@@ -2399,6 +2501,24 @@ DOCUMENTO:
                     currentSessionName.textContent = currentSession.name;
                     sessionSelect.value = currentSessionId;
                 }
+            } else if (sessionsList.length > 0) {
+                // Se não há sessão ativa mas há sessões disponíveis, selecionar a mais recente
+                const mostRecentSession = sessionsList.reduce((latest, current) => {
+                    const latestDate = new Date(latest.last_activity || latest.created_at);
+                    const currentDate = new Date(current.last_activity || current.created_at);
+                    return currentDate > latestDate ? current : latest;
+                });
+                
+                console.log('🔄 Selecionando automaticamente a sessão mais recente:', mostRecentSession.name);
+                sessionSelect.value = mostRecentSession.session_id;
+                currentSessionId = mostRecentSession.session_id;
+                
+                // Atualizar interface
+                currentSessionInfo.classList.remove('hidden');
+                currentSessionName.textContent = mostRecentSession.name;
+                
+                // Carregar mensagens da sessão selecionada
+                loadSemanticSessionMessages(mostRecentSession.session_id);
             }
             
             console.log('✅ Seletor de sessões semantic atualizado');
@@ -2609,14 +2729,158 @@ DOCUMENTO:
             });
         }
         
+        async function sendToTestWebhook(message) {
+            // Add user message
+            addSemanticMessage('user', message);
+            
+            // Clear input
+            semanticInput.value = '';
+            
+            // Send via HTTP request
+            isProcessing = true;
+            updateSemanticButton();
+            
+            try {
+                // Verificar se há uma sessão ativa - se não houver, criar uma automaticamente
+                if (!currentSessionId) {
+                    console.log('🔍 Nenhuma sessão ativa encontrada para webhook de teste, criando sessão automática...');
+                    try {
+                        const response = await fetch('/api/sessions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name: 'Sessão Automática (Teste)' })
+                        });
+                        
+                        const result = await response.json();
+                        if (result.success) {
+                            currentSessionId = result.session_id;
+                            console.log('✅ Sessão automática criada para teste:', currentSessionId);
+                        } else {
+                            console.warn('⚠️ Não foi possível criar sessão automática para teste, usando null');
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Erro ao criar sessão automática para teste:', error);
+                    }
+                }
+                
+                // Obter modelos e collections selecionados (mesmo formato de produção)
+                const selectedModels = getSelectedSemanticModels();
+                const selectedCollections = getSelectedSemanticCollections();
+                
+                // Organizar collections por modelo (mesmo formato de produção)
+                const organizedModels = {};
+                
+                if (selectedModels.includes('openai')) {
+                    const openaiCollections = selectedCollections.filter(col => 
+                        col.includes('openai') || col.includes('OpenAI')
+                    );
+                    organizedModels.openai = {
+                        enabled: true,
+                        collections: openaiCollections
+                    };
+                }
+                
+                if (selectedModels.includes('gemini')) {
+                    const geminiCollections = selectedCollections.filter(col => 
+                        col.includes('gemini') || col.includes('Gemini')
+                    );
+                    organizedModels.gemini = {
+                        enabled: true,
+                        collections: geminiCollections
+                    };
+                }
+                
+                // Payload no mesmo formato de produção
+                const payload = {
+                    question: message,
+                    session_id: currentSessionId || null,
+                    models: organizedModels,
+                    timestamp: Date.now() / 1000 // Unix timestamp como no serviço principal
+                };
+                
+                // Enviar diretamente para o webhook de teste do N8N
+                const response = await fetch('http://localhost:5678/webhook-test/agent-proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    // Processar resposta no mesmo formato de produção
+                    if (result.openai_response || result.gemini_response) {
+                        // Exibir respostas lado a lado como no modo normal
+                        displaySemanticResults(result);
+                    } else {
+                        // Fallback para resposta simples
+                        addSemanticMessage('assistant', `✅ Webhook de teste respondeu: ${JSON.stringify(result, null, 2)}`);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    addSemanticMessage('error', `❌ Erro no webhook de teste (${response.status}): ${errorText}`);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao enviar para webhook de teste:', error);
+                addSemanticMessage('error', `❌ Erro de conexão: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateSemanticButton();
+            }
+        }
+        
         async function sendSemanticMessage() {
             const message = semanticInput.value.trim();
             if (!message || isProcessing) return;
             
-            // Verificar se há uma sessão ativa
-            if (!currentSessionId) {
-                showToast('⚠️ Selecione uma sessão ou escolha "Nova sessão"', 'warning');
+            // Verificar se o webhook de teste está ativado
+            const useTestWebhook = document.getElementById('use-test-webhook').checked;
+            
+            if (useTestWebhook) {
+                // Modo webhook de teste - enviar diretamente para o N8N
+                await sendToTestWebhook(message);
                 return;
+            }
+            
+            // Verificar se há uma sessão ativa - se não houver, criar uma automaticamente
+            if (!currentSessionId) {
+                console.log('🔍 Nenhuma sessão ativa encontrada, criando sessão automática...');
+                try {
+                    const response = await fetch('/api/sessions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name: 'Sessão Automática' })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        currentSessionId = result.session_id;
+                        console.log('✅ Sessão automática criada:', currentSessionId);
+                        
+                        // Atualizar interface
+                        document.getElementById('current-semantic-session-name').textContent = 'Sessão Automática';
+                        document.getElementById('current-semantic-session-info').classList.remove('hidden');
+                        
+                        // Atualizar seletor de sessões
+                        await loadSessionsForSemanticSelector();
+                        
+                        showToast('✅ Sessão automática criada', 'success');
+                    } else {
+                        showToast('❌ Erro ao criar sessão automática', 'error');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao criar sessão automática:', error);
+                    showToast('❌ Erro ao criar sessão automática', 'error');
+                    return;
+                }
             }
             
             // Verificar se pelo menos um modelo foi selecionado
@@ -2711,15 +2975,33 @@ DOCUMENTO:
         
         function updateSemanticButton() {
             const sendBtn = document.getElementById('send-semantic-btn');
+            const useTestWebhook = document.getElementById('use-test-webhook').checked;
+            
             if (sendBtn) {
                 if (isProcessing) {
                     sendBtn.disabled = true;
-                    sendBtn.textContent = '⏳ Processando...';
-                    sendBtn.className = 'bg-gray-400 text-white px-4 py-2 rounded-md cursor-not-allowed self-end';
+                    sendBtn.innerHTML = useTestWebhook ? '⏳ Testando webhook...' : '⏳ Processando...';
+                    sendBtn.className = 'bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed self-end transition-colors duration-200';
                 } else {
                     sendBtn.disabled = false;
-                    sendBtn.textContent = 'Enviar';
-                    sendBtn.className = 'bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 self-end';
+                    if (useTestWebhook) {
+                        sendBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m22 2-7 20-4-9-9-4Z"/>
+                                <path d="M22 2 11 13"/>
+                            </svg>
+                            <span class="ml-1">Teste</span>
+                        `;
+                        sendBtn.className = 'bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 self-end transition-colors duration-200';
+                    } else {
+                        sendBtn.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m22 2-7 20-4-9-9-4Z"/>
+                                <path d="M22 2 11 13"/>
+                            </svg>
+                        `;
+                        sendBtn.className = 'bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 self-end transition-colors duration-200';
+                    }
                 }
             }
         }
@@ -3474,28 +3756,28 @@ DOCUMENTO:
                     currentSessionId = sessionId;
                     const sessionName = session.name || `Sessão ${sessionId.substring(0, 8)}...`;
                     
-
+                    // Limpar chat multi-agente atual
+                    const semanticMessages = document.getElementById('semantic-messages');
+                    if (semanticMessages) {
+                        semanticMessages.innerHTML = '';
+                    }
                     
-                    // Limpar chat atual
-                    const chatMessages = document.getElementById('chat-messages');
-                    chatMessages.innerHTML = '';
-                    
-                    // Carregar mensagens da sessão
+                    // Carregar mensagens da sessão no chat multi-agente
                     if (session.messages && session.messages.length > 0) {
                         session.messages.forEach(message => {
-                            addChatMessage(message.role, message.content, {
+                            addSemanticMessage(message.role, message.content, {
                                 sources: message.sources || [],
                                 fromHistory: true
                             });
                         });
                     } else {
-                        addChatMessage('system', 'Sessão carregada. Você pode continuar a conversa.', {
+                        addSemanticMessage('system', 'Sessão carregada. Você pode continuar a conversa.', {
                             fromHistory: true
                         });
                     }
                     
-                    // Mudar para aba de chat
-                    showContent('chat');
+                    // Mudar para aba do chat multi-agente (semantic)
+                    showContent('semantic');
                     
                     showToast(`✅ Sessão "${sessionName}" carregada com sucesso`, 'success');
                 } else {

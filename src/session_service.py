@@ -213,7 +213,7 @@ class SessionService:
                 with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
                     # Buscar dados da sessão
                     cursor.execute("""
-                        SELECT session_id, name, created_at, last_activity, metadata
+                        SELECT session_id, session_name, created_at, last_activity, metadata
                         FROM chat_sessions 
                         WHERE session_id = %s
                     """, (session_id,))
@@ -235,7 +235,7 @@ class SessionService:
                     # Construir objeto da sessão
                     session = ChatSession(
                         session_id=session_data['session_id'],
-                        name=session_data['name'],
+                        name=session_data['session_name'],
                         created_at=session_data['created_at'],
                         last_activity=session_data['last_activity'],
                         metadata=session_data['metadata'] or {}
@@ -267,14 +267,14 @@ class SessionService:
                     cursor.execute("""
                         SELECT 
                             s.session_id,
-                            s.name,
+                            s.session_name,
                             s.created_at,
                             s.last_activity,
                             s.metadata,
                             COUNT(m.id) as message_count
                         FROM chat_sessions s
                         LEFT JOIN session_messages m ON s.session_id = m.session_id
-                        GROUP BY s.session_id, s.name, s.created_at, s.last_activity, s.metadata
+                        GROUP BY s.session_id, s.session_name, s.created_at, s.last_activity, s.metadata
                         ORDER BY s.last_activity DESC
                     """)
                     
@@ -282,7 +282,7 @@ class SessionService:
                     for row in cursor.fetchall():
                         session_data = {
                             "session_id": row['session_id'],
-                            "name": row['name'],
+                            "name": row['session_name'],
                             "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                             "last_activity": row['last_activity'].isoformat() if row['last_activity'] else None,
                             "message_count": row['message_count'],

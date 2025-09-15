@@ -766,6 +766,7 @@ def list_sessions():
             'sessions': sessions
         })
     except Exception as e:
+        print(f"❌ Erro na rota /api/sessions: {e}")
         return jsonify({'error': str(e)}), 500
 
 

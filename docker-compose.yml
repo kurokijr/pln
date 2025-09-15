@@ -100,7 +100,7 @@ services:
   # n8n - Automação e Orquestração de Workflows
   n8n:
     container_name: n8n
-    image: n8nio/n8n:1.38.2
+    image: n8nio/n8n:latest
     ports:
       - "5678:5678"
     environment:
@@ -139,10 +139,4 @@ services:
 
 networks:
   rag-network:
-    driver: bridge
-
-volumes:
-  qdrant:
-  minio:
-  n8n:
-  postgres: 
+    driver: bridge 

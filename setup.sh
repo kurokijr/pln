@@ -307,12 +307,79 @@ create_directory_with_permissions() {
     fi
 }
 
+# Função para corrigir permissões dos volumes Docker
+fix_volume_permissions() {
+    log_info "Corrigindo permissões dos volumes Docker..."
+    
+    # N8N - usuário node (UID 1000)
+    if [ -d "volumes/n8n" ]; then
+        log_info "Configurando permissões do N8N (UID 1000)..."
+        if command -v sudo &> /dev/null; then
+            sudo chown -R 1000:1000 volumes/n8n 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do N8N"
+            }
+        else
+            chown -R 1000:1000 volumes/n8n 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do N8N"
+            }
+        fi
+        log_success "Permissões do N8N configuradas"
+    fi
+    
+    # PostgreSQL - usuário postgres (UID 70)
+    if [ -d "volumes/postgres" ]; then
+        log_info "Configurando permissões do PostgreSQL (UID 70)..."
+        if command -v sudo &> /dev/null; then
+            sudo chown -R 70:70 volumes/postgres 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do PostgreSQL"
+            }
+        else
+            chown -R 70:70 volumes/postgres 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do PostgreSQL"
+            }
+        fi
+        log_success "Permissões do PostgreSQL configuradas"
+    fi
+    
+    # Qdrant - usuário padrão (UID 1000)
+    if [ -d "volumes/qdrant" ]; then
+        log_info "Configurando permissões do Qdrant (UID 1000)..."
+        if command -v sudo &> /dev/null; then
+            sudo chown -R 1000:1000 volumes/qdrant 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do Qdrant"
+            }
+        else
+            chown -R 1000:1000 volumes/qdrant 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do Qdrant"
+            }
+        fi
+        log_success "Permissões do Qdrant configuradas"
+    fi
+    
+    # MinIO - usuário padrão (UID 1000)
+    if [ -d "volumes/minio" ]; then
+        log_info "Configurando permissões do MinIO (UID 1000)..."
+        if command -v sudo &> /dev/null; then
+            sudo chown -R 1000:1000 volumes/minio 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do MinIO"
+            }
+        else
+            chown -R 1000:1000 volumes/minio 2>/dev/null || {
+                log_warning "Não foi possível corrigir permissões do MinIO"
+            }
+        fi
+        log_success "Permissões do MinIO configuradas"
+    fi
+    
+    log_success "Permissões dos volumes corrigidas"
+}
+
 # Criar diretórios principais
 create_directory_with_permissions "uploads"
-create_directory_with_permissions "volumes/minio"
-create_directory_with_permissions "volumes/qdrant"
+create_directory_with_permissions "volumes/minio" 1000 1000
+create_directory_with_permissions "volumes/qdrant" 1000 1000
 create_directory_with_permissions "volumes/n8n" 1000 1000
-create_directory_with_permissions "volumes/postgres"
+create_directory_with_permissions "volumes/postgres" 70 70
 create_directory_with_permissions "static/css"
 create_directory_with_permissions "static/js"
 create_directory_with_permissions "static/images"
@@ -320,6 +387,9 @@ create_directory_with_permissions "src"
 create_directory_with_permissions "templates"
 create_directory_with_permissions "scripts"
 create_directory_with_permissions "docs"
+
+# Corrigir permissões dos volumes (importante para Docker)
+fix_volume_permissions
 
 # Verificar se todos os diretórios foram criados
 log_info "Verificando diretórios criados..."
@@ -333,15 +403,7 @@ for dir in "${required_dirs[@]}"; do
     fi
 done
 
-# Corrigir permissões do diretório n8n para evitar problemas de acesso
-log_info "Configurando permissões do n8n..."
-chown -R 1000:1000 volumes/n8n 2>/dev/null || true
-
-log_success "Diretórios criados"
-
-# Verificar volumes existentes (apenas informativo)
-log_info "Verificando volumes existentes..."
-volumes_with_data=()
+log_success "Diretórios criados e permissões configuradas"
 
 if check_volume_data "volumes/n8n" "n8n"; then
     volumes_with_data+=("n8n")
@@ -561,6 +623,10 @@ fi
 log_info "Aguardando serviços ficarem prontos..."
 sleep 10
 
+# Corrigir permissões após inicialização dos containers
+log_info "Corrigindo permissões após inicialização dos containers..."
+fix_volume_permissions
+
 # Função para verificar saúde dos serviços
 check_service() {
     local name=$1
@@ -730,10 +796,19 @@ echo "   • Para mais detalhes, consulte: docs/postgres-chat-memory.md"
 
 echo ""
 log_info "🔧 Informações sobre n8n:"
-echo "   • Versão estável: 1.38.2 (evita problemas com 'latest')"
-echo "   • Permissões configuradas automaticamente"
+echo "   • Versão estável: latest (com correções de permissões)"
+echo "   • Permissões configuradas automaticamente (UID 1000)"
 echo "   • Primeiro acesso pode demorar 2-3 minutos"
 echo "   • Acesso: http://localhost:5678 (admin/admin123)"
+echo "   • Volumes persistidos em ./volumes/n8n/"
+
+echo ""
+log_info "🗄️ Informações sobre PostgreSQL:"
+echo "   • Permissões configuradas automaticamente (UID 70)"
+echo "   • Volumes persistidos em ./volumes/postgres/"
+echo "   • Database: chat_memory"
+echo "   • Tabela principal: chat_messages"
+echo "   • Para mais detalhes, consulte: docs/postgres-chat-memory.md"
 
 echo ""
 log_info "🆕 Novidades da versão Beta:"
@@ -744,6 +819,8 @@ echo "   • ✅ Interface web otimizada e responsiva"
 echo "   • ✅ Integração completa com n8n workflows"
 echo "   • ✅ PostgreSQL configurado automaticamente"
 echo "   • ✅ Suporte a múltiplos modelos de embedding"
+echo "   • ✅ Correção automática de permissões dos volumes"
+echo "   • ✅ Bind mounts para persistência de dados"
 
 echo ""
 log_info "🔧 Para desenvolvimento:"
