@@ -725,6 +725,40 @@ SELECT COUNT(*) FROM chat_messages;
 SELECT COUNT(*) FROM chat_sessions;
 ```
 
+### 🔧 Correção de Permissões dos Volumes
+
+#### **Problema Comum: Volumes Não Populados**
+Se os volumes do N8N e PostgreSQL não estão sendo populados nos diretórios locais, execute:
+
+```bash
+# Correção automática de permissões
+./scripts/fix-volume-permissions.sh
+```
+
+#### **Correção Manual**
+```bash
+# Parar containers
+docker-compose down
+
+# Corrigir permissões
+sudo chown -R 1000:1000 volumes/n8n/
+sudo chown -R 70:70 volumes/postgres/
+sudo chown -R 1000:1000 volumes/qdrant/
+sudo chown -R 1000:1000 volumes/minio/
+
+# Reiniciar containers
+docker-compose up -d
+```
+
+#### **Verificação**
+```bash
+# Verificar se os volumes estão sendo populados
+ls -la volumes/n8n/
+sudo ls -la volumes/postgres/
+ls -la volumes/qdrant/
+ls -la volumes/minio/
+```
+
 ### 📊 Comandos de Manutenção
 
 #### **Backup e Restauração**
