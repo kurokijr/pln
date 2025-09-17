@@ -477,6 +477,9 @@ MINIO_BUCKET_NAME=documents
 N8N_WEBHOOK_URL=http://localhost:5678/webhook
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=admin123
+N8N_USERNAME=admin
+N8N_PASSWORD=admin123
+N8N_REQUEST_TIMEOUT=120  # tempo máximo (s) para aguardar resposta do n8n
 
 # PostgreSQL
 POSTGRES_HOST=localhost
@@ -490,7 +493,7 @@ FLASK_ENV=production
 FLASK_DEBUG=false
 
 # Embedding
-DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
+DEFAULT_EMBEDDING_MODEL=openai
 ```
 
 ### Modelos de Embedding Suportados

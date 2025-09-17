@@ -125,26 +125,51 @@ class SemanticSearchService:
                 self.n8n_webhook_url,
                 json=n8n_payload,
                 headers={'Content-Type': 'application/json'},
-                timeout=60  # Timeout de 60 segundos
+                timeout=config.N8N_REQUEST_TIMEOUT  # Timeout configurável
             )
             
             if response.status_code == 200:
                 n8n_result = response.json()
-                
-                # Processar resposta do N8N
+
+                # Normalizar estrutura: alguns fluxos retornam sob 'output', outros no root
+                payload = n8n_result.get('output', n8n_result)
+
+                # Função utilitária para extrair string de diferentes formatos
+                def _as_text(value):
+                    try:
+                        if isinstance(value, dict):
+                            # Preferir campo 'response'; fallback para 'content'/'text'
+                            for key in ('response', 'content', 'text'):
+                                if key in value and isinstance(value[key], str):
+                                    return value[key]
+                            # Último recurso: serializar
+                            import json as _json
+                            return _json.dumps(value, ensure_ascii=False)
+                        return str(value)
+                    except Exception:
+                        return str(value)
+
                 responses = {}
-                
-                if openai_enabled and 'openai_response' in n8n_result:
-                    responses['openai'] = n8n_result['openai_response']
-                
-                if gemini_enabled and 'gemini_response' in n8n_result:
-                    responses['gemini'] = n8n_result['gemini_response']
-                
+
+                # 1) Formato consolidado: payload.responses.{openai, gemini}
+                if isinstance(payload.get('responses'), dict):
+                    pr = payload['responses']
+                    if openai_enabled and pr.get('openai') is not None:
+                        responses['openai'] = _as_text(pr.get('openai'))
+                    if gemini_enabled and pr.get('gemini') is not None:
+                        responses['gemini'] = _as_text(pr.get('gemini'))
+
+                # 2) Formato legado: openai_response / gemini_response no root
+                if openai_enabled and 'openai_response' in payload and 'openai' not in responses:
+                    responses['openai'] = _as_text(payload['openai_response'])
+                if gemini_enabled and 'gemini_response' in payload and 'gemini' not in responses:
+                    responses['gemini'] = _as_text(payload['gemini_response'])
+
                 return {
-                    'success': True,
+                    'success': bool(payload.get('success', True)),
                     'responses': responses,
-                    'n8n_workflow_id': n8n_result.get('workflow_id'),
-                    'processing_time': n8n_result.get('processing_time')
+                    'n8n_workflow_id': payload.get('workflow_id'),
+                    'processing_time': payload.get('processing_time')
                 }
             elif response.status_code == 404:
                 # Webhook não registrado - erro específico
@@ -181,7 +206,7 @@ class SemanticSearchService:
         except requests.exceptions.Timeout as e:
             return {
                 'success': False,
-                'error': f'Timeout na conexão com N8N: A requisição demorou mais de 60 segundos.',
+                'error': f'Timeout na conexão com N8N: A requisição demorou mais de {config.N8N_REQUEST_TIMEOUT} segundos.',
                 'details': str(e)
             }
         except requests.exceptions.RequestException as e:

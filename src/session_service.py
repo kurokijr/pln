@@ -100,7 +100,7 @@ class SessionService:
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS chat_sessions (
                             session_id VARCHAR(255) PRIMARY KEY,
-                            name VARCHAR(255) NOT NULL DEFAULT 'Nova Sessão',
+                            session_name VARCHAR(255) NOT NULL DEFAULT 'Nova Sessão',
                             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                             last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                             metadata JSONB DEFAULT '{}'
@@ -303,7 +303,7 @@ class SessionService:
                 with conn.cursor() as cursor:
                     cursor.execute("""
                         UPDATE chat_sessions 
-                        SET name = %s 
+                        SET session_name = %s 
                         WHERE session_id = %s
                     """, (name, session_id))
                     updated = cursor.rowcount > 0

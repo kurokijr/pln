@@ -280,7 +280,7 @@ class QdrantVectorStore:
             
             self.client = QdrantClient(
                 url=qdrant_url,
-                api_key=None,  # Não usar API key em desenvolvimento local
+                api_key=self.api_key,  # Usar API key se disponível
                 timeout=60,
                 prefer_grpc=False,  # Usar HTTP ao invés de gRPC
                 check_compatibility=False  # Desabilitar check de versão
@@ -573,7 +573,7 @@ class QdrantVectorStore:
                     "file_name_safe": file_name_safe,
                     "chunk_index": doc.metadata.get("chunk_index", 0),
                     "minio_path": doc.metadata.get("minio_path", ""),
-                    "text": chunk_text
+                    "content": chunk_text
                 }
                 
                 for key, value in payload_elements.items():
@@ -584,7 +584,7 @@ class QdrantVectorStore:
                 safe_payload = {
                     "chunk_id": chunk_id,  # ID único para buscar no MinIO
                     "file_name_safe": file_name_safe,  # Nome do arquivo original
-                    "text": chunk_text,  # Texto do chunk para exibição
+                    "content": chunk_text,  # Texto do chunk para exibição
                     "chunk_index": int(doc.metadata.get("chunk_index", 0)),
                     "chunk_size": len(doc.page_content),
                     "doc_hash": str(hash(file_name_safe)),  # Hash numérico do nome
@@ -775,11 +775,14 @@ class QdrantVectorStore:
                     chunk_id = point.payload.get("chunk_id", "unknown")
                     minio_path = point.payload.get("minio_path", "")
                     file_name = point.payload.get("file_name_safe", "Documento desconhecido")
-                    chunk_text = point.payload.get("text", "Conteúdo não disponível")
+                    chunk_text = point.payload.get("content", point.payload.get("pageContent", point.payload.get("text", "Conteúdo não disponível")))
                     
-                    # Se não tiver texto nos metadados, usar do ponto
-                    if chunk_text == "Conteúdo não disponível" and hasattr(point, 'text'):
-                        chunk_text = point.text
+                    # Se não tiver conteúdo nos metadados, tentar atributos do ponto (compatibilidade)
+                    if chunk_text == "Conteúdo não disponível":
+                        if hasattr(point, 'pageContent') and point.pageContent:
+                            chunk_text = point.pageContent
+                        elif hasattr(point, 'text') and point.text:
+                            chunk_text = point.text
                     
                     results.append({
                         "content": chunk_text,
@@ -908,7 +911,7 @@ class QdrantVectorStore:
                 
                 # Extrair informações do payload atual (com campos corretos)
                 file_name = point.payload.get("file_name_safe", "Documento sem nome")
-                chunk_text = point.payload.get("text", "Conteúdo não disponível")
+                chunk_text = point.payload.get("content", point.payload.get("pageContent", point.payload.get("text", "Conteúdo não disponível")))
                 chunk_index = point.payload.get("chunk_index", 0)
                 created_at = point.payload.get("created_at", "")
                 minio_path = point.payload.get("minio_path", "")
