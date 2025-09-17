@@ -391,6 +391,47 @@ create_directory_with_permissions "docs"
 # Corrigir permissões dos volumes (importante para Docker)
 fix_volume_permissions
 
+# Garantir encryptionKey do n8n no host (volumes/n8n/config)
+log_info "Garantindo encryptionKey do n8n..."
+if [ -f "scripts/ensure-n8n-encryption-key.sh" ]; then
+    chmod +x scripts/ensure-n8n-encryption-key.sh || true
+    bash scripts/ensure-n8n-encryption-key.sh
+else
+    log_warning "scripts/ensure-n8n-encryption-key.sh não encontrado. Criando rapidamente..."
+    mkdir -p scripts
+    cat > scripts/ensure-n8n-encryption-key.sh << 'EOS'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
+N8N_DIR="$ROOT_DIR/volumes/n8n"
+CONFIG_FILE="$N8N_DIR/config"
+mkdir -p "$N8N_DIR"
+if [[ -f "$CONFIG_FILE" ]]; then
+  if jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
+    echo "🔐 Mantendo encryptionKey existente em $CONFIG_FILE"
+    exit 0
+  else
+    cp "$CONFIG_FILE" "$CONFIG_FILE.bak.$(date +%s)" || true
+  fi
+fi
+KEY="$(openssl rand -base64 24)"
+cat > "$CONFIG_FILE" <<JSON
+{
+  "encryptionKey": "$KEY"
+}
+JSON
+chmod 600 "$CONFIG_FILE" || true
+echo "✅ Gerado $CONFIG_FILE com encryptionKey estável."
+EOS
+    chmod +x scripts/ensure-n8n-encryption-key.sh
+    bash scripts/ensure-n8n-encryption-key.sh
+fi
+
+# Garantir permissões seguras do arquivo de configuração do n8n
+if [ -f "volumes/n8n/config" ]; then
+    chmod 600 volumes/n8n/config 2>/dev/null || true
+fi
+
 # Verificar se todos os diretórios foram criados
 log_info "Verificando diretórios criados..."
 required_dirs=("uploads" "volumes/minio" "volumes/qdrant" "volumes/n8n" "volumes/postgres" "static/css" "static/js" "static/images" "src" "templates" "scripts" "docs")

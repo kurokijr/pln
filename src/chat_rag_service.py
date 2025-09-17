@@ -104,7 +104,8 @@ class RAGChatService:
                     session_id: str, chat_history: List[ChatMessage]) -> Dict[str, Any]:
         """Envia requisição para o webhook N8N do chat."""
         try:
-            n8n_url = f"{config.N8N_WEBHOOK_URL}/rag-chat"
+            # Usar a URL completa do webhook configurada em N8N_WEBHOOK_URL
+            n8n_url = config.N8N_WEBHOOK_URL
             
             # Preparar histórico de chat para envio
             history = []

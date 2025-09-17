@@ -30,6 +30,7 @@ class Config:
     N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook")
     N8N_USERNAME = os.getenv("N8N_USERNAME", "admin")
     N8N_PASSWORD = os.getenv("N8N_PASSWORD", "admin123")
+    N8N_REQUEST_TIMEOUT = int(os.getenv("N8N_REQUEST_TIMEOUT", "120"))
     
     # OpenAI
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

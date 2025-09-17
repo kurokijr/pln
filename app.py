@@ -184,8 +184,15 @@ def n8n_status():
         
         import requests
         
-        # Extrair URL base do N8N
-        n8n_base_url = n8n_webhook_url.split('/webhook-test/')[0]
+        # Extrair URL base do N8N removendo sufixos de webhook
+        if '/webhook-test/' in n8n_webhook_url:
+            n8n_base_url = n8n_webhook_url.split('/webhook-test/')[0]
+        elif '/webhook/' in n8n_webhook_url:
+            n8n_base_url = n8n_webhook_url.split('/webhook/')[0]
+        else:
+            # Fallback: protocolo + host + porta
+            parts = n8n_webhook_url.split('/')
+            n8n_base_url = f"{parts[0]}//{parts[2]}"
         
         # Verificar conectividade básica
         try:

@@ -2910,6 +2910,22 @@ DOCUMENTO:
             updateSemanticButton();
             
             try {
+                // Mostrar loading enquanto aguarda N8N
+                const semanticMessages = document.getElementById('semantic-messages');
+                const loadingId = `loading-${Date.now()}`;
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = loadingId;
+                loadingDiv.className = 'chat-message mb-4';
+                loadingDiv.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white">⏳</div>
+                        <div class="bg-white border border-purple-200 rounded-xl px-4 py-3 shadow-sm text-sm text-gray-700">
+                            Aguardando resposta do N8N...
+                        </div>
+                    </div>
+                `;
+                semanticMessages.appendChild(loadingDiv);
+                semanticMessages.scrollTop = semanticMessages.scrollHeight;
                 const response = await fetch('/api/semantic-search', {
                     method: 'POST',
                     headers: {
@@ -2928,6 +2944,9 @@ DOCUMENTO:
                 
                 const result = await response.json();
                 
+                // Remover loading
+                const toRemove = document.getElementById(loadingId);
+                if (toRemove) toRemove.remove();
                 if (result.success) {
                     // Exibir respostas lado a lado
                     displaySemanticResults(result.responses);
@@ -2935,6 +2954,8 @@ DOCUMENTO:
                     addSemanticMessage('error', `Erro: ${result.error}`);
                 }
             } catch (error) {
+                const toRemove = document.getElementById(loadingId);
+                if (toRemove) toRemove.remove();
                 addSemanticMessage('error', `Erro de conexão: ${error.message}`);
             } finally {
                 isProcessing = false;
@@ -5534,7 +5555,7 @@ DOCUMENTO:
                                 <strong>📄 Documento:</strong> ${chunk.document_name || chunk.file_name || 'N/A'}
                             </div>
                             <div class="text-sm text-gray-800 bg-gray-50 rounded p-3 border-l-4 border-indigo-300">
-                                ${chunk.content || chunk.text || 'Conteúdo não disponível'}
+                                ${chunk.content || 'Conteúdo não disponível'}
                             </div>
                             ${parseFloat(similarityPercent) < 60 ? `
                             <div class="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
