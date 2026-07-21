@@ -1147,7 +1147,7 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.1
+## 🎯 Versão Beta v3.2.2
 
 **Data da alteração:** 2026-07-21
 
@@ -1161,6 +1161,10 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Configurações Avançadas**: Preferências de modelo, temperatura e contexto por sessão
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL Otimizado**: Base de dados com funcionalidades beta incluídas
+
+### Melhorias realizadas (3.2.2)
+
+- [x] Healthcheck do Qdrant corrigido (`/readyz` via bash; imagem sem `curl`)
 
 ### Melhorias realizadas (3.2.1)
 
@@ -1227,7 +1231,7 @@ Como esta é uma versão beta, sua contribuição é valiosa:
 
 ---
 
-**RAG-Demo v3.2.1** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.2.2** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
