@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "PostgreSQL (chat_memory)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "chat_memory",
+      "Username": "chat_user",
+      "SSLMode": "prefer",
+      "Favorite": true
+    }
+  }
+}

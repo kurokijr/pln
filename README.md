@@ -43,6 +43,7 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 - **Vector Store**: Qdrant para armazenamento de vetores e embeddings
 - **Storage**: MinIO para armazenamento de arquivos e documentos
 - **Database**: PostgreSQL para histórico de conversas e sessões de chat
+- **pgAdmin**: Interface web para administração do PostgreSQL
 - **Session System**: Sistema completo de gerenciamento de sessões com persistência
 - **Chat Memory**: PostgreSQL integrado ao n8n para memória de conversas
 - **Automation**: n8n para workflows e orquestração avançada
@@ -234,6 +235,7 @@ docker-compose logs -f rag-demo-app
 - 🔍 **Qdrant Dashboard**: http://localhost:6333/dashboard
 - 📦 **MinIO Console**: http://localhost:9001 (`minioadmin` / `minioadmin`)
 - 🗄️ **PostgreSQL**: localhost:5432 (`chat_user` / `chat_password`)
+- 🧰 **pgAdmin**: http://localhost:5050 (`admin@example.com` / `admin`)
 - 🔧 **n8n Workflows**: http://localhost:5678 (`admin` / `admin123`)
 
 ### 4. 🗄️ Banco de Dados PostgreSQL
@@ -263,6 +265,20 @@ Password: chat_password
 # Inicialização automática
 docker-compose up postgres
 ```
+
+#### **pgAdmin (interface web):**
+```bash
+# Subir pgAdmin junto com o PostgreSQL
+docker compose up -d postgres pgadmin
+
+# Acesso: http://localhost:5050
+# Login: admin@example.com / admin
+#
+# No pgAdmin, use o host "postgres" (rede Docker), não localhost.
+# Servidor já pré-cadastrado: PostgreSQL (chat_memory)
+```
+
+Detalhes: [docs/pgadmin.md](docs/pgadmin.md)
 
 #### **Estrutura do Banco:**
 ```sql
@@ -420,6 +436,9 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📁 postgres/               # Dados do PostgreSQL
 │   ├── 📁 qdrant/                 # Vetores no Qdrant
 │   └── 📁 n8n/                    # Workflows n8n
+├── 📁 config/                      # Configurações auxiliares
+│   └── 📁 pgadmin/                # servers.json do pgAdmin
+├── 📁 docs/                        # Documentação do sistema
 ├── 📄 app.py                       # Aplicação Flask principal
 ├── 📄 docker-compose.yml           # Configuração containers
 ├── 📄 requirements.txt             # Dependências Python
@@ -487,6 +506,11 @@ POSTGRES_PORT=5432
 POSTGRES_DB=chat_memory
 POSTGRES_USER=chat_user
 POSTGRES_PASSWORD=chat_password
+
+# pgAdmin
+PGADMIN_PORT=5050
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=admin
 
 # Flask
 FLASK_ENV=production
@@ -589,11 +613,15 @@ python scripts/test-postgres-connection.py
 # Conectar via CLI
 docker-compose exec postgres psql -U chat_user -d chat_memory
 
+# Interface web (pgAdmin)
+docker compose up -d pgadmin
+# http://localhost:5050 — admin@example.com / admin
+
 # Backup do banco
 docker-compose exec postgres pg_dump -U chat_user chat_memory > backup.sql
 ```
 
-Para mais detalhes, consulte: [docs/postgres-chat-memory.md](docs/postgres-chat-memory.md)
+Para mais detalhes, consulte: [docs/postgres-chat-memory.md](docs/postgres-chat-memory.md) e [docs/pgadmin.md](docs/pgadmin.md)
 
 ## 🗄️ Estrutura Completa de Banco de Dados
 
@@ -1119,10 +1147,13 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.0
+## 🎯 Versão Beta v3.2.2
 
-### 🆕 Novidades da Versão Beta
+**Data da alteração:** 2026-07-21
 
+### 🆕 Novidades da Versão
+
+- **✅ pgAdmin**: Interface web Docker para administrar o PostgreSQL (http://localhost:5050) — imagem `dpage/pgadmin4:latest`
 - **✅ Suporte Completo WSL2**: Instalação e configuração otimizada para Windows + WSL2
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Sistema de Analytics**: Estatísticas avançadas de uso das sessões de chat
@@ -1130,6 +1161,28 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Configurações Avançadas**: Preferências de modelo, temperatura e contexto por sessão
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL Otimizado**: Base de dados com funcionalidades beta incluídas
+
+### Melhorias realizadas (3.2.2)
+
+- [x] Healthcheck do Qdrant corrigido (`/readyz` via bash; imagem sem `curl`)
+
+### Melhorias realizadas (3.2.1)
+
+- [x] Imagem do pgAdmin atualizada para `dpage/pgadmin4:latest`
+
+### Melhorias realizadas (3.2.0)
+
+- [x] Serviço `pgadmin` no `docker-compose.yml`
+- [x] Servidor Postgres pré-cadastrado (`config/pgadmin/servers.json`)
+- [x] Documentação em `docs/pgadmin.md` e changelog atualizado
+
+### TO-DOs
+
+- [ ] Opcional: `pgpass` para login automático no Postgres via pgAdmin
+- [ ] Avaliar restrição de acesso do pgAdmin em ambientes compartilhados
+- [ ] Suporte a mais provedores de LLM (Anthropic, Google)
+- [ ] Sistema de autenticação de usuários
+- [ ] Dashboard de analytics em tempo real
 
 ### 🔧 Para Desenvolvedores
 
@@ -1173,15 +1226,12 @@ Como esta é uma versão beta, sua contribuição é valiosa:
 
 ### 📈 Roadmap
 
-- [ ] Suporte a mais provedores de LLM (Anthropic, Google)
-- [ ] Sistema de autenticação de usuários
-- [ ] Dashboard de analytics em tempo real
 - [ ] Integração com mais formatos de documento
 - [ ] API REST completa para integrações externas
 
 ---
 
-**RAG-Demo v3.0 Beta** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.2.2** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
