@@ -1259,7 +1259,7 @@ def create_qa_embeddings():
         
         qa_content = data.get('qa_content')
         collection_name = data.get('collection_name')
-        embedding_model = data.get('embedding_model', 'text-embedding-3-small')
+        embedding_model = data.get('embedding_model', config.DEFAULT_EMBEDDING_MODEL)
         
         if not qa_content or not collection_name:
             return jsonify({'error': 'Conteúdo Q&A e nome da collection são obrigatórios'}), 400
