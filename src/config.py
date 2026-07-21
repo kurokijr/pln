@@ -50,9 +50,9 @@ class Config:
             "api_key_env": "OPENAI_API_KEY"
         },
         "gemini": {
-            "name": "Google Gemini Embedding v2",
-            "model": "models/gemini-embedding-001",  # Modelo mais recente e avançado
-            "dimension": 3072,  # Dimensão correta do modelo Gemini
+            "name": "Google Gemini Embedding",
+            "model": "models/gemini-embedding-001",
+            "dimension": 3072,
             "provider": "gemini",
             "api_key_env": "GEMINI_API_KEY"
         }

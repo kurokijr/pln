@@ -52,92 +52,301 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 
 ## 🚀 Instalação e Configuração
 
+Guia pensado para alunos **sem experiência prévia com Docker**. Siga os passos na ordem. Se algo falhar, use a seção [Troubleshooting](#troubleshooting) no final deste README.
+
+### Em poucas palavras (caminho feliz)
+
+1. Instale **WSL2 + Ubuntu** e o **Docker Desktop** (com integração WSL).
+2. Crie uma **OpenAI API Key**.
+3. No terminal Ubuntu (WSL), clone o projeto e rode `./setup.sh`.
+4. Abra http://localhost:5000 no navegador.
+
+**O que é Docker?** Docker empacota a aplicação e seus serviços (banco, storage, n8n, etc.) em *containers*, para que todos rodem o mesmo ambiente sem instalar Python, PostgreSQL ou Qdrant na mão. O Docker Desktop cuida disso no Windows; no WSL você só digita os comandos.
+
+> **Nota sobre comandos:** Nestas instruções usamos `docker compose` (plugin moderno). Se o seu ambiente só tiver o comando antigo, troque por `docker-compose` — no Docker Desktop ambos costumam funcionar.
+
 ### 📋 Pré-requisitos
 
-- **Windows 10/11** (versão 2004 ou superior)
-- **WSL2** instalado e configurado
-- **Docker Desktop** com integração WSL2
-- **OpenAI API Key** (obrigatório)
-- **Git** para clone do repositório
+| Item | Observação |
+|------|------------|
+| Windows 10/11 | 10 versão **2004+** (Build **19041+**) ou Windows 11 — [docs](https://learn.microsoft.com/pt-br/windows/wsl/install) |
+| WSL 2 + Ubuntu | Instalado nos passos abaixo (`wsl -l -v` → VERSION **2**) |
+| Docker Desktop | Com integração WSL2 |
+| Conta OpenAI + API Key | Obrigatória para embeddings/chat |
+| Git | Instalado no Ubuntu (passo 2) |
+| ~8 GB RAM livres | Recomendado para subir todos os serviços |
 
-### 🔧 Tutorial Completo: Windows + WSL2 + Docker
+Alunos em **macOS** ou **Linux nativo**: instale [Docker Desktop](https://docs.docker.com/get-docker/) (ou Docker Engine + Compose), pule os passos de WSL e comece em [Passo 4](#passo-4--obter-a-chave-da-openai).
 
-#### 1. Instalação do WSL2 no Windows
+---
 
-**Opção A: Instalação Automática (Windows 11/10 versão 2004+)**
+<a id="passo-1-wsl2"></a>
+
+### Passo 1 — Instalar o WSL 2 (Windows)
+
+Documentação oficial (Microsoft Learn):
+
+- [Instalar o WSL](https://learn.microsoft.com/pt-br/windows/wsl/install)
+- [Instalação manual (versões antigas)](https://learn.microsoft.com/pt-br/windows/wsl/install-manual)
+- [Solução de problemas do WSL](https://learn.microsoft.com/pt-br/windows/wsl/troubleshooting)
+- [Comandos básicos](https://learn.microsoft.com/pt-br/windows/wsl/basic-commands)
+- [Boas práticas de ambiente](https://learn.microsoft.com/pt-br/windows/wsl/setup/environment)
+
+#### 1.1 Pré-requisitos (oficiais)
+
+- **Windows 10** versão **2004** ou superior (**Build 19041+**), ou **Windows 11**
+- Em builds mais antigos, use a [instalação manual](https://learn.microsoft.com/pt-br/windows/wsl/install-manual)
+- Virtualização habilitada na BIOS/UEFI (Intel VT-x / AMD-V). Guia: [habilitar virtualização](https://learn.microsoft.com/pt-br/windows/wsl/troubleshooting#error-0x80370102-the-virtual-machine-could-not-be-started-because-a-required-feature-is-not-installed)
+- Distribuições WSL devem ficar no **disco do sistema** (normalmente `C:`)
+
+Confira a versão do Windows (PowerShell ou CMD):
 
 ```powershell
-# Abrir PowerShell como Administrador e executar:
+winver
+# ou
+cmd.exe /c ver
+```
+
+#### 1.2 Instalação recomendada (comando único)
+
+1. Abra o **PowerShell como Administrador** (botão direito → *Executar como administrador*).
+2. Execute:
+
+```powershell
 wsl --install
 ```
 
-**Opção B: Instalação Manual**
+Segundo a Microsoft, esse comando:
+
+- habilita os componentes necessários do WSL;
+- baixa/instala o kernel Linux mais recente;
+- define **WSL 2** como padrão;
+- instala a distribuição **Ubuntu** (padrão).
+
+3. **Reinicie o computador** quando solicitado.
+4. Na primeira abertura do Ubuntu, aguarde a descompactação e crie **usuário** e **senha** do Linux.
+
+> **Nota oficial:** `wsl --install` só instala o WSL “do zero”. Se o WSL **já existir** e o comando mostrar a **ajuda**, use os passos abaixo para instalar/atualizar a distro.
+
+#### 1.3 WSL já instalado — adicionar Ubuntu / corrigir instalação travada
 
 ```powershell
-# 1. Habilitar recursos do Windows
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+# Listar distros disponíveis online
+wsl --list --online
 
-# 2. Reiniciar o computador
+# Instalar Ubuntu (ajuste o nome conforme a lista)
+wsl --install -d Ubuntu
 
-# 3. Baixar e instalar o pacote de atualização do kernel WSL2
-# Download: https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi
-
-# 4. Definir WSL2 como padrão
-wsl --set-default-version 2
-
-# 5. Instalar distribuição Linux (recomendado: Ubuntu 22.04 LTS)
-wsl --install -d Ubuntu-22.04
+# Se a instalação travar em 0,0% (correção oficial):
+wsl --install --web-download -d Ubuntu
 ```
 
-#### 2. Configuração Inicial do Ubuntu no WSL2
+Atualizar o WSL / kernel (recomendado pela Microsoft em instalações modernas):
+
+```powershell
+wsl --update
+wsl --version
+```
+
+#### 1.4 Verificar se está em WSL 2 (obrigatório para Docker Desktop)
+
+```powershell
+wsl --list --verbose
+# atalho equivalente: wsl -l -v
+```
+
+A coluna **VERSION** da sua distro (ex.: Ubuntu) deve ser **2**.
+
+Se estiver em **1**, converta (exemplo oficial):
+
+```powershell
+wsl --set-default-version 2
+wsl --set-version Ubuntu 2
+```
+
+Substitua `Ubuntu` pelo nome exato mostrado em `wsl -l -v` (pode ser `Ubuntu-22.04`, `Ubuntu-24.04`, etc.).
+
+#### 1.5 Instalação manual (só se `wsl --install` não estiver disponível)
+
+Siga o guia oficial passo a passo: [Instalação manual do WSL](https://learn.microsoft.com/pt-br/windows/wsl/install-manual).
+
+Resumo alinhado à documentação:
+
+```powershell
+# 1) Habilitar componentes (PowerShell Admin) — reinicie depois
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+```
+
+```powershell
+# 2) Após reiniciar: atualizar kernel / WSL
+# Pacote de kernel (legado / docs): https://aka.ms/wsl2kernel
+# Ou, se o comando existir:
+wsl --update
+
+# 3) Definir WSL 2 como padrão e instalar Ubuntu
+wsl --set-default-version 2
+wsl --install -d Ubuntu
+```
+
+Em ambientes **offline**, a Microsoft recomenda o MSI em [WSL Releases (GitHub)](https://github.com/microsoft/WSL/releases) + componente `VirtualMachinePlatform` — detalhes em [Instalar o WSL → Instalação offline](https://learn.microsoft.com/pt-br/windows/wsl/install#offline-install).
+
+#### 1.6 Correções oficiais comuns na instalação
+
+Se falhar, consulte a seção *Installation issues* em [Solução de problemas do WSL](https://learn.microsoft.com/pt-br/windows/wsl/troubleshooting#installation-issues). Resumo:
+
+| Sintoma / código | Correção oficial (resumo) |
+|------------------|---------------------------|
+| `0x80370102` / VM não inicia | Habilitar **Virtual Machine Platform** e **virtualização na BIOS**; Hypervisor: `bcdedit /set hypervisorlaunchtype Auto` |
+| `WSL 2 requires an update to its kernel` / `0x1bc` | Atualizar kernel: `wsl --update` ou [aka.ms/wsl2kernel](https://aka.ms/wsl2kernel) |
+| `0x8007019e` / WSL não habilitado | Habilitar o recurso WSL e **reiniciar** |
+| Instalação em **0,0%** | `wsl --install --web-download -d Ubuntu` |
+| Distro no disco errado | Salvar apps/conteúdo novo no disco `C:` (Configurações → Sistema → Armazenamento) |
+| VHD comprimido/criptografado | Em `%LocalAppData%\Packages\...LocalState`, desmarque compactar/criptografar |
+| Hypervisors de terceiros | VMware/VirtualBox atualizados (com suporte a Hyper-V) ou desligados |
+
+Depois de corrigir, sempre valide com `wsl -l -v` (VERSION = **2**).
+
+---
+
+### Passo 2 — Preparar o Ubuntu no WSL 2
+
+Abra o **Ubuntu** (menu Iniciar) ou, no PowerShell: `wsl`.
+
+Na primeira execução, crie usuário/senha do Linux. Em seguida:
 
 ```bash
-# Após a instalação, configurar usuário e senha
-# Atualizar sistema
 sudo apt update && sudo apt upgrade -y
-
-# Instalar dependências essenciais
 sudo apt install -y curl wget git unzip
 ```
 
-#### 3. Instalação e Configuração do Docker Desktop
+Dicas oficiais úteis neste projeto:
 
-**3.1. Download e Instalação**
+- Prefira trabalhar em `/home/<usuario>/...` (filesystem Linux), não em `/mnt/c/...` — ver [boas práticas](https://learn.microsoft.com/pt-br/windows/wsl/setup/environment).
+- Terminal recomendado: [Windows Terminal](https://learn.microsoft.com/pt-br/windows/terminal/install).
 
-1. Baixar Docker Desktop: https://docs.docker.com/desktop/install/windows-install/
-2. Executar o instalador como Administrador
-3. **IMPORTANTE**: Marcar "Use WSL 2 instead of Hyper-V" durante instalação
+---
 
-**3.2. Configuração da Integração WSL2**
+### Passo 3 — Instalar e integrar o Docker Desktop
 
-1. Abrir Docker Desktop
-2. Ir em **Settings** → **General**
-3. Marcar ✅ "Use the WSL 2 based engine"
-4. Ir em **Settings** → **Resources** → **WSL Integration**
-5. Marcar ✅ "Enable integration with my default WSL distro"
-6. Marcar ✅ sua distribuição Ubuntu
-7. Clicar **Apply & Restart**
-
-**3.3. Verificação da Integração**
+1. Baixe: https://docs.docker.com/desktop/install/windows-install/
+2. Instale **como Administrador**.
+3. Durante a instalação, marque **Use WSL 2 instead of Hyper-V** (se aparecer).
+4. Abra o Docker Desktop e configure:
+   - **Settings → General** → ✅ *Use the WSL 2 based engine*
+   - **Settings → Resources → WSL Integration** → ✅ *Enable integration with my default WSL distro* e ✅ Ubuntu
+   - **Apply & Restart**
+5. No terminal Ubuntu, confira:
 
 ```bash
-# No terminal WSL2 Ubuntu, verificar se Docker está disponível:
 docker --version
-docker-compose --version
-
-# Testar com container simples:
+docker compose version
+docker info
 docker run hello-world
 ```
 
-#### 4. Otimizações Recomendadas
+Se `docker` não for encontrado ou `docker info` falhar, veja [Docker / WSL](#1-docker--wsl2) no Troubleshooting.
 
-**4.1. Limitar Uso de Memória do WSL2**
+---
 
-Criar arquivo `.wslconfig` no diretório do usuário Windows:
+<a id="passo-4--obter-a-chave-da-openai"></a>
+
+### Passo 4 — Obter a chave da OpenAI
+
+1. Acesse https://platform.openai.com/api-keys (crie conta se necessário).
+2. Crie uma API key e copie (começa com `sk-`).
+3. Guarde em local seguro — ela será pedida no próximo passo (arquivo `.env`).
+
+---
+
+### Passo 5 — Clonar o projeto e instalar (recomendado)
+
+No terminal **Ubuntu (WSL)**:
+
+```bash
+cd ~
+git clone https://github.com/kurokijr/pln.git
+cd pln
+chmod +x setup.sh
+./setup.sh
+```
+
+O script:
+
+- cria `.env` a partir de `env.example` (se ainda não existir);
+- pede para você colar a `OPENAI_API_KEY`;
+- sobe todos os serviços (app, Qdrant, MinIO, PostgreSQL, pgAdmin, n8n).
+
+#### Sobre `./setup.sh --dev`
+
+Para **usar as funcionalidades** da plataforma (upload, chat, collections, n8n, etc.), **não use `--dev`**. O comando padrão `./setup.sh` basta.
+
+Use `--dev` **somente se for mexer no código-fonte** (`src/`, `templates/`, `static/`). Nesse modo o script:
+
+- ativa Flask em debug;
+- monta o código do host no container (hot-reload, sem rebuild a cada alteração);
+- sobe o stack de desenvolvimento (sem o pgAdmin na lista explícita do script).
+
+**Qual comando usar?**
+
+| Situação | Comando |
+|----------|---------|
+| Aula / uso das funcionalidades (recomendado) | `./setup.sh` |
+| Editar código-fonte (hot-reload + debug) | `./setup.sh --dev` |
+| Limpar dados com cuidado | `./setup.sh --clean` |
+| Rebuild completo | `./setup.sh --clean --rebuild` |
+
+Aguarde 1–3 minutos na primeira execução (download de imagens).
+
+---
+
+### Passo 6 — Acessar as aplicações
+
+| Serviço | URL / host | Login padrão (lab local) |
+|---------|------------|---------------------------|
+| **RAG-Demo** | http://localhost:5000 | — |
+| Qdrant | http://localhost:6333/dashboard | — |
+| MinIO | http://localhost:9001 | `minioadmin` / `minioadmin` |
+| PostgreSQL | `localhost:5432` | `chat_user` / `chat_password` |
+| pgAdmin | http://localhost:5050 | `admin@example.com` / `admin` |
+| n8n | http://localhost:5678 | `admin` / `admin123` |
+
+Credenciais padrão são só para ambiente educacional local.
+
+Comandos úteis no dia a dia:
+
+```bash
+docker compose ps              # status
+docker compose logs -f         # logs de todos
+docker compose logs -f rag-demo-app
+docker compose down            # parar
+docker compose up -d           # subir de novo
+```
+
+---
+
+### Alternativa — Configuração manual (sem `setup.sh`)
+
+Use se o script automático falhar e você quiser subir o stack na mão:
+
+```bash
+cd ~/pln
+cp env.example .env
+nano .env   # preencha OPENAI_API_KEY=sk-...
+mkdir -p uploads volumes/{minio,qdrant,postgres,n8n}
+docker compose up -d
+docker compose logs -f rag-demo-app
+```
+
+---
+
+### Opcional — Ajustes do WSL (`.wslconfig`)
+
+Só se o PC travar ou o Docker ficar lento. Documentação oficial: [Configuração do WSL (`.wslconfig`)](https://learn.microsoft.com/pt-br/windows/wsl/wsl-config).
+
+Crie `C:\Users\<SeuUsuario>\.wslconfig` (no Windows):
 
 ```ini
-# C:\Users\[SeuUsuario]\.wslconfig
 [wsl2]
 memory=8GB
 processors=4
@@ -145,152 +354,31 @@ swap=2GB
 localhostForwarding=true
 ```
 
-**4.2. Configurar Git no WSL2**
+No PowerShell: `wsl --shutdown`, depois abra o Ubuntu de novo.
+
+Git (opcional):
 
 ```bash
 git config --global user.name "Seu Nome"
 git config --global user.email "seu@email.com"
-git config --global init.defaultBranch main
 ```
 
-#### 5. Instalação do Projeto RAG-Demo
+---
 
-**5.1. Clonar o Repositório**
+### Banco de Dados PostgreSQL e pgAdmin
 
-```bash
-# No terminal WSL2 Ubuntu:
-cd ~
-git clone [URL-DO-REPOSITORIO]
-cd rag-demo
-```
+O PostgreSQL guarda:
 
-**5.2. Verificar Requisitos**
+- **Sessões e histórico** (`chat_sessions`, `session_messages`);
+- **Memória do chat no n8n** (`chat_messages`).
+
+Credenciais padrão: host `localhost:5432`, database `chat_memory`, user `chat_user`, password `chat_password`.
 
 ```bash
-# Verificar Docker
-docker --version
-docker-compose --version
-
-# Verificar se Docker daemon está rodando
-docker info
-```
-
-### 🚀 Instalação Automática (Recomendado)
-
-```bash
-# No terminal WSL2 Ubuntu:
-# Execute o script de setup automatizado
-chmod +x setup.sh
-./setup.sh
-
-# Para primeiro uso (modo desenvolvimento com todos os serviços):
-./setup.sh --dev
-
-# Para ambiente de produção:
-./setup.sh
-```
-
-### ⚠️ Troubleshooting WSL2 + Docker
-
-**Problema: Docker não encontrado no WSL2**
-```bash
-# Verificar se Docker Desktop está rodando no Windows
-# Reiniciar Docker Desktop e verificar integração WSL2
-```
-
-**Problema: Permissões de arquivo**
-```bash
-# No WSL2, garantir que está no diretório home do usuário Linux
-cd ~ && pwd  # deve mostrar /home/username
-```
-
-**Problema: Portas não acessíveis**
-```bash
-# Verificar se localhostForwarding está habilitado no .wslconfig
-# Reiniciar WSL: wsl --shutdown (no PowerShell Windows)
-```
-
-### 2. Configuração Manual
-
-```bash
-# 1. Criar arquivo de ambiente
-cp env.example .env
-
-# 2. Editar .env com sua OpenAI API Key
-nano .env
-
-# 3. Criar diretórios necessários
-mkdir -p uploads volumes/{minio,qdrant}
-
-# 4. Iniciar serviços
-docker-compose up -d
-
-# 5. Aguardar inicialização (30-60s)
-docker-compose logs -f rag-demo-app
-```
-
-### 3. Acesso às Aplicações
-
-- 🌐 **RAG-Demo**: http://localhost:5000
-- 🔍 **Qdrant Dashboard**: http://localhost:6333/dashboard
-- 📦 **MinIO Console**: http://localhost:9001 (`minioadmin` / `minioadmin`)
-- 🗄️ **PostgreSQL**: localhost:5432 (`chat_user` / `chat_password`)
-- 🧰 **pgAdmin**: http://localhost:5050 (`admin@example.com` / `admin`)
-- 🔧 **n8n Workflows**: http://localhost:5678 (`admin` / `admin123`)
-
-### 4. 🗄️ Banco de Dados PostgreSQL
-
-O PostgreSQL é utilizado para **dois propósitos principais**:
-
-#### **A. Histórico de Conversas e Sessões**
-- **Tabela `chat_sessions`**: Armazena informações das sessões de chat
-- **Tabela `session_messages`**: Histórico completo de todas as mensagens
-- **Persistência**: Conversas são mantidas entre reinicializações
-- **Recuperação**: Sistema de carregamento de sessões antigas
-
-#### **B. Memória do Chat para n8n**
-- **Tabela `chat_messages`**: Usada pelo n8n para memória de conversas
-- **Integração LangChain**: Compatível com PostgresChatMemory
-- **Contexto persistente**: n8n mantém histórico entre execuções
-- **Session tracking**: Rastreamento automático de sessões
-
-#### **Configuração do PostgreSQL:**
-```bash
-# Credenciais padrão
-Host: localhost:5432
-Database: chat_memory
-User: chat_user
-Password: chat_password
-
-# Inicialização automática
-docker-compose up postgres
-```
-
-#### **pgAdmin (interface web):**
-```bash
-# Subir pgAdmin junto com o PostgreSQL
 docker compose up -d postgres pgadmin
-
-# Acesso: http://localhost:5050
-# Login: admin@example.com / admin
-#
-# No pgAdmin, use o host "postgres" (rede Docker), não localhost.
-# Servidor já pré-cadastrado: PostgreSQL (chat_memory)
 ```
 
-Detalhes: [docs/pgadmin.md](docs/pgadmin.md)
-
-#### **Estrutura do Banco:**
-```sql
--- Sessões de chat
-chat_sessions (session_id, name, created_at, last_activity, metadata)
-
--- Mensagens das sessões
-session_messages (id, session_id, role, content, sources, created_at)
-
--- Memória do n8n
-chat_messages (id, session_id, message, metadata, created_at, updated_at)
-```
+No pgAdmin (http://localhost:5050), use o host **`postgres`** (rede Docker), não `localhost`. Servidor pré-cadastrado: *PostgreSQL (chat_memory)*. Detalhes: [docs/pgadmin.md](docs/pgadmin.md).
 
 ## 📱 Funcionalidades
 
@@ -298,7 +386,7 @@ chat_messages (id, session_id, message, metadata, created_at, updated_at)
 
 - **Formatos suportados**: PDF, DOCX, TXT, MD (até 10MB)
 - **Processamento automático**: LLM melhora formatação e estrutura
-- **Vetorização**: Conversão para embeddings usando OpenAI
+- **Vetorização**: Conversão para embeddings via OpenAI ou Google Gemini
 - **Armazenamento**: Documentos no MinIO, vetores no Qdrant
 
 ### 2. 🗂️ Gerenciamento de Collections
@@ -443,7 +531,7 @@ GET    http://localhost:5678/api     # API n8n
 ├── 📄 docker-compose.yml           # Configuração containers
 ├── 📄 requirements.txt             # Dependências Python
 ├── 📄 setup.sh                     # Script de instalação
-└── 📄 .env.example                 # Template de configuração
+└── 📄 env.example                  # Template de configuração
 ```
 
 ## 🔄 Fluxos de Dados
@@ -478,9 +566,13 @@ Chat → PostgreSQL (session_messages) → Recuperação → Interface
 ### Variáveis de Ambiente (`.env`)
 
 ```env
-# OpenAI (Obrigatório)
+# OpenAI (obrigatório para o fluxo padrão / setup)
 OPENAI_API_KEY=sk-your-openai-key-here
 MODEL_QA_GENERATOR=gpt-4o-mini
+
+# Google Gemini (opcional; necessário para embedding/chat com provider gemini)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-1.5-flash
 
 # Qdrant
 QDRANT_HOST=localhost
@@ -516,17 +608,24 @@ PGADMIN_DEFAULT_PASSWORD=admin
 FLASK_ENV=production
 FLASK_DEBUG=false
 
-# Embedding
+# Embedding: openai | gemini  (chaves de config.EMBEDDING_MODELS)
 DEFAULT_EMBEDDING_MODEL=openai
 ```
 
 ### Modelos de Embedding Suportados
 
-| Modelo | Provider | Dimensões | Uso Recomendado |
-|--------|----------|-----------|-----------------|
-| `text-embedding-3-small` | OpenAI | 1536 | Geral, rápido |
-| `text-embedding-3-large` | OpenAI | 3072 | Alta precisão |
-| `text-embedding-ada-002` | OpenAI | 1536 | Legacy, compatível |
+As chaves abaixo são as usadas na API/UI (`/api/embedding-models` e ao criar collections). Definição em `src/config.py`.
+
+| Chave | Modelo da API | Provider | Dimensões | Uso recomendado |
+|-------|---------------|----------|-----------|-----------------|
+| `openai` | `text-embedding-3-small` | OpenAI | 1536 | Padrão; rápido e econômico |
+| `gemini` | `models/gemini-embedding-001` | Google Gemini | 3072 | Alternativa Google; exige `GEMINI_API_KEY` |
+
+Observações:
+
+- Não misture providers na mesma collection (dimensões e espaços vetoriais incompatíveis).
+- Padrão: `DEFAULT_EMBEDDING_MODEL=openai` em `.env`.
+- Para usar Gemini: preencha `GEMINI_API_KEY` e selecione `gemini` na criação da collection (ou defina `DEFAULT_EMBEDDING_MODEL=gemini`).
 
 ## 🛠️ Desenvolvimento
 
@@ -635,8 +734,8 @@ O RAG-Demo utiliza uma arquitetura de múltiplos bancos especializados para máx
 │                 │    │                 │    │                 │
 │ • Chat Memory   │    │ • Vector DB     │    │ • File Storage  │
 │ • Sessions      │    │ • Embeddings    │    │ • Documents     │
-│ • Analytics     │    │ • Similarity    │    │ • Uploads       │
-│ • Feedback      │    │ • Search        │    │ • Assets        │
+│ • Histórico     │    │ • Similarity    │    │ • Uploads       │
+│                 │    │ • Search        │    │ • Assets        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -656,45 +755,25 @@ CREATE TABLE chat_messages (
 );
 ```
 
-**2. `chat_sessions` - Configurações de Sessão**
+**2. `chat_sessions` - Sessões de chat**
 ```sql
 CREATE TABLE chat_sessions (
     session_id VARCHAR(255) PRIMARY KEY,
-    user_id VARCHAR(255),
     session_name VARCHAR(500),
-    context_window_length INTEGER DEFAULT 10,     -- Tamanho da janela de contexto
-    model_preference VARCHAR(100) DEFAULT 'gpt-4o-mini',  -- Modelo preferido
-    temperature FLOAT DEFAULT 0.7,               -- Criatividade (0.0-1.0)
-    max_tokens INTEGER DEFAULT 2000,             -- Limite de tokens
-    is_active BOOLEAN DEFAULT true,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-**3. `session_analytics` - Estatísticas de Uso (Beta)**
+**3. `session_messages` - Mensagens das sessões (app)**
 ```sql
-CREATE TABLE session_analytics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE session_messages (
+    id SERIAL PRIMARY KEY,
     session_id VARCHAR(255) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
-    total_messages INTEGER DEFAULT 0,
-    total_tokens_used INTEGER DEFAULT 0,
-    avg_response_time FLOAT DEFAULT 0.0,
-    collections_used JSONB DEFAULT '[]',
-    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**4. `user_feedback` - Avaliações de Qualidade (Beta)**
-```sql
-CREATE TABLE user_feedback (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    session_id VARCHAR(255) REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
-    message_id UUID REFERENCES chat_messages(id) ON DELETE CASCADE,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    feedback_text TEXT,
-    feedback_type VARCHAR(50) DEFAULT 'quality',  -- quality, relevance, accuracy
+    role VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    sources JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -758,37 +837,7 @@ SELECT COUNT(*) FROM chat_sessions;
 
 ### 🔧 Correção de Permissões dos Volumes
 
-#### **Problema Comum: Volumes Não Populados**
-Se os volumes do N8N e PostgreSQL não estão sendo populados nos diretórios locais, execute:
-
-```bash
-# Correção automática de permissões
-./scripts/fix-volume-permissions.sh
-```
-
-#### **Correção Manual**
-```bash
-# Parar containers
-docker-compose down
-
-# Corrigir permissões
-sudo chown -R 1000:1000 volumes/n8n/
-sudo chown -R 70:70 volumes/postgres/
-sudo chown -R 1000:1000 volumes/qdrant/
-sudo chown -R 1000:1000 volumes/minio/
-
-# Reiniciar containers
-docker-compose up -d
-```
-
-#### **Verificação**
-```bash
-# Verificar se os volumes estão sendo populados
-ls -la volumes/n8n/
-sudo ls -la volumes/postgres/
-ls -la volumes/qdrant/
-ls -la volumes/minio/
-```
+Se `volumes/n8n`, `volumes/postgres`, etc. não forem populados, use a seção [Volumes e permissões](#5-volumes-e-permissões) no Troubleshooting (script `fix-volume-permissions.sh` e correção manual com `chown`).
 
 ### 📊 Comandos de Manutenção
 
@@ -813,75 +862,6 @@ docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT cleanup
 docker-compose exec postgres psql -U chat_user -d chat_memory -c "TRUNCATE chat_messages CASCADE;"
 ```
 
-### 📈 Analytics e Monitoramento
-
-#### **Views e Consultas Úteis**
-
-**View Consolidada de Sessões:**
-```sql
-CREATE VIEW session_summary AS
-SELECT 
-    cs.session_id,
-    cs.user_id,
-    cs.session_name,
-    cs.created_at,
-    cs.last_activity,
-    cs.is_active,
-    COUNT(cm.id) as message_count,
-    sa.total_tokens_used,
-    sa.avg_response_time,
-    AVG(uf.rating) as avg_rating
-FROM chat_sessions cs
-LEFT JOIN chat_messages cm ON cs.session_id = cm.session_id
-LEFT JOIN session_analytics sa ON cs.session_id = sa.session_id
-LEFT JOIN user_feedback uf ON cs.session_id = uf.session_id
-GROUP BY cs.session_id, cs.user_id, cs.session_name, cs.created_at, 
-         cs.last_activity, cs.is_active, sa.total_tokens_used, sa.avg_response_time;
-```
-
-**Estatísticas de Uso:**
-```sql
--- Sessões mais ativas
-SELECT session_id, session_name, message_count, last_activity 
-FROM session_summary 
-ORDER BY message_count DESC 
-LIMIT 10;
-
--- Feedback médio por tipo
-SELECT feedback_type, AVG(rating) as rating_medio, COUNT(*) as total_feedbacks
-FROM user_feedback 
-GROUP BY feedback_type;
-
--- Tokens consumidos por dia
-SELECT DATE(created_at) as dia, SUM(total_tokens_used) as tokens_dia
-FROM session_analytics 
-GROUP BY DATE(created_at) 
-ORDER BY dia DESC;
-```
-
-#### **Performance e Monitoramento**
-```sql
--- Índices existentes
-SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public';
-
--- Tamanho das tabelas
-SELECT 
-    schemaname, 
-    tablename, 
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables 
-WHERE schemaname = 'public';
-
--- Estatísticas de uso de índices
-SELECT 
-    schemaname, 
-    tablename, 
-    indexname, 
-    idx_tup_read, 
-    idx_tup_fetch
-FROM pg_stat_user_indexes;
-```
-
 ### 🔒 Segurança e Permissões
 
 #### **Configuração de Usuários**
@@ -892,9 +872,6 @@ FROM pg_stat_user_indexes;
 -- Usuário dedicado para aplicação
 GRANT ALL PRIVILEGES ON TABLE chat_messages TO chat_user;
 GRANT ALL PRIVILEGES ON TABLE chat_sessions TO chat_user;
-GRANT ALL PRIVILEGES ON TABLE session_analytics TO chat_user;
-GRANT ALL PRIVILEGES ON TABLE user_feedback TO chat_user;
-GRANT SELECT ON session_summary TO chat_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chat_user;
 ```
 
@@ -997,112 +974,254 @@ const sessions = await fetch('/api/sessions').then(r => r.json());
 const messages = await fetch(`/api/sessions/${sessionId}`).then(r => r.json());
 ```
 
-### 📊 Dashboard de Analytics (Beta)
-
-O sistema inclui funcionalidades beta para analytics avançadas:
-
-- **📈 Métricas de Uso**: Mensagens por dia, tokens consumidos
-- **⭐ Qualidade**: Ratings médios, feedback por categoria  
-- **🎯 Performance**: Tempo de resposta, eficiência do modelo
-- **📊 Relatórios**: Exportação de dados para análise externa
-
-Para ativar as funcionalidades beta, todas as tabelas são criadas automaticamente durante o setup.
-
 ## 🐛 Troubleshooting
 
-### Problemas Comuns
+<a id="troubleshooting"></a>
 
-**1. OpenAI API Key inválida**
-```bash
-# Verificar configuração
-docker-compose exec rag-demo-app env | grep OPENAI
+Erros conhecidos e correções. Comece pelo sintoma que você está vendo. Na dúvida, rode `docker compose ps` e `docker compose logs -f` na pasta do projeto (`~/pln`).
+
+<a id="1-docker--wsl2"></a>
+
+### 1. Docker / WSL 2
+
+Documentação oficial WSL: [Solução de problemas](https://learn.microsoft.com/pt-br/windows/wsl/troubleshooting) · [Instalar](https://learn.microsoft.com/pt-br/windows/wsl/install)
+
+**Instalação do WSL falhou / distro não abre**
+
+Siga a tabela de [correções oficiais no Passo 1.6](#passo-1-wsl2) e, se necessário, a seção *Installation issues* do guia Microsoft.
+
+Comandos úteis de diagnóstico (PowerShell):
+
+```powershell
+wsl --status
+wsl --version
+wsl -l -v
+wsl --update
 ```
 
-**2. Qdrant não conecta**
-```bash
-# Reiniciar serviço
-docker-compose restart qdrant
+**Distro em WSL 1 (Docker Desktop exige WSL 2)**
 
-# Verificar logs
-docker-compose logs qdrant
+```powershell
+wsl --set-version Ubuntu 2
+# nome exato: veja em wsl -l -v
 ```
 
-**3. MinIO sem acesso**
-```bash
-# Verificar credenciais
-echo "minioadmin / minioadmin"
+**Erro `0x80370102` (virtualização / VM Platform)**
 
-# Acessar console
-open http://localhost:9001
+1. Habilite **Virtual Machine Platform** (Recursos do Windows) e reinicie.
+2. Habilite virtualização na BIOS/UEFI.
+3. Confira o hypervisor:
+
+```powershell
+bcdedit /enum | findstr -i hypervisorlaunchtype
+# se estiver Off:
+bcdedit /set hypervisorlaunchtype Auto
 ```
 
-**4. n8n não carrega**
-```bash
-# Verificar logs
-docker-compose logs n8n
+**Kernel desatualizado** (`WSL 2 requires an update to its kernel component`)
 
-# Reiniciar serviço
-docker-compose restart n8n
-
-# Acessar interface
-open http://localhost:5678
+```powershell
+wsl --update
+# ou pacote oficial: https://aka.ms/wsl2kernel
 ```
 
-**5. Upload falha**
-- Verificar tamanho do arquivo (máx 10MB)
-- Confirmar formato suportado (PDF, DOCX, TXT, MD)
-- Verificar logs da aplicação
+**Docker não encontrado no WSL** (`command not found: docker`)
 
-**6. Chat não responde**
-- Verificar se há documentos na collection
-- Confirmar OpenAI API Key válida
-- Verificar logs de erro no console
+1. Confirme que o **Docker Desktop está aberto** no Windows.
+2. **Settings → Resources → WSL Integration** → Ubuntu marcado → Apply & Restart.
+3. Feche e reabra o terminal Ubuntu; teste `docker --version`.
 
-**7. PostgreSQL não conecta**
+**Docker instalado, mas daemon não responde** (`Cannot connect to the Docker daemon` / `docker info` falha)
+
+1. Abra/reinicie o Docker Desktop.
+2. Aguarde o status “Engine running”.
+3. No PowerShell: `wsl --shutdown`, abra o Ubuntu e teste de novo.
+
+**`docker compose` não funciona, mas `docker` sim**
+
 ```bash
-# Verificar se o serviço está rodando
-docker-compose ps postgres
-
-# Verificar logs
-docker-compose logs postgres
-
-# Testar conexão
-python scripts/test-postgres-connection.py
-
-# Reiniciar serviço
-docker-compose restart postgres
-
-# Verificar tabelas
-docker-compose exec postgres psql -U chat_user -d chat_memory -c "\dt"
-
-# Verificar sessões
-docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM chat_sessions;"
+docker compose version
+# se falhar, tente o alias legado:
+docker-compose version
 ```
 
-**8. Histórico de conversas não carrega**
+**Portas / localhost não acessíveis no Windows**
+
+1. Em `C:\Users\<SeuUsuario>\.wslconfig`, garanta `localhostForwarding=true` ([docs](https://learn.microsoft.com/pt-br/windows/wsl/wsl-config)).
+2. No PowerShell: `wsl --shutdown`.
+3. Reabra o Ubuntu e o Docker Desktop; teste http://localhost:5000.
+
+**Permissões / projeto no disco errado**
+
+Prefira clonar em `/home/<usuario>/...` (WSL), não em `/mnt/c/...` — evita lentidão e erros de permissão ([boas práticas](https://learn.microsoft.com/pt-br/windows/wsl/setup/environment)):
+
 ```bash
-# Verificar tabela de mensagens
-docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM session_messages;"
+cd ~ && pwd   # deve ser /home/<seu-usuario>
+```
 
-# Verificar sessões ativas
-docker-compose exec postgres psql -U chat_user -d chat_memory -c "SELECT session_id, name, message_count FROM chat_sessions ORDER BY last_activity DESC LIMIT 5;"
+**WSL lento ou PC sem memória**
 
-# Reinicializar sistema de sessões
+Ajuste `memory` no `.wslconfig` (ex.: `4GB` ou `6GB`) se o Windows ficar sem RAM; ou aumente se os containers forem mortos por OOM. Depois: `wsl --shutdown`.
+
+---
+
+### 2. Setup, `.env` e OpenAI
+
+**`OPENAI_API_KEY` não configurada / inválida**
+
+```bash
+# Conferir se a variável chegou no container
+docker compose exec rag-demo-app env | grep OPENAI
+
+# Corrigir no host
+nano .env   # OPENAI_API_KEY=sk-sua-chave
+docker compose up -d --force-recreate rag-demo-app
+```
+
+A chave deve começar com `sk-`. Sem créditos/quota na conta OpenAI, o chat e o embedding também falham.
+
+**`setup.sh` aborta pedindo Docker Compose**
+
+Instale/atualize o Docker Desktop e habilite a integração WSL. O script verifica o comando `docker-compose` (symlink do plugin).
+
+**Arquivo de ambiente**
+
+O template correto é `env.example` (não `.env.example`):
+
+```bash
+cp env.example .env
+```
+
+---
+
+### 3. Serviços (containers)
+
+**Qdrant não conecta / unhealthy**
+
+```bash
+docker compose restart qdrant
+docker compose logs qdrant
+docker compose ps qdrant
+```
+
+**MinIO sem acesso**
+
+- Console: http://localhost:9001  
+- Login padrão: `minioadmin` / `minioadmin`  
+- Se a porta 9001 estiver ocupada, pare o outro processo ou altere a porta no `docker-compose.yml` / `.env`.
+
+**n8n não carrega**
+
+```bash
+docker compose logs n8n
+docker compose restart n8n
+```
+
+Acesse http://localhost:5678 (`admin` / `admin123`). Se credenciais/workflows “sumirem” após rebuild, verifique o volume e o arquivo `volumes/n8n/config` (encryption key) — o script `scripts/ensure-n8n-encryption-key.sh` ajuda a manter a chave estável.
+
+**PostgreSQL não conecta**
+
+```bash
+docker compose ps postgres
+docker compose logs postgres
+docker compose restart postgres
+docker compose exec postgres psql -U chat_user -d chat_memory -c "\dt"
+docker compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM chat_sessions;"
+```
+
+Teste opcional: `python scripts/test-postgres-connection.py` (com dependências locais).
+
+**pgAdmin não abre ou não conecta ao banco**
+
+- URL: http://localhost:5050 (`admin@example.com` / `admin`)
+- Host do servidor Postgres **dentro** do Docker: `postgres` (não `localhost`)
+- Senha do banco: valor de `POSTGRES_PASSWORD` no `.env` (padrão `chat_password`)
+- Detalhes: [docs/pgadmin.md](docs/pgadmin.md)
+
+**Container `unhealthy` ou `exited`**
+
+```bash
+docker compose ps
+docker compose logs [nome-do-serviço]
+docker compose up -d
+```
+
+---
+
+### 4. Aplicação (RAG-Demo)
+
+**Upload falha**
+
+- Tamanho máximo: **10 MB**
+- Formatos: PDF, DOCX, TXT, MD
+- Veja logs: `docker compose logs -f rag-demo-app`
+
+**Chat não responde**
+
+- Confirme `OPENAI_API_KEY` válida e com crédito
+- Verifique se há documentos/collection no Qdrant
+- Logs: `docker compose logs -f rag-demo-app` e, se usar multiagente, `docker compose logs -f n8n`
+
+**Histórico de conversas não carrega**
+
+```bash
+docker compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*) FROM session_messages;"
+docker compose exec postgres psql -U chat_user -d chat_memory -c "SELECT session_id, name, message_count FROM chat_sessions ORDER BY last_activity DESC LIMIT 5;"
 ./scripts/setup-session-system.sh
 ```
 
-### Reset Completo
+---
+
+<a id="5-volumes-e-permissões"></a>
+
+### 5. Volumes e permissões
+
+**Volumes do n8n / PostgreSQL / Qdrant / MinIO não populam em `volumes/`**
+
+Correção automática:
 
 ```bash
-# Parar todos os serviços
-docker-compose down
+./scripts/fix-volume-permissions.sh
+```
 
-# Remover volumes (CUIDADO: perde dados)
-docker-compose down -v
+Correção manual:
 
-# Rebuild e restart
-docker-compose build --no-cache
-docker-compose up -d
+```bash
+docker compose down
+sudo chown -R 1000:1000 volumes/n8n/
+sudo chown -R 70:70 volumes/postgres/
+sudo chown -R 1000:1000 volumes/qdrant/
+sudo chown -R 1000:1000 volumes/minio/
+docker compose up -d
+```
+
+Verificação:
+
+```bash
+ls -la volumes/n8n/
+sudo ls -la volumes/postgres/
+ls -la volumes/qdrant/
+ls -la volumes/minio/
+```
+
+---
+
+### 6. Reset completo
+
+**Cuidado:** apaga dados dos volumes Docker nomeados.
+
+```bash
+docker compose down
+# remove volumes (perde dados persistidos nos volumes nomeados)
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d
+```
+
+Ou via script:
+
+```bash
+./setup.sh --clean --rebuild
 ```
 
 ## 🤝 Contribuição
@@ -1147,20 +1266,47 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.2
+## 🎯 Versão Beta v3.2.7
 
 **Data da alteração:** 2026-07-21
 
 ### 🆕 Novidades da Versão
 
+- **✅ WSL 2**: instalação alinhada à documentação oficial Microsoft (pt-BR) + correções oficiais
+- **✅ Embeddings documentados**: chaves reais `openai` e `gemini` (inclui Google Gemini)
+- **✅ Guia de instalação para alunos**: caminho passo a passo (WSL2 → Docker → API key → `./setup.sh`)
+- **✅ Clarificação de `--dev`**: só para quem edita código-fonte; uso de funcionalidades usa `./setup.sh`
+- **✅ Troubleshooting unificado**: erros conhecidos (Docker/WSL, API, serviços, app, volumes, reset) em uma seção do README
 - **✅ pgAdmin**: Interface web Docker para administrar o PostgreSQL (http://localhost:5050) — imagem `dpage/pgadmin4:latest`
-- **✅ Suporte Completo WSL2**: Instalação e configuração otimizada para Windows + WSL2
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
-- **✅ Sistema de Analytics**: Estatísticas avançadas de uso das sessões de chat
-- **✅ Feedback de Usuários**: Sistema para avaliação da qualidade das respostas
-- **✅ Configurações Avançadas**: Preferências de modelo, temperatura e contexto por sessão
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
-- **✅ PostgreSQL Otimizado**: Base de dados com funcionalidades beta incluídas
+- **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.2.7)
+
+- [x] Passo 1 (WSL 2) reescrito com links e procedimentos oficiais Microsoft Learn
+- [x] Troubleshooting WSL expandido (`0x80370102`, kernel, `wsl --update`, `--web-download`)
+
+### Melhorias realizadas (3.2.6)
+
+- [x] Removidas listas de TO-DO e Roadmap do README
+- [x] Removidas “funcionalidades beta” (analytics/feedback) não implementadas na aplicação
+
+### Melhorias realizadas (3.2.5)
+
+- [x] README: tabela de embeddings alinhada a `src/config.py` (`openai` + `gemini`)
+- [x] Default de Q&A embeddings corrigido para `config.DEFAULT_EMBEDDING_MODEL`
+- [x] `env.example`: `GEMINI_MODEL` atualizado para `gemini-1.5-flash`
+
+### Melhorias realizadas (3.2.4)
+
+- [x] README: `./setup.sh` como padrão; `--dev` documentado só para edição de código-fonte
+
+### Melhorias realizadas (3.2.3)
+
+- [x] README reorganizado: instalação mínima para alunos sem Docker
+- [x] Troubleshooting consolidado no README (incluindo WSL2/Docker e volumes)
+- [x] Correção de referências (`env.example`, URL do clone, `docker compose`)
 
 ### Melhorias realizadas (3.2.2)
 
@@ -1176,45 +1322,20 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - [x] Servidor Postgres pré-cadastrado (`config/pgadmin/servers.json`)
 - [x] Documentação em `docs/pgadmin.md` e changelog atualizado
 
-### TO-DOs
-
-- [ ] Opcional: `pgpass` para login automático no Postgres via pgAdmin
-- [ ] Avaliar restrição de acesso do pgAdmin em ambientes compartilhados
-- [ ] Suporte a mais provedores de LLM (Anthropic, Google)
-- [ ] Sistema de autenticação de usuários
-- [ ] Dashboard de analytics em tempo real
-
 ### 🔧 Para Desenvolvedores
 
+Use `--dev` apenas ao alterar o código-fonte (hot-reload + Flask debug). Para só rodar/usar a plataforma, `./setup.sh` é suficiente.
+
 ```bash
-# Modo desenvolvimento (hot-reload ativado)
+# Modo desenvolvimento (hot-reload + debug)
 ./setup.sh --dev
 
 # Verificar logs em tempo real
-docker-compose logs -f rag-demo-app
+docker compose logs -f rag-demo-app
 
 # Reset completo do ambiente
 ./setup.sh --clean --rebuild
 ```
-
-### 📊 Funcionalidades Beta
-
-#### Sistema de Analytics
-- Estatísticas de uso por sessão
-- Contagem de tokens consumidos
-- Tempo médio de resposta
-- Collections mais utilizadas
-
-#### Feedback de Usuários
-- Avaliação de respostas (1-5 estrelas)
-- Comentários sobre qualidade
-- Análise de relevância
-
-#### Configurações Avançadas
-- Escolha de modelo de LLM por sessão
-- Controle de temperatura (criatividade)
-- Ajuste de janela de contexto
-- Personalização de parâmetros
 
 ### 🐛 Reportar Issues
 
@@ -1224,14 +1345,9 @@ Como esta é uma versão beta, sua contribuição é valiosa:
 2. **Sugestões**: Use [GitHub Discussions](https://github.com/seu-usuario/rag-demo/discussions)
 3. **Documentação**: Contribua com melhorias na documentação
 
-### 📈 Roadmap
-
-- [ ] Integração com mais formatos de documento
-- [ ] API REST completa para integrações externas
-
 ---
 
-**RAG-Demo v3.2.2** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.2.7** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
