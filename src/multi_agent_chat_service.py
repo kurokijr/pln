@@ -33,9 +33,14 @@ class MultiAgentChatService:
             
             all_results = []
             
-            if source_names:
+            selected_sources = [
+                name.strip() for name in (source_names or [])
+                if isinstance(name, str) and name.strip()
+            ]
+
+            if selected_sources:
                 # Consultar nas fontes especificadas
-                for source_name in source_names:
+                for source_name in selected_sources:
                     try:
                         results = self.vector_store.search_similar(
                             source_name, 
@@ -43,9 +48,9 @@ class MultiAgentChatService:
                             top_k, 
                             similarity_threshold=similarity_threshold
                         )
-                        # Adicionar informação da fonte de conhecimento
                         for result in results:
                             result["knowledge_source"] = source_name
+                            result["source_collection"] = source_name
                         all_results.extend(results)
                     except Exception as e:
                         print(f"Erro ao consultar fonte de conhecimento {source_name}: {e}")
@@ -55,18 +60,22 @@ class MultiAgentChatService:
                 sources = self.vector_store.list_collections()
                 
                 for source_info in sources:
-                    if source_info.get("exists_in_qdrant"):
-                        try:
-                            results = self.vector_store.search_similar(
-                                source_info["name"], query, top_k
-                            )
-                            # Adicionar informação da fonte de conhecimento
-                            for result in results:
-                                result["knowledge_source"] = source_info["name"]
-                            all_results.extend(results)
-                        except Exception as e:
-                            print(f"Erro ao consultar fonte de conhecimento {source_info['name']}: {e}")
-                            continue
+                    if not source_info.get("exists_in_qdrant", True):
+                        continue
+                    try:
+                        results = self.vector_store.search_similar(
+                            source_info["name"],
+                            query,
+                            top_k,
+                            similarity_threshold=similarity_threshold,
+                        )
+                        for result in results:
+                            result["knowledge_source"] = source_info["name"]
+                            result["source_collection"] = source_info["name"]
+                        all_results.extend(results)
+                    except Exception as e:
+                        print(f"Erro ao consultar fonte de conhecimento {source_info['name']}: {e}")
+                        continue
             
             # Ordenar por score e retornar os melhores
             all_results.sort(key=lambda x: x.get('score', 0), reverse=True)
@@ -89,11 +98,15 @@ class MultiAgentChatService:
         try:
             all_sources = self.vector_store.list_collections()
             
-            if source_names:
+            valid_names = [
+                name.strip() for name in (source_names or [])
+                if isinstance(name, str) and name.strip()
+            ]
+            if valid_names:
                 # Filtrar apenas as fontes selecionadas
                 selected_sources = [
                     source for source in all_sources 
-                    if source["name"] in source_names and source.get("exists_in_qdrant", True)
+                    if source["name"] in valid_names and source.get("exists_in_qdrant", True)
                 ]
             else:
                 # Se não especificado, usar todas as fontes existentes

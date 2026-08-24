@@ -134,7 +134,8 @@ def handle_chat_message(data):
             session_id=session_id,
             message=message,
             collection_names=collection_name,
-            similarity_threshold=similarity_threshold
+            similarity_threshold=similarity_threshold,
+            skip_n8n=True,
         )
         
         # Enviar resposta via WebSocket

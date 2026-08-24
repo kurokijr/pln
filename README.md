@@ -439,6 +439,7 @@ python scripts/test_session_system.py
 ### 4. 💬 Chat RAG Inteligente
 
 - **Múltiplas sessões**: Conversas independentes com histórico
+- **Busca por similaridade**: ranking de chunks por cosseno no Qdrant ([docs/busca-por-similaridade.md](docs/busca-por-similaridade.md))
 - **Busca semântica**: Recuperação de contexto relevante
 - **Respostas contextualizadas**: Baseadas em documentos específicos
 - **Interface moderna**: Design conversacional com typing indicators
@@ -512,7 +513,7 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📄 storage.py              # Gerenciamento MinIO
 │   ├── 📄 chat_rag_service.py     # Serviço de chat RAG
 │   ├── 📄 semantic_search_service.py # Serviço de busca semântica
-│   └── 📄 similarity_search_service.py # Serviço de busca por similaridade
+│   └── 📄 vector_store.py         # Qdrant + busca por similaridade
 ├── 📁 templates/                   # Templates HTML
 │   └── 📄 index.html              # Interface principal (SPA)
 ├── 📁 static/                      # Assets estáticos
@@ -1257,21 +1258,21 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 ## 📞 Suporte
 
 ### Documentação
-- 📖 **Wiki**: Documentação completa no repositório
-- 🎥 **Tutoriais**: Vídeos explicativos das funcionalidades
-- 💡 **Exemplos**: Casos de uso práticos
+- 📖 **Pasta `docs/`**: [docs/CHANGELOG.md](docs/CHANGELOG.md) e [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md)
+- 📖 **README**: instalação, arquitetura e troubleshooting
 
 ### Comunidade
 - 🐛 **Issues**: Reporte bugs e sugestões
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.7
+## 🎯 Versão Beta v3.2.8
 
-**Data da alteração:** 2026-07-21
+**Data da alteração:** 2026-08-24
 
 ### 🆕 Novidades da Versão
 
+- **✅ Busca por similaridade corrigida**: compatível com `qdrant-client` 1.19 (`query_points`)
 - **✅ WSL 2**: instalação alinhada à documentação oficial Microsoft (pt-BR) + correções oficiais
 - **✅ Embeddings documentados**: chaves reais `openai` e `gemini` (inclui Google Gemini)
 - **✅ Guia de instalação para alunos**: caminho passo a passo (WSL2 → Docker → API key → `./setup.sh`)
@@ -1281,6 +1282,13 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.2.8)
+
+- [x] Busca por similaridade usando `query_points` (API atual do Qdrant)
+- [x] Busca local sem depender do webhook n8n `agent-proxy`
+- [x] Tratamento de “Todas as collections” e flag `exists_in_qdrant`
+- [x] Documentação em [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md) e [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ### Melhorias realizadas (3.2.7)
 
@@ -1347,7 +1355,7 @@ Como esta é uma versão beta, sua contribuição é valiosa:
 
 ---
 
-**RAG-Demo v3.2.7** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.2.8** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
