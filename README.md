@@ -265,7 +265,7 @@ No terminal **Ubuntu (WSL)**:
 
 ```bash
 cd ~
-git clone https://github.com/kurokijr/pln.git
+git clone https://github.com/kurokijrceub/pln.git
 cd pln
 chmod +x setup.sh
 ./setup.sh
@@ -1266,12 +1266,13 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.8
+## 🎯 Versão Beta v3.2.9
 
 **Data da alteração:** 2026-08-24
 
 ### 🆕 Novidades da Versão
 
+- **✅ Repositório Git**: código passa a usar https://github.com/kurokijrceub/pln
 - **✅ Busca por similaridade corrigida**: compatível com `qdrant-client` 1.19 (`query_points`)
 - **✅ WSL 2**: instalação alinhada à documentação oficial Microsoft (pt-BR) + correções oficiais
 - **✅ Embeddings documentados**: chaves reais `openai` e `gemini` (inclui Google Gemini)
@@ -1282,6 +1283,11 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.2.9)
+
+- [x] Remote Git do projeto apontado para https://github.com/kurokijrceub/pln
+- [x] URL de clone no README atualizada para o repositório CEUB
 
 ### Melhorias realizadas (3.2.8)
 
@@ -1349,13 +1355,13 @@ docker compose logs -f rag-demo-app
 
 Como esta é uma versão beta, sua contribuição é valiosa:
 
-1. **Bugs**: Reporte via [GitHub Issues](https://github.com/seu-usuario/rag-demo/issues)
-2. **Sugestões**: Use [GitHub Discussions](https://github.com/seu-usuario/rag-demo/discussions)
+1. **Bugs**: Reporte via [GitHub Issues](https://github.com/kurokijrceub/pln/issues)
+2. **Sugestões**: Use [GitHub Discussions](https://github.com/kurokijrceub/pln/discussions)
 3. **Documentação**: Contribua com melhorias na documentação
 
 ---
 
-**RAG-Demo v3.2.8** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.2.9** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
