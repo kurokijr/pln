@@ -173,7 +173,8 @@ class RAGChatService:
     
     def chat(self, session_id: str, message: str, 
              collection_names: Union[str, List[str]] = None, 
-             similarity_threshold: float = 0.0) -> Dict[str, Any]:
+             similarity_threshold: float = 0.0,
+             skip_n8n: bool = False) -> Dict[str, Any]:
         """
         Processa uma mensagem de chat com suporte a múltiplas collections e threshold de similaridade.
         
@@ -193,11 +194,16 @@ class RAGChatService:
             # Adicionar mensagem do usuário
             session.add_message("user", message)
             
-            # Normalizar collection_names para lista
+            # Normalizar collection_names para lista (string vazia = todas)
             if isinstance(collection_names, str):
-                collection_names = [collection_names]
+                collection_names = [collection_names] if collection_names.strip() else []
             elif collection_names is None:
                 collection_names = []
+            else:
+                collection_names = [
+                    name for name in collection_names
+                    if isinstance(name, str) and name.strip()
+                ]
             
             # Obter informações das collections
             collections_info = self.multi_agent_service.get_knowledge_sources_info(collection_names)
@@ -205,8 +211,8 @@ class RAGChatService:
             if not collections_info:
                 print("⚠️ Nenhuma collection válida encontrada")
             
-            # Processar com N8N se habilitado
-            if self.use_n8n:
+            # Processar com N8N se habilitado (busca por similaridade usa Qdrant local)
+            if self.use_n8n and not skip_n8n:
                 n8n_result = self.send_to_n8n(message, collections_info, session_id, session.messages)
                 
                 if n8n_result["success"]:
@@ -227,9 +233,18 @@ class RAGChatService:
                     # Fallback para processamento local se N8N falhar
                     print("⚠️ N8N falhou, usando processamento local como fallback")
             
-            # Processamento local (fallback ou quando N8N está desabilitado)
-            relevant_docs = self.multi_agent_service.query_knowledge_sources(message, collection_names, similarity_threshold=similarity_threshold)
-            response = self.generate_response(message, relevant_docs, session.messages)
+            # Processamento local (busca por similaridade, fallback ou N8N desabilitado)
+            relevant_docs = self.multi_agent_service.query_knowledge_sources(
+                message, collection_names, similarity_threshold=similarity_threshold
+            )
+            if skip_n8n:
+                threshold_label = f"{similarity_threshold:.0%}"
+                response = (
+                    f"Encontrados {len(relevant_docs)} trechos "
+                    f"com similaridade ≥ {threshold_label}."
+                )
+            else:
+                response = self.generate_response(message, relevant_docs, session.messages)
             
             # Adicionar resposta do assistente
             session.add_message("assistant", response, relevant_docs)
@@ -261,8 +276,8 @@ class RAGChatService:
             if relevant_docs:
                 context_parts = []
                 for doc in relevant_docs[:3]:
-                    source_collection = doc.get('source_collection', 'unknown')
-                    text = doc.get('text', '')
+                    source_collection = doc.get('source_collection') or doc.get('knowledge_source', 'unknown')
+                    text = doc.get('text') or doc.get('content', '')
                     context_parts.append(f"[Collection: {source_collection}]\n{text}")
                 context = "\n\n".join(context_parts)
             
@@ -330,7 +345,7 @@ class ChatManager:
         pass
     
     def chat(self, session_id: str, message: str, collection_names: Union[str, List[str]] = None, 
-             similarity_threshold: float = 0.0) -> Dict[str, Any]:
+             similarity_threshold: float = 0.0, skip_n8n: bool = False) -> Dict[str, Any]:
         """Processa mensagem de chat com persistência PostgreSQL e threshold de similaridade."""
         # Verificar se a sessão existe no PostgreSQL
         if not session_id or not self.session_service.get_session(session_id):
@@ -340,7 +355,9 @@ class ChatManager:
         self.session_service.add_message(session_id, "user", message)
         
         # Processar com o chat service
-        result = self.chat_service.chat(session_id, message, collection_names, similarity_threshold)
+        result = self.chat_service.chat(
+            session_id, message, collection_names, similarity_threshold, skip_n8n=skip_n8n
+        )
         
         # Adicionar resposta do assistente ao PostgreSQL
         if result.get("response"):

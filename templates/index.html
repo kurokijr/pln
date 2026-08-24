@@ -1276,7 +1276,7 @@ DOCUMENTO:
                 addChatMessage('error', `Erro: ${data.error}`);
             } else {
                 addChatMessage('assistant', data.response, {
-                    sources: data.sources,
+                    sources: data.sources || [],
                     similarity_threshold: data.similarity_threshold
                 });
             }
@@ -1491,14 +1491,6 @@ DOCUMENTO:
         
         socket.on('disconnect', () => {
             statusIndicator.innerHTML = '<div class="w-2 h-2 bg-red-500 rounded-full"></div><span class="text-sm text-gray-600">Desconectado</span>';
-        });
-        
-        socket.on('chat_response', (data) => {
-            addChatMessage('assistant', data.response, data);
-            isProcessing = false;
-            updateSendButton();
-            
-
         });
         
         socket.on('chat_error', (data) => {
@@ -3201,7 +3193,7 @@ DOCUMENTO:
                         const similarityPercent = (source.similarity_percentage || source.score * 100).toFixed(1);
                         const fileName = source.file_name || 'Documento desconhecido';
                         const content = source.content || 'Conteúdo não disponível';
-                        const collectionName = source.source_collection || 'Collection desconhecida';
+                        const collectionName = source.source_collection || source.knowledge_source || 'Collection desconhecida';
                         const chunkNumber = source.chunk_number || (index + 1);
                         
                         resultsContent += `
@@ -4099,7 +4091,11 @@ DOCUMENTO:
             selects.forEach(select => {
                 if (select) {
                     console.log(`🔧 Atualizando collection select: ${select.id}`);
-                    select.innerHTML = '<option value="">Selecione uma collection...</option>';
+                    if (select.id === 'chat-collection-select') {
+                        select.innerHTML = '<option value="">Todas as collections</option>';
+                    } else {
+                        select.innerHTML = '<option value="">Selecione uma collection...</option>';
+                    }
                     
                     if (collections && collections.length > 0) {
                         collections.forEach(collection => {

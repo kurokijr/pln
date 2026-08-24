@@ -719,8 +719,38 @@ class QdrantVectorStore:
         except Exception as e:
             print(f"❌ Erro ao inserir documentos na collection '{collection_name}': {e}")
             raise e
+
+    def _query_similar_points(
+        self,
+        collection_name: str,
+        query_embedding: List[float],
+        top_k: int,
+        query_filter: Filter = None,
+        score_threshold: float = None,
+    ) -> List[Any]:
+        """Consulta pontos similares compatível com qdrant-client 1.9+ e 1.19+."""
+        if hasattr(self.client, "query_points"):
+            response = self.client.query_points(
+                collection_name=collection_name,
+                query=query_embedding,
+                limit=top_k,
+                query_filter=query_filter,
+                score_threshold=score_threshold,
+                with_payload=True,
+            )
+            return list(getattr(response, "points", []) or [])
+
+        return list(
+            self.client.search(
+                collection_name=collection_name,
+                query_vector=query_embedding,
+                limit=top_k,
+                query_filter=query_filter,
+                score_threshold=score_threshold,
+            )
+        )
     
-    def search_similar(self, collection_name: str, query: str, top_k: int = 5, 
+    def search_similar(self, collection_name: str, query: str, top_k: int = 5,  
                       embedding_model: str = None, similarity_threshold: float = 0.0) -> List[Dict[str, Any]]:
         """
         Busca documentos similares em uma collection com threshold de similaridade.
@@ -748,19 +778,23 @@ class QdrantVectorStore:
             # Gerar embedding para a query
             query_embedding = embedding_manager.get_embedding(query)
             
-            # Buscar documentos similares
-            search_result = self.client.search(
+            # Buscar documentos similares (qdrant-client >= 1.12 usa query_points;
+            # client.search foi removido no 1.19)
+            query_filter = Filter(
+                must_not=[
+                    FieldCondition(
+                        key="name",
+                        match=MatchValue(value=collection_name)
+                    )
+                ]
+            )
+            score_threshold = similarity_threshold if similarity_threshold > 0 else None
+            search_result = self._query_similar_points(
                 collection_name=collection_name,
-                query_vector=query_embedding,
-                limit=top_k,
-                query_filter=Filter(
-                    must_not=[
-                        FieldCondition(
-                            key="name",
-                            match=MatchValue(value=collection_name)
-                        )
-                    ]
-                )  # Excluir o ponto de metadata
+                query_embedding=query_embedding,
+                top_k=top_k,
+                query_filter=query_filter,
+                score_threshold=score_threshold,
             )
             
             # Formatar resultados ZERO-CHARSET: recuperar conteúdo do MinIO
@@ -831,7 +865,8 @@ class QdrantVectorStore:
                         "document_count": counts["documents"],  # Documentos únicos
                         "chunk_count": counts["chunks"],  # Total de chunks
                         "count": counts["documents"],  # Alias para compatibilidade
-                        "model_config": metadata.get("model_config", {})
+                        "model_config": metadata.get("model_config", {}),
+                        "exists_in_qdrant": True,
                     })
                 else:
                     # Collection sem metadata (legacy)
@@ -843,7 +878,8 @@ class QdrantVectorStore:
                         "document_count": counts["documents"],  # Documentos únicos
                         "chunk_count": counts["chunks"],  # Total de chunks
                         "count": counts["documents"],  # Alias para compatibilidade
-                        "model_config": {}
+                        "model_config": {},
+                        "exists_in_qdrant": True,
                     })
             
             return collections
