@@ -62,6 +62,8 @@ Guia pensado para alunos **sem experiência prévia com Docker**. Siga os passos
 3. No terminal Ubuntu (WSL), clone o projeto e rode `./setup.sh`.
 4. Abra http://localhost:5000 no navegador.
 
+Opcional (NER GLiNER): no `.env` use `GLINER_BERT=true` e veja [Entidades (GLiNER) e `--profile gliner`](#gliner-profile).
+
 **O que é Docker?** Docker empacota a aplicação e seus serviços (banco, storage, n8n, etc.) em *containers*, para que todos rodem o mesmo ambiente sem instalar Python, PostgreSQL ou Qdrant na mão. O Docker Desktop cuida disso no Windows; no WSL você só digita os comandos.
 
 > **Nota sobre comandos:** Nestas instruções usamos `docker compose` (plugin moderno). Se o seu ambiente só tiver o comando antigo, troque por `docker-compose` — no Docker Desktop ambos costumam funcionar.
@@ -296,8 +298,57 @@ Use `--dev` **somente se for mexer no código-fonte** (`src/`, `templates/`, `st
 | Editar código-fonte (hot-reload + debug) | `./setup.sh --dev` |
 | Limpar dados com cuidado | `./setup.sh --clean` |
 | Rebuild completo | `./setup.sh --clean --rebuild` |
+| Entidades (GLiNER) / treino BIO | `GLINER_BERT=true` no `.env` e de novo `./setup.sh` |
 
-Aguarde 1–3 minutos na primeira execução (download de imagens).
+Aguarde 1–3 minutos na primeira execução (download de imagens). Com GLiNER, a primeira subida ainda baixa os modelos Hugging Face (~alguns minutos a mais).
+
+---
+
+<a id="gliner-profile"></a>
+
+### Opcional — Entidades (GLiNER) e `--profile gliner`
+
+O NER pesado (PyTorch) **não** sobe no `./setup.sh` padrão. O container `gliner-bert` só entra com o **profile Compose** `gliner`. Guia completo: [gliner_treino_uso.md](gliner_treino_uso.md).
+
+**Pelo `setup.sh` (recomendado).** Não existe `./setup.sh --gliner`. O script já lê o `.env`: com `GLINER_BERT=true` ele chama `docker compose --profile gliner`; com `GLINER_TRAIN=true` usa `--profile gliner-train` (GPU).
+
+```bash
+nano .env   # GLINER_BERT=true
+./setup.sh
+```
+
+**Na mão** (sem o script, ou depois de `docker compose down`):
+
+```bash
+# Inferência + treino em CPU
+docker compose --profile gliner up -d --build rag-demo-app gliner-bert
+
+# GPU opcional (não misture com o profile gliner)
+# GLINER_TRAIN=true no .env
+docker compose --profile gliner-train up -d --build rag-demo-app gliner-bert-gpu
+```
+
+Saúde do serviço Torch: http://localhost:8080/health. Os menus **Entidades (GLiNER)** e **Treinar GLiNER** ficam no lateral mesmo com o container desligado; nesse caso a tela avisa e desativa o botão.
+
+#### `GLINER_LABELS` e o que muda na extração
+
+`GLINER_LABELS` (lista separada por vírgulas no `.env`) são os **rótulos abertos** que o GLiNER procura. O Flask envia essa lista no `POST /extract`. Incluir `doença` faz o modelo tentar achar esse tipo; tirar `material` deixa de procurá-lo.
+
+Isso vale **só** para a tela **Entidades (GLiNER)**. Não altera:
+
+- a tela **Entidades (estudo)** (spaCy);
+- o regex de códigos no Flask (Lei, CNPJ, etc.);
+- no modo híbrido (Hub), PER/ORG/LOC do **BERTimbau NER**, que continuam e **ganham** de spans GLiNER sobrepostos.
+
+Com checkpoint treinado, os nomes em `GLINER_LABELS` devem bater com o `label_map` do JSON BIO (`organização`, não `ORGANIZACAO`).
+
+O `rag-demo-app` lê o `.env` **na criação** do container. Depois de mudar `GLINER_BERT`, `GLINER_LABELS` ou flags GLiNER:
+
+```bash
+docker compose --profile gliner up -d --force-recreate rag-demo-app
+```
+
+(Se o GLiNER ainda não estava no ar, inclua `gliner-bert` no mesmo comando, ou rode de novo `./setup.sh` com `GLINER_BERT=true`.)
 
 ---
 
@@ -311,6 +362,7 @@ Aguarde 1–3 minutos na primeira execução (download de imagens).
 | PostgreSQL | `localhost:5432` | `chat_user` / `chat_password` |
 | pgAdmin | http://localhost:5050 | `admin@example.com` / `admin` |
 | n8n | http://localhost:5678 | `admin` / `admin123` |
+| GLiNER (opcional) | http://localhost:8080/health | — (só com `--profile gliner`) |
 
 Credenciais padrão são só para ambiente educacional local.
 
@@ -321,7 +373,16 @@ docker compose ps              # status
 docker compose logs -f         # logs de todos
 docker compose logs -f rag-demo-app
 docker compose down            # parar
-docker compose up -d           # subir de novo
+docker compose up -d           # subir de novo (sem GLiNER)
+```
+
+Com `GLINER_BERT=true`, use o profile em **subir e parar** — `docker compose up -d` sozinho não recria o `gliner-bert`:
+
+```bash
+docker compose --profile gliner ps
+docker compose --profile gliner logs -f gliner-bert
+docker compose --profile gliner down
+docker compose --profile gliner up -d
 ```
 
 ---
@@ -337,6 +398,12 @@ nano .env   # preencha OPENAI_API_KEY=sk-...
 mkdir -p uploads volumes/{minio,qdrant,postgres,n8n}
 docker compose up -d
 docker compose logs -f rag-demo-app
+```
+
+Para Entidades (GLiNER), no `.env` defina `GLINER_BERT=true` e suba com o profile:
+
+```bash
+docker compose --profile gliner up -d --build rag-demo-app gliner-bert
 ```
 
 ---
@@ -661,6 +728,16 @@ FLASK_DEBUG=false
 
 # Embedding: openai | gemini  (chaves de config.EMBEDDING_MODELS)
 DEFAULT_EMBEDDING_MODEL=openai
+
+# GLiNER + BERTimbau (opcional; o rag-demo-app não instala torch)
+# true = o setup.sh (e o Compose) usam --profile gliner
+GLINER_BERT=false
+GLINER_BERT_URL=http://gliner-bert:8080
+GLINER_BERT_TIMEOUT=120
+# Rótulos abertos da tela Entidades (GLiNER). Recrie o rag-demo-app após alterar.
+GLINER_LABELS=pessoa,organização,local,material,processo,norma,instituição
+# GPU opcional: --profile gliner-train. Mantenha GLINER_BERT=true
+GLINER_TRAIN=false
 ```
 
 ### Modelos de Embedding Suportados
@@ -1195,6 +1272,8 @@ Teste opcional: `python scripts/test-postgres-connection.py` (com dependências 
 docker compose ps
 docker compose logs [nome-do-serviço]
 docker compose up -d
+# Se usa GLiNER:
+docker compose --profile gliner up -d
 ```
 
 ---
@@ -1220,6 +1299,21 @@ docker compose exec postgres psql -U chat_user -d chat_memory -c "SELECT COUNT(*
 docker compose exec postgres psql -U chat_user -d chat_memory -c "SELECT session_id, name, message_count FROM chat_sessions ORDER BY last_activity DESC LIMIT 5;"
 ./scripts/setup-session-system.sh
 ```
+
+**Menus Entidades (GLiNER) / Treinar GLiNER visíveis, botão cinza**
+
+O container Torch não está no ar ou o Flask ainda vê `GLINER_BERT=false`. No `.env`: `GLINER_BERT=true`, depois recrie com o profile:
+
+```bash
+docker compose --profile gliner up -d --force-recreate rag-demo-app gliner-bert
+docker compose --profile gliner logs -f gliner-bert
+```
+
+Ou rode de novo `./setup.sh` com a flag já no `.env`. Saúde: http://localhost:8080/health (`status` pode ficar em `loading` na primeira descarga dos modelos).
+
+**Alterei `GLINER_LABELS` e o NER não mudou**
+
+Salvar o `.env` não basta. Recrie o `rag-demo-app` (comando acima). A lista só entra na tela **Entidades (GLiNER)**; spaCy, regex e PER/ORG/LOC do BERTimbau no modo híbrido não seguem essa variável.
 
 ---
 
@@ -1319,12 +1413,13 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.6.6
+## 🎯 Versão Beta v3.6.7
 
 **Data da alteração:** 2026-08-25
 
 ### 🆕 Novidades da Versão
 
+- **✅ README**: profile Compose `gliner` / `gliner-train`, `GLINER_LABELS` e recriação do `rag-demo-app`
 - **✅ Top vizinhos**: campo numérico (1–30) para Antes/Depois do TF-IDF nas duas telas de entidades
 - **✅ Top TF-IDF**: colunas Antes → Texto → Depois (top X vizinhos sem stopwords)
 - **✅ Seletor de checkpoint**: Entidades (GLiNER) carrega modelo em disco sem reiniciar (`POST /api/gliner-reload`)
@@ -1357,6 +1452,10 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.6.7)
+
+- [x] README: instalação opcional GLiNER (`--profile gliner`), `GLINER_LABELS` e troubleshooting (sem mudança no `setup.sh`)
 
 ### Melhorias realizadas (3.6.6)
 
