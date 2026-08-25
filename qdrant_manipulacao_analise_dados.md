@@ -19,7 +19,7 @@ GET collections
 ```
 
 Documentação oficial:  
-[https://api.qdrant.tech/api-reference/collections/get-collections](https://api.qdrant.tech/api-reference/collections/get-collections)
+https://api.qdrant.tech/api-reference/collections/get-collections
 
 ---
 
@@ -40,11 +40,9 @@ GET collections/d542304d-09e6-409f-93e0-e0a1f5f2b51e
 - estado da collection.
 
 Documentação oficial:  
-[https://api.qdrant.tech/api-reference/collections/get-collection](https://api.qdrant.tech/api-reference/collections/get-collection)
+https://api.qdrant.tech/api-reference/collections/get-collection
 
 ---
-
-
 
 # 3. Estrutura de um Point
 
@@ -75,15 +73,11 @@ Um Point no Qdrant pode possuir:
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/concepts/points/](https://qdrant.tech/documentation/concepts/points/)
+https://qdrant.tech/documentation/concepts/points/
 
 ---
 
-
-
 # 4. Dense vs Sparse
-
-
 
 ## Dense
 
@@ -124,8 +118,6 @@ mesmo sem correspondência literal.
 
 ---
 
-
-
 ## Sparse
 
 Representa principalmente correspondência lexical.
@@ -151,11 +143,9 @@ O Qdrant armazena apenas as posições não-zero.
 - termos raros.
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/concepts/vectors/](https://qdrant.tech/documentation/concepts/vectors/)
+https://qdrant.tech/documentation/concepts/vectors/
 
 ---
-
-
 
 # 5. Adicionar ou alterar campos no payload
 
@@ -196,11 +186,9 @@ O Point passa a possuir:
 sem alterar os vetores existentes.
 
 Documentação oficial:  
-[https://api.qdrant.tech/api-reference/points/set-payload](https://api.qdrant.tech/api-reference/points/set-payload)
+https://api.qdrant.tech/api-reference/points/set-payload
 
 ---
-
-
 
 # 6. Filtrar por duas ou mais expressões — AND
 
@@ -257,11 +245,9 @@ content contém "duplicidade"
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/concepts/filtering/](https://qdrant.tech/documentation/concepts/filtering/)
+https://qdrant.tech/documentation/concepts/filtering/
 
 ---
-
-
 
 # 7. Filtrar por expressões alternativas — OR
 
@@ -297,11 +283,9 @@ OR
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/concepts/filtering/](https://qdrant.tech/documentation/concepts/filtering/)
+https://qdrant.tech/documentation/concepts/filtering/
 
 ---
-
-
 
 # 8. Excluir resultados — NOT
 
@@ -329,8 +313,6 @@ NOT content contém "duplicidade"
 ```
 
 ---
-
-
 
 # 9. Combinar AND, OR e NOT
 
@@ -383,8 +365,6 @@ NOT cancelado
 
 ---
 
-
-
 # 10. `match.text` não é SQL `LIKE`
 
 O Qdrant não possui diretamente:
@@ -418,11 +398,9 @@ Para frases:
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/search/text-search/text-filtering/](https://qdrant.tech/documentation/search/text-search/text-filtering/)
+https://qdrant.tech/documentation/search/text-search/text-filtering/
 
 ---
-
-
 
 # 11. Criar índice textual para `content`
 
@@ -464,11 +442,9 @@ e:
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/search/text-search/text-filtering/](https://qdrant.tech/documentation/search/text-search/text-filtering/)
+https://qdrant.tech/documentation/search/text-search/text-filtering/
 
 ---
-
-
 
 # 12. Limpar campos experimentais do payload
 
@@ -505,11 +481,9 @@ e remove somente:
 ```
 
 Documentação oficial:  
-[https://api.qdrant.tech/api-reference/points/delete-payload](https://api.qdrant.tech/api-reference/points/delete-payload)
+https://api.qdrant.tech/api-reference/points/delete-payload
 
 ---
-
-
 
 # 13. Remover `study_group` somente de um grupo
 
@@ -538,8 +512,6 @@ POST /collections/d542304d-09e6-409f-93e0-e0a1f5f2b51e/points/payload/delete?wai
 ```
 
 ---
-
-
 
 # 14. Preparar grupos para análise visual
 
@@ -588,8 +560,6 @@ POST /collections/d542304d-09e6-409f-93e0-e0a1f5f2b51e/points/payload?wait=true
 
 ---
 
-
-
 # 15. Visualização por cor na Web UI
 
 Depois de criar:
@@ -627,15 +597,11 @@ outros
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/web-ui/](https://qdrant.tech/documentation/web-ui/)
+https://qdrant.tech/documentation/web-ui/
 
 ---
 
-
-
 # 16. PCA
-
-
 
 ## 16.1 O que é PCA
 
@@ -688,8 +654,6 @@ Com grupos:
 
 ---
 
-
-
 ## 16.2 Como interpretar o PCA
 
 No PCA, os eixos da visualização representam combinações das dimensões originais dos embeddings.
@@ -721,8 +685,6 @@ isso pode indicar:
 
 ---
 
-
-
 ## 16.3 O que o PCA preserva melhor
 
 O PCA tende a preservar melhor a **estrutura global** dos dados do que UMAP e t-SNE.
@@ -740,8 +702,6 @@ eventuais tendências globais
 Por outro lado, ele é menos eficiente para evidenciar pequenos clusters semânticos quando a estrutura real dos embeddings é altamente não linear.
 
 ---
-
-
 
 ## 16.4 Limitação importante
 
@@ -764,8 +724,6 @@ Isso não significa necessariamente que o embedding esteja ruim.
 Significa apenas que uma projeção linear em duas dimensões não conseguiu representar toda a estrutura existente em 1536 dimensões.
 
 ---
-
-
 
 ## 16.5 Quando usar PCA
 
@@ -794,11 +752,7 @@ UMAP
 
 ---
 
-
-
 # 17. UMAP
-
-
 
 ## 17.1 O que é UMAP
 
@@ -837,8 +791,6 @@ Com grupos:
 ```
 
 ---
-
-
 
 ## 17.2 Por que UMAP é especialmente útil para embeddings
 
@@ -885,8 +837,6 @@ prestação de contas
 ```
 
 ---
-
-
 
 ## 17.3 Como interpretar proximidade no UMAP
 
@@ -935,8 +885,6 @@ ou ficam completamente dispersos
 ```
 
 ---
-
-
 
 ## 17.4 O que significa um grupo bem formado
 
@@ -991,8 +939,6 @@ não garante que todos os chunks encontrados pertençam ao mesmo conceito semân
 
 ---
 
-
-
 ## 17.5 Estrutura local e estrutura global
 
 UMAP tenta preservar melhor dois níveis:
@@ -1034,8 +980,6 @@ Ainda assim, não trate distâncias do gráfico como métricas quantitativas exa
 
 ---
 
-
-
 ## 17.6 UMAP como visualização principal
 
 Para análise exploratória de collections Qdrant, uma estratégia prática é usar UMAP como método principal.
@@ -1062,8 +1006,6 @@ Um Point na borda de um cluster pode ser particularmente interessante porque pod
 
 ---
 
-
-
 ## 17.7 Quando usar UMAP
 
 Use UMAP principalmente para:
@@ -1080,11 +1022,7 @@ Para estudos exploratórios de embeddings, normalmente é o algoritmo mais equil
 
 ---
 
-
-
 # 18. t-SNE
-
-
 
 ## 18.1 O que é t-SNE
 
@@ -1118,8 +1056,6 @@ Com classificação:
 ```
 
 ---
-
-
 
 ## 18.2 Por que o t-SNE cria tantas "ilhas"
 
@@ -1158,8 +1094,6 @@ Mas ruim para responder:
 
 ---
 
-
-
 ## 18.3 A principal armadilha do t-SNE
 
 Suponha:
@@ -1189,8 +1123,6 @@ distância entre clusters    -> interpretar com cautela
 ```
 
 ---
-
-
 
 ## 18.4 O que significa um cluster no t-SNE
 
@@ -1227,8 +1159,6 @@ Por isso, a análise visual deve sempre ser acompanhada por inspeção dos paylo
 
 ---
 
-
-
 ## 18.5 Quando t-SNE é mais útil
 
 Use t-SNE quando quiser investigar:
@@ -1256,8 +1186,6 @@ t-SNE
 ```
 
 ---
-
-
 
 ## 18.6 t-SNE e duplicidade
 
@@ -1296,8 +1224,6 @@ famílias diferentes de textos duplicados
 
 ---
 
-
-
 # 19. Comparação PCA × UMAP × t-SNE
 
 Os três algoritmos recebem os mesmos vetores.
@@ -1325,26 +1251,20 @@ Apenas a forma de projeção mudou.
 
 ---
 
-
-
 ## 19.1 Comparação conceitual
 
-
-| Característica           | PCA                | UMAP                       | t-SNE            |
-| ------------------------ | ------------------ | -------------------------- | ---------------- |
-| Tipo                     | Linear             | Não linear                 | Não linear       |
-| Estrutura local          | Média              | Alta                       | Muito alta       |
-| Estrutura global         | Boa                | Razoavelmente boa          | Baixa            |
-| Outliers                 | Muito útil         | Útil                       | Menos direto     |
-| Clusters locais          | Moderado           | Muito bom                  | Excelente        |
-| Distância entre clusters | Mais interpretável | Parcialmente interpretável | Pouco confiável  |
-| Velocidade               | Geralmente maior   | Intermediária              | Geralmente menor |
-| Uso principal            | Baseline           | Exploração                 | Vizinhança local |
-
+| Característica | PCA | UMAP | t-SNE |
+|---|---|---|---|
+| Tipo | Linear | Não linear | Não linear |
+| Estrutura local | Média | Alta | Muito alta |
+| Estrutura global | Boa | Razoavelmente boa | Baixa |
+| Outliers | Muito útil | Útil | Menos direto |
+| Clusters locais | Moderado | Muito bom | Excelente |
+| Distância entre clusters | Mais interpretável | Parcialmente interpretável | Pouco confiável |
+| Velocidade | Geralmente maior | Intermediária | Geralmente menor |
+| Uso principal | Baseline | Exploração | Vizinhança local |
 
 ---
-
-
 
 ## 19.2 Exemplo com a mesma collection
 
@@ -1356,8 +1276,6 @@ B = pessoal e encargos
 C = manufatura aditiva
 D = propriedade intelectual
 ```
-
-
 
 ### PCA pode mostrar
 
@@ -1378,8 +1296,6 @@ existem grandes direções de separação
 ```
 
 ---
-
-
 
 ### UMAP pode mostrar
 
@@ -1402,8 +1318,6 @@ D está relativamente isolado
 ```
 
 ---
-
-
 
 ### t-SNE pode mostrar
 
@@ -1435,11 +1349,7 @@ como se fossem distâncias reais do embedding.
 
 ---
 
-
-
 ## 19.3 O que procurar nos três gráficos
-
-
 
 ### 1. Cluster consistente
 
@@ -1454,8 +1364,6 @@ t-SNE
 isso é uma evidência visual forte de que existe alguma estrutura real associada àquele grupo.
 
 ---
-
-
 
 ### 2. Cluster apenas no t-SNE
 
@@ -1472,8 +1380,6 @@ não conclua imediatamente que existe uma classe extremamente bem definida.
 Pode ser efeito da ênfase do t-SNE sobre estrutura local.
 
 ---
-
-
 
 ### 3. Outlier consistente
 
@@ -1500,8 +1406,6 @@ Pode ser:
 
 ---
 
-
-
 ### 4. Grupos sobrepostos
 
 Se duas categorias possuem cores diferentes mas aparecem misturadas:
@@ -1521,8 +1425,6 @@ isso pode significar:
 - o critério de classificação é lexical e não semântico.
 
 ---
-
-
 
 ## 19.4 Procedimento recomendado para sua análise
 
@@ -1551,8 +1453,6 @@ Há concentração excessiva?
 
 ---
 
-
-
 ### Passo 2 — UMAP
 
 ```json
@@ -1576,8 +1476,6 @@ Existem transições entre assuntos?
 
 ---
 
-
-
 ### Passo 3 — t-SNE
 
 ```json
@@ -1600,8 +1498,6 @@ Os grupos conhecidos possuem coerência local?
 ```
 
 ---
-
-
 
 ### Passo 4 — Inspecionar Points
 
@@ -1630,8 +1526,6 @@ O gráfico mostra uma hipótese.
 O conteúdo do Point ajuda a explicar por que o cluster existe.
 
 ---
-
-
 
 ## 19.5 Regra prática
 
@@ -1674,7 +1568,7 @@ nDCG
 e por um conjunto de consultas com resultados relevantes conhecidos.
 
 Documentação oficial da Web UI:  
-[https://qdrant.tech/documentation/web-ui/](https://qdrant.tech/documentation/web-ui/)
+https://qdrant.tech/documentation/web-ui/
 
 # 20. Sparse não pode ser visualizado na Web UI
 
@@ -1702,11 +1596,9 @@ sparse -> avaliação de recuperação/ranking
 ```
 
 Documentação oficial sobre sparse vectors:  
-[https://qdrant.tech/documentation/concepts/vectors/](https://qdrant.tech/documentation/concepts/vectors/)
+https://qdrant.tech/documentation/concepts/vectors/
 
 ---
-
-
 
 # 21. Busca somente no vetor Dense
 
@@ -1730,11 +1622,9 @@ POST /collections/d542304d-09e6-409f-93e0-e0a1f5f2b51e/points/query
 O vetor da query deve ter a dimensão definida para o named vector `dense`.
 
 Documentação oficial:  
-[https://api.qdrant.tech/api-reference/search/query-points](https://api.qdrant.tech/api-reference/search/query-points)
+https://api.qdrant.tech/api-reference/search/query-points
 
 ---
-
-
 
 # 22. Busca somente no vetor Sparse
 
@@ -1765,8 +1655,6 @@ POST /collections/d542304d-09e6-409f-93e0-e0a1f5f2b51e/points/query
 O sparse vector da consulta deve ser produzido pelo mesmo modelo/processo usado na indexação.
 
 ---
-
-
 
 # 23. Hybrid Search — Dense + Sparse
 
@@ -1830,11 +1718,9 @@ query
 ```
 
 Documentação oficial:  
-[https://qdrant.tech/documentation/concepts/hybrid-queries/](https://qdrant.tech/documentation/concepts/hybrid-queries/)
+https://qdrant.tech/documentation/concepts/hybrid-queries/
 
 ---
-
-
 
 # 24. Aplicar filtro junto à busca
 
@@ -1865,8 +1751,6 @@ Exemplo: pesquisar somente documentos públicos.
 
 ---
 
-
-
 # 25. Filtrar por `document_id`
 
 ```json
@@ -1887,8 +1771,6 @@ Exemplo: pesquisar somente documentos públicos.
 É útil para restringir análises ou buscas a um documento específico.
 
 ---
-
-
 
 # 26. Filtrar por campo dentro de `metadata`
 
@@ -1919,11 +1801,7 @@ metadata.chunking_strategy
 
 ---
 
-
-
 # 27. Estratégia sugerida para análise de uma collection
-
-
 
 ## Etapa 1 — Inventário
 
@@ -1946,8 +1824,6 @@ quantização
 
 ---
 
-
-
 ## Etapa 2 — Qualidade dos chunks
 
 Analisar payloads como:
@@ -1969,8 +1845,6 @@ Verificar:
 - cabeçalhos e rodapés repetidos.
 
 ---
-
-
 
 ## Etapa 3 — Visualização Dense
 
@@ -2001,8 +1875,6 @@ Executar:
 ```
 
 ---
-
-
 
 ## Etapa 4 — Criar grupos conhecidos
 
@@ -2038,8 +1910,6 @@ Os chunks pertencentes ao mesmo assunto ocupam regiões próximas no espaço vet
 
 ---
 
-
-
 # 28. Análise quantitativa — Dense × Sparse × Hybrid
 
 A visualização não deve ser usada isoladamente para determinar a qualidade de um RAG.
@@ -2074,8 +1944,6 @@ Hybrid
 
 ---
 
-
-
 # 29. Métricas recomendadas — Recall@K e MRR
 
 Para avaliar a qualidade da recuperação no Qdrant, a visualização por PCA, UMAP ou t-SNE é útil para exploração, mas não responde objetivamente à pergunta:
@@ -2090,11 +1958,9 @@ A documentação oficial do Qdrant recomenda essa abordagem para avaliação de 
 
 Referência oficial:
 
-[https://qdrant.tech/documentation/improve-search/retrieval-relevance/](https://qdrant.tech/documentation/improve-search/retrieval-relevance/)
+https://qdrant.tech/documentation/improve-search/retrieval-relevance/
 
 ---
-
-
 
 ## 29.1 Conceito de Golden Set
 
@@ -2148,8 +2014,6 @@ Para RAG baseado em chunks, normalmente é mais preciso avaliar por Point ou `do
 
 ---
 
-
-
 # 29.2 Recall@K
 
 Recall@K responde:
@@ -2166,8 +2030,6 @@ quantidade total de resultados relevantes conhecidos
 ```
 
 ---
-
-
 
 ## 29.3 Exemplo simples de Recall@5
 
@@ -2226,8 +2088,6 @@ Isso significa:
 
 ---
 
-
-
 ## 29.4 Exemplo de Recall@10
 
 Se os resultados forem:
@@ -2258,8 +2118,6 @@ Recall@10 = 3 / 3
 Nesse caso, todos os resultados relevantes foram recuperados dentro do Top 10.
 
 ---
-
-
 
 ## 29.5 Por que Recall@K é especialmente importante para RAG
 
@@ -2306,8 +2164,6 @@ se sua aplicação envia somente 5 chunks ao LLM.
 
 ---
 
-
-
 # 29.6 MRR — Mean Reciprocal Rank
 
 MRR significa:
@@ -2348,8 +2204,6 @@ MRR = média dos RR de todas as consultas
 ```
 
 ---
-
-
 
 ## 29.7 Exemplos de Reciprocal Rank
 
@@ -2392,8 +2246,6 @@ Quanto mais próximo de `1`, melhor.
 
 ---
 
-
-
 ## 29.8 Exemplo completo de MRR
 
 Considere três consultas:
@@ -2417,8 +2269,6 @@ RR1 = 1 / 1
     = 1,00
 ```
 
-
-
 ### Consulta Q2
 
 ```text
@@ -2437,8 +2287,6 @@ Logo:
 RR2 = 1 / 2
     = 0,50
 ```
-
-
 
 ### Consulta Q3
 
@@ -2476,8 +2324,6 @@ MRR = 0,5833
 ```
 
 ---
-
-
 
 # 29.9 Recall@K e MRR medem coisas diferentes
 
@@ -2535,8 +2381,6 @@ MRR ganha importância
 ```
 
 ---
-
-
 
 # 29.10 Executando uma consulta Dense no Qdrant
 
@@ -2610,11 +2454,9 @@ ordem dos IDs retornados
 
 Documentação oficial:
 
-[https://api.qdrant.tech/api-reference/search/query-points](https://api.qdrant.tech/api-reference/search/query-points)
+https://api.qdrant.tech/api-reference/search/query-points
 
 ---
-
-
 
 # 29.11 Executando uma consulta Sparse
 
@@ -2668,8 +2510,6 @@ MRR Sparse
 e comparar as estratégias.
 
 ---
-
-
 
 # 29.12 Executando Hybrid Search
 
@@ -2740,11 +2580,9 @@ O RRF combina posições de ranking dos diferentes retrievers.
 
 Documentação oficial:
 
-[https://qdrant.tech/documentation/search/hybrid-queries/](https://qdrant.tech/documentation/search/hybrid-queries/)
+https://qdrant.tech/documentation/search/hybrid-queries/
 
 ---
-
-
 
 # 29.13 Golden Set baseado em Point ID
 
@@ -2773,8 +2611,6 @@ Exemplo de arquivo:
 Essa abordagem é precisa quando sua unidade de recuperação é um chunk.
 
 ---
-
-
 
 # 29.14 Golden Set baseado em documento
 
@@ -2807,8 +2643,6 @@ Então qualquer Point retornado com:
 Essa decisão deve refletir a arquitetura real do RAG.
 
 ---
-
-
 
 # 29.15 Função Python simples para Recall@K
 
@@ -2854,8 +2688,6 @@ encontrados no Top 5 = A, B
 
 ---
 
-
-
 # 29.16 Função Python para Reciprocal Rank
 
 ```python
@@ -2892,8 +2724,6 @@ porque `A` apareceu na posição 2:
 ```
 
 ---
-
-
 
 # 29.17 Função Python para MRR
 
@@ -2953,8 +2783,6 @@ MRR = (1 + 0,5 + 0,25) / 3
 
 ---
 
-
-
 # 29.18 Exemplo completo com Qdrant Client
 
 O exemplo abaixo pressupõe que os embeddings da consulta já foram gerados pelo mesmo modelo usado na ingestão.
@@ -3001,8 +2829,6 @@ print(ids)
 ```
 
 ---
-
-
 
 # 29.19 Avaliando uma consulta individual
 
@@ -3055,8 +2881,6 @@ O primeiro resultado correto estava na posição 2.
 ```
 
 ---
-
-
 
 # 29.20 Avaliando várias consultas
 
@@ -3144,8 +2968,6 @@ print("MRR       :", mrr)
 
 ---
 
-
-
 # 29.21 Exemplo de relatório por consulta
 
 Uma saída útil para análise pode ser:
@@ -3180,8 +3002,6 @@ relativamente abaixo da primeira posição.
 
 ---
 
-
-
 # 29.22 Comparando Dense × Sparse × Hybrid
 
 O estudo fica mais útil quando a mesma golden set é executada contra três estratégias.
@@ -3206,13 +3026,11 @@ Hybrid Dense + Sparse
 
 Exemplo de resultado:
 
-
-| Estratégia | Recall@5 | Recall@10 | MRR  |
-| ---------- | -------- | --------- | ---- |
-| Dense      | 0,78     | 0,88      | 0,61 |
-| Sparse     | 0,71     | 0,82      | 0,69 |
-| Hybrid RRF | 0,89     | 0,95      | 0,77 |
-
+| Estratégia | Recall@5 | Recall@10 | MRR |
+|---|---:|---:|---:|
+| Dense | 0,78 | 0,88 | 0,61 |
+| Sparse | 0,71 | 0,82 | 0,69 |
+| Hybrid RRF | 0,89 | 0,95 | 0,77 |
 
 Os valores acima são apenas ilustrativos.
 
@@ -3230,8 +3048,6 @@ Hybrid
 ```
 
 ---
-
-
 
 # 29.23 Exemplo de função para comparar estratégias
 
@@ -3310,8 +3126,6 @@ hybrid_metrics = evaluate_strategy(
 
 ---
 
-
-
 # 29.24 Avaliação por `document_id` em vez de Point ID
 
 Em RAG, pode ser necessário considerar qualquer chunk de determinado documento como relevante.
@@ -3363,8 +3177,6 @@ recall_at_k(
 
 ---
 
-
-
 # 29.25 Cuidado com múltiplos chunks do mesmo documento
 
 Considere:
@@ -3408,8 +3220,6 @@ Isso é importante para não distorcer Recall@K por documento.
 
 ---
 
-
-
 # 29.26 Quando um resultado não é encontrado
 
 Se nenhum resultado relevante aparecer:
@@ -3435,8 +3245,6 @@ Recall@10 = 1 / 3
 ```
 
 ---
-
-
 
 # 29.27 Exemplo prático com seus documentos
 
@@ -3505,8 +3313,6 @@ Para essa consulta específica, Sparse e Hybrid posicionaram o resultado relevan
 
 ---
 
-
-
 # 29.28 Exemplo de consulta semântica
 
 Consulta:
@@ -3548,8 +3354,6 @@ RR       = 0,125
 Isso mostra por que avaliar diferentes tipos de consulta é importante.
 
 ---
-
-
 
 # 29.29 Separe o golden set por categoria
 
@@ -3597,8 +3401,6 @@ Isso mostra onde cada estratégia realmente funciona.
 
 ---
 
-
-
 # 29.30 Tamanho inicial recomendado para o estudo
 
 Para uma primeira avaliação manual:
@@ -3628,8 +3430,6 @@ consultas.
 Quanto maior e mais representativo o golden set, mais confiável será a comparação.
 
 ---
-
-
 
 # 29.31 Uso da biblioteca `ranx`
 
@@ -3697,11 +3497,9 @@ A documentação oficial do Qdrant recomenda esse tipo de fluxo para avaliação
 
 Referência:
 
-[https://qdrant.tech/documentation/improve-search/retrieval-relevance/](https://qdrant.tech/documentation/improve-search/retrieval-relevance/)
+https://qdrant.tech/documentation/improve-search/retrieval-relevance/
 
 ---
-
-
 
 # 29.32 O score do Qdrant não substitui Recall ou MRR
 
@@ -3728,8 +3526,6 @@ relevância humana
 É o golden set que fornece a referência externa necessária para medir qualidade.
 
 ---
-
-
 
 # 29.33 Score threshold também deve ser avaliado
 
@@ -3768,8 +3564,6 @@ Threshold muito alto pode eliminar resultados relevantes.
 Threshold muito baixo pode aceitar excesso de ruído.
 
 ---
-
-
 
 # 29.34 Procedimento recomendado para comparar configurações
 
@@ -3830,30 +3624,24 @@ porque ficará difícil identificar o motivo da melhoria ou piora.
 
 ---
 
-
-
 # 29.35 Modelo de relatório final
 
 Um relatório objetivo pode conter:
 
-
-| Estratégia | Recall@5 | Recall@10 | MRR  |
-| ---------- | -------- | --------- | ---- |
-| Dense      | 0,78     | 0,88      | 0,61 |
-| Sparse     | 0,71     | 0,82      | 0,69 |
-| Hybrid RRF | 0,89     | 0,95      | 0,77 |
-
+| Estratégia | Recall@5 | Recall@10 | MRR |
+|---|---:|---:|---:|
+| Dense | 0,78 | 0,88 | 0,61 |
+| Sparse | 0,71 | 0,82 | 0,69 |
+| Hybrid RRF | 0,89 | 0,95 | 0,77 |
 
 E por categoria:
 
-
-| Categoria        | Dense R@10 | Sparse R@10 | Hybrid R@10 |
-| ---------------- | ---------- | ----------- | ----------- |
-| Semântica        | 0,94       | 0,61        | 0,97        |
-| Lexical          | 0,72       | 0,93        | 0,96        |
-| Códigos          | 0,58       | 0,98        | 0,98        |
-| Perguntas longas | 0,89       | 0,70        | 0,94        |
-
+| Categoria | Dense R@10 | Sparse R@10 | Hybrid R@10 |
+|---|---:|---:|---:|
+| Semântica | 0,94 | 0,61 | 0,97 |
+| Lexical | 0,72 | 0,93 | 0,96 |
+| Códigos | 0,58 | 0,98 | 0,98 |
+| Perguntas longas | 0,89 | 0,70 | 0,94 |
 
 Os números são ilustrativos.
 
@@ -3861,11 +3649,7 @@ Esse segundo quadro costuma ser mais útil que apenas uma média geral.
 
 ---
 
-
-
 # 30. Interpretação prática
-
-
 
 ## Recall@K alto + MRR alto
 
@@ -3884,8 +3668,6 @@ e normalmente aparecem cedo no ranking
 É um cenário muito bom.
 
 ---
-
-
 
 ## Recall@K alto + MRR baixo
 
@@ -3913,8 +3695,6 @@ melhor chunking
 
 ---
 
-
-
 ## Recall@K baixo + MRR alto
 
 Exemplo:
@@ -3929,8 +3709,6 @@ Pode ocorrer quando o primeiro resultado relevante aparece muito cedo, mas outro
 Isso é importante quando uma consulta possui múltiplos documentos corretos.
 
 ---
-
-
 
 ## Recall@K baixo + MRR baixo
 
@@ -3955,8 +3733,6 @@ golden set
 ```
 
 ---
-
-
 
 # 30.1 Regra prática para RAG
 
@@ -3984,7 +3760,831 @@ A documentação oficial do Qdrant recomenda `Recall@K` para pipelines RAG porqu
 
 Referência oficial:
 
-[https://qdrant.tech/documentation/improve-search/retrieval-relevance/](https://qdrant.tech/documentation/improve-search/retrieval-relevance/)
+https://qdrant.tech/documentation/improve-search/retrieval-relevance/
+
+# 30.2 Comparação visual entre duas collections
+
+A Web UI do Qdrant não projeta nativamente Points de duas collections diferentes no mesmo gráfico PCA, UMAP ou t-SNE.
+
+Para comparar duas collections visualmente, a abordagem mais prática é criar uma **collection temporária de estudo**, copiar uma amostra das duas collections e adicionar um campo de payload indicando a origem de cada Point.
+
+Essa estratégia é segura porque:
+
+```text
+não altera as collections originais
+não recalcula embeddings
+não modifica os payloads originais
+não exige reindexação das collections de produção
+```
+
+A comparação passa a ser feita em uma terceira collection criada especificamente para análise.
+
+Documentação oficial:
+
+https://qdrant.tech/documentation/concepts/collections/
+
+---
+
+## 30.2.1 Pré-requisito mais importante
+
+Só combine diretamente os vetores de duas collections se eles pertencem ao **mesmo espaço vetorial**.
+
+Na prática, isso significa que eles devem ter sido produzidos pelo mesmo modelo de embedding e possuir configuração compatível.
+
+Exemplo válido:
+
+```text
+Collection A
+dense size = 1536
+modelo = embedding-X
+distance = Cosine
+
+Collection B
+dense size = 1536
+modelo = embedding-X
+distance = Cosine
+```
+
+Nesse caso, os vetores podem ser colocados na mesma collection de estudo.
+
+Exemplo que exige cautela:
+
+```text
+Collection A
+dense size = 1536
+modelo = embedding-X
+
+Collection B
+dense size = 1536
+modelo = embedding-Y
+```
+
+Mesmo com a mesma dimensão, os espaços vetoriais podem não ser comparáveis.
+
+Portanto:
+
+```text
+mesma dimensão != mesmo espaço vetorial
+```
+
+Exemplo incompatível:
+
+```text
+Collection A
+dense size = 1536
+
+Collection B
+dense size = 3072
+```
+
+Esses vetores não podem ser simplesmente combinados na mesma configuração de vetor dense.
+
+A configuração de uma collection define propriedades como:
+
+```text
+vector size
+distance
+named vectors
+sparse vectors
+```
+
+Documentação oficial:
+
+https://qdrant.tech/documentation/concepts/collections/
+
+---
+
+## 30.2.2 Criar uma collection temporária de comparação
+
+Exemplo:
+
+```http
+PUT /collections/vector_comparison
+```
+
+```json
+{
+  "vectors": {
+    "dense": {
+      "size": 1536,
+      "distance": "Cosine"
+    }
+  }
+}
+```
+
+Substitua:
+
+```text
+1536
+Cosine
+```
+
+pelas configurações reais das collections que serão comparadas.
+
+Documentação oficial:
+
+https://api.qdrant.tech/api-reference/collections/create-collection
+
+---
+
+## 30.2.3 Adicionar identificação de origem
+
+Ao copiar os Points da primeira collection, acrescente ao payload:
+
+```json
+{
+  "source_collection": "collection_A"
+}
+```
+
+Ao copiar os Points da segunda:
+
+```json
+{
+  "source_collection": "collection_B"
+}
+```
+
+Um Point na collection de estudo pode ficar assim:
+
+```json
+{
+  "id": "novo-ou-mesmo-id",
+  "vector": {
+    "dense": [
+      0.012,
+      -0.081,
+      0.034
+    ]
+  },
+  "payload": {
+    "source_collection": "collection_A",
+    "document_id": "f5e78b42-af0c-4548-978d-8262cb54de92",
+    "chunk_index": 4,
+    "content": "Texto do chunk...",
+    "metadata": {
+      "filename": "documento.pdf"
+    }
+  }
+}
+```
+
+O campo:
+
+```text
+source_collection
+```
+
+será usado apenas para colorir a visualização.
+
+---
+
+## 30.2.4 Comparação por UMAP
+
+Para esse tipo de análise, UMAP é normalmente a visualização mais útil.
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "UMAP",
+  "using": "dense",
+  "color_by": {
+    "payload": "source_collection"
+  }
+}
+```
+
+Conceitualmente:
+
+```text
+● = Collection A
+■ = Collection B
+```
+
+Se a visualização mostrar:
+
+```text
+● ■ ● ■ ●
+■ ● ■ ● ■
+● ■ ● ■ ●
+```
+
+isso sugere forte sobreposição entre as duas populações vetoriais.
+
+Uma possível interpretação:
+
+```text
+as duas collections possuem conteúdo semanticamente semelhante
+```
+
+Se mostrar:
+
+```text
+● ● ● ● ● ●
+
+
+
+                       ■ ■ ■ ■ ■ ■
+```
+
+isso sugere forte separação entre as duas collections.
+
+Uma possível interpretação:
+
+```text
+as collections representam domínios semânticos diferentes
+```
+
+---
+
+## 30.2.5 Comparação por PCA
+
+Use:
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "PCA",
+  "using": "dense",
+  "color_by": {
+    "payload": "source_collection"
+  }
+}
+```
+
+O PCA é especialmente útil para comparar:
+
+```text
+distribuição global
+amplitude dos vetores
+outliers
+grandes tendências
+separação macro entre collections
+```
+
+Perguntas úteis:
+
+```text
+Uma collection ocupa uma região muito maior?
+
+Uma collection possui mais outliers?
+
+Existe uma direção principal que separa A de B?
+
+As duas distribuições possuem formato semelhante?
+```
+
+---
+
+## 30.2.6 Comparação por t-SNE
+
+Use:
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "TSNE",
+  "using": "dense",
+  "color_by": {
+    "payload": "source_collection"
+  }
+}
+```
+
+O t-SNE é útil para observar:
+
+```text
+subgrupos locais
+famílias de chunks
+clusters pequenos
+vizinhanças muito próximas
+```
+
+Porém, evite interpretar diretamente a distância entre clusters.
+
+Exemplo:
+
+```text
+● ● ●          ■ ■ ■
+
+
+        ● ■ ● ■
+
+
+                         ■ ■ ■
+```
+
+O importante é analisar:
+
+```text
+se os clusters são mistos
+ou
+se cada cluster pertence quase exclusivamente a uma collection
+```
+
+---
+
+## 30.2.7 Comparação por assunto e não apenas por collection
+
+É possível adicionar mais de um campo experimental.
+
+Exemplo:
+
+```json
+{
+  "source_collection": "collection_A",
+  "study_group": "duplicidade"
+}
+```
+
+e:
+
+```json
+{
+  "source_collection": "collection_B",
+  "study_group": "duplicidade"
+}
+```
+
+Primeiro visualize por origem:
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "UMAP",
+  "using": "dense",
+  "color_by": {
+    "payload": "source_collection"
+  }
+}
+```
+
+Pergunta:
+
+```text
+As duas collections ocupam o mesmo espaço semântico?
+```
+
+Depois visualize pelos grupos de negócio:
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "UMAP",
+  "using": "dense",
+  "color_by": {
+    "payload": "study_group"
+  }
+}
+```
+
+Pergunta:
+
+```text
+Os mesmos temas aparecem nas mesmas regiões,
+independentemente da collection de origem?
+```
+
+---
+
+## 30.2.8 Exemplo de comparação de estratégias de chunking
+
+Essa técnica é muito útil para comparar duas collections criadas a partir do mesmo corpus com configurações diferentes.
+
+Exemplo:
+
+```text
+Collection A
+chunk_size = 800
+chunk_overlap = 200
+
+Collection B
+chunk_size = 1200
+chunk_overlap = 200
+```
+
+Na collection temporária:
+
+```json
+{
+  "experiment": "chunk_800"
+}
+```
+
+ou:
+
+```json
+{
+  "experiment": "chunk_1200"
+}
+```
+
+Visualização:
+
+```json
+{
+  "limit": 2000,
+  "algorithm": "UMAP",
+  "using": "dense",
+  "color_by": {
+    "payload": "experiment"
+  }
+}
+```
+
+Isso permite investigar se uma estratégia produz:
+
+```text
+clusters mais compactos
+maior dispersão
+mais outliers
+maior sobreposição temática
+```
+
+---
+
+## 30.2.9 Exemplo de comparação de modelos de embedding
+
+Se duas collections foram produzidas por modelos diferentes, não é recomendável simplesmente misturar os vetores no mesmo UMAP.
+
+Exemplo:
+
+```text
+Collection A
+modelo embedding A
+
+Collection B
+modelo embedding B
+```
+
+Mesmo que ambos tenham:
+
+```text
+1536 dimensões
+```
+
+eles podem representar espaços matematicamente distintos.
+
+Nesse cenário, prefira:
+
+```text
+Collection A
+   |
+   v
+UMAP A
+
+Collection B
+   |
+   v
+UMAP B
+```
+
+mantendo constantes:
+
+```text
+mesmo corpus
+mesma amostra
+mesmos grupos
+mesmo limite
+mesmo critério de seleção
+```
+
+Depois compare quantitativamente:
+
+```text
+Recall@5
+Recall@10
+MRR
+nDCG@10
+```
+
+A avaliação de recuperação é mais confiável que a comparação puramente visual entre espaços produzidos por modelos diferentes.
+
+---
+
+## 30.2.10 Como copiar uma amostra com `qdrant-client`
+
+Uma forma prática é usar `scroll` para ler Points de cada collection e inseri-los em uma collection temporária.
+
+Exemplo conceitual:
+
+```python
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct
+
+client = QdrantClient(
+    url="http://localhost:6333"
+)
+
+SOURCE_A = "collection_A"
+SOURCE_B = "collection_B"
+TARGET = "vector_comparison"
+```
+
+Função para copiar Points:
+
+```python
+def copy_points(
+    source_collection,
+    source_label,
+    target_collection,
+    limit=1000
+):
+    points, _ = client.scroll(
+        collection_name=source_collection,
+        limit=limit,
+        with_vectors=True,
+        with_payload=True
+    )
+
+    new_points = []
+
+    for point in points:
+        payload = dict(point.payload or {})
+
+        payload["source_collection"] = source_label
+
+        new_points.append(
+            PointStruct(
+                id=point.id,
+                vector=point.vector,
+                payload=payload
+            )
+        )
+
+    client.upsert(
+        collection_name=target_collection,
+        points=new_points
+    )
+```
+
+Uso:
+
+```python
+copy_points(
+    SOURCE_A,
+    "collection_A",
+    TARGET,
+    limit=1000
+)
+
+copy_points(
+    SOURCE_B,
+    "collection_B",
+    TARGET,
+    limit=1000
+)
+```
+
+> Se os IDs se repetirem entre as duas collections, gere novos IDs antes do `upsert`, caso contrário um Point poderá sobrescrever outro.
+
+Documentação oficial do scroll:
+
+https://api.qdrant.tech/api-reference/points/scroll-points
+
+Documentação oficial do upsert:
+
+https://api.qdrant.tech/api-reference/points/upsert-points
+
+---
+
+## 30.2.11 Evitar colisão de IDs
+
+Duas collections podem conter o mesmo UUID.
+
+Exemplo:
+
+```text
+Collection A
+Point ID = abc-123
+
+Collection B
+Point ID = abc-123
+```
+
+Ao inseri-los em uma única collection:
+
+```text
+abc-123
+```
+
+só pode existir uma vez.
+
+Uma abordagem é gerar novos IDs.
+
+Exemplo:
+
+```python
+import uuid
+
+new_id = str(uuid.uuid4())
+```
+
+E guardar o ID original:
+
+```python
+payload["original_point_id"] = str(point.id)
+```
+
+Além da origem:
+
+```python
+payload["source_collection"] = source_label
+```
+
+Assim:
+
+```json
+{
+  "source_collection": "collection_A",
+  "original_point_id": "abc-123"
+}
+```
+
+---
+
+## 30.2.12 Amostragem justa
+
+Não compare:
+
+```text
+100 Points da Collection A
+```
+
+contra:
+
+```text
+10.000 Points da Collection B
+```
+
+porque a visualização pode ficar fortemente influenciada pela diferença de tamanho.
+
+Prefira:
+
+```text
+1000 Points de A
+1000 Points de B
+```
+
+ou, melhor ainda:
+
+```text
+mesmos documentos
+mesmos grupos
+mesma quantidade por grupo
+```
+
+Exemplo:
+
+```text
+duplicidade:
+100 de A
+100 de B
+
+manufatura aditiva:
+100 de A
+100 de B
+
+prestação de contas:
+100 de A
+100 de B
+```
+
+Isso reduz viés na interpretação visual.
+
+---
+
+## 30.2.13 O que procurar no gráfico
+
+### Forte mistura
+
+```text
+●■●■■●■●
+■●●■●■■●
+```
+
+Pode indicar:
+
+```text
+collections semanticamente semelhantes
+```
+
+---
+
+### Separação completa
+
+```text
+●●●●●●
+
+
+
+                       ■■■■■■
+```
+
+Pode indicar:
+
+```text
+domínios diferentes
+processamento diferente
+embedding diferente
+chunking muito diferente
+```
+
+---
+
+### Mesmos clusters, mas densidades diferentes
+
+```text
+●●●●●●
+●●●●●
+
+■■■
+■■
+```
+
+Pode indicar:
+
+```text
+mesma temática,
+mas uma das collections possui menor diversidade
+ou menor cobertura
+```
+
+---
+
+### Outliers exclusivos de uma collection
+
+```text
+●●●●■■■■
+
+                         ●
+```
+
+Vale inspecionar o Point isolado.
+
+Ele pode representar:
+
+```text
+erro de extração
+chunk anormal
+documento fora do domínio
+conteúdo muito diferente
+```
+
+---
+
+## 30.2.14 Fluxo recomendado
+
+```text
+Collection A
+     |
+     |
+     +------------------+
+                        |
+                        v
+                vector_comparison
+                        ^
+                        |
+     +------------------+
+     |
+Collection B
+
+
+vector_comparison
+       |
+       +--> source_collection
+       |
+       +--> study_group
+       |
+       v
+      PCA
+       |
+       v
+      UMAP
+       |
+       v
+     t-SNE
+       |
+       v
+inspeção de Points
+       |
+       v
+Recall@K / MRR
+```
+
+A visualização deve ser usada como ferramenta exploratória.
+
+A decisão sobre qual collection possui melhor qualidade de recuperação deve ser apoiada por métricas como:
+
+```text
+Recall@K
+MRR
+nDCG@K
+```
+
+e por um golden set comum às duas collections.
+
 
 # 31. Fluxo recomendado de estudo
 
@@ -4034,30 +4634,37 @@ Ajustes
 
 ---
 
-
-
 # 32. Referências oficiais do Qdrant
 
 - Collections:  
-[https://qdrant.tech/documentation/concepts/collections/](https://qdrant.tech/documentation/concepts/collections/)
-- Points:  
-[https://qdrant.tech/documentation/concepts/points/](https://qdrant.tech/documentation/concepts/points/)
-- Vectors:  
-[https://qdrant.tech/documentation/concepts/vectors/](https://qdrant.tech/documentation/concepts/vectors/)
-- Payload:  
-[https://qdrant.tech/documentation/concepts/payload/](https://qdrant.tech/documentation/concepts/payload/)
-- Filtering:  
-[https://qdrant.tech/documentation/concepts/filtering/](https://qdrant.tech/documentation/concepts/filtering/)
-- Text Search / Text Filtering:  
-[https://qdrant.tech/documentation/search/text-search/text-filtering/](https://qdrant.tech/documentation/search/text-search/text-filtering/)
-- Query API:  
-[https://api.qdrant.tech/api-reference/search/query-points](https://api.qdrant.tech/api-reference/search/query-points)
-- Hybrid Queries:  
-[https://qdrant.tech/documentation/concepts/hybrid-queries/](https://qdrant.tech/documentation/concepts/hybrid-queries/)
-- Web UI:  
-[https://qdrant.tech/documentation/web-ui/](https://qdrant.tech/documentation/web-ui/)
-- Set Payload:  
-[https://api.qdrant.tech/api-reference/points/set-payload](https://api.qdrant.tech/api-reference/points/set-payload)
-- Delete Payload:  
-[https://api.qdrant.tech/api-reference/points/delete-payload](https://api.qdrant.tech/api-reference/points/delete-payload)
+  https://qdrant.tech/documentation/concepts/collections/
 
+- Points:  
+  https://qdrant.tech/documentation/concepts/points/
+
+- Vectors:  
+  https://qdrant.tech/documentation/concepts/vectors/
+
+- Payload:  
+  https://qdrant.tech/documentation/concepts/payload/
+
+- Filtering:  
+  https://qdrant.tech/documentation/concepts/filtering/
+
+- Text Search / Text Filtering:  
+  https://qdrant.tech/documentation/search/text-search/text-filtering/
+
+- Query API:  
+  https://api.qdrant.tech/api-reference/search/query-points
+
+- Hybrid Queries:  
+  https://qdrant.tech/documentation/concepts/hybrid-queries/
+
+- Web UI:  
+  https://qdrant.tech/documentation/web-ui/
+
+- Set Payload:  
+  https://api.qdrant.tech/api-reference/points/set-payload
+
+- Delete Payload:  
+  https://api.qdrant.tech/api-reference/points/delete-payload

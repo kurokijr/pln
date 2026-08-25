@@ -1271,8 +1271,8 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 ## 📞 Suporte
 
 ### Documentação
-- 📖 **Pasta `docs/`**: [docs/CHANGELOG.md](docs/CHANGELOG.md), [docs/busca-hibrida.md](docs/busca-hibrida.md) e [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md)
 - 📖 **README**: instalação, arquitetura e troubleshooting
+- 📖 **QDRANT_manipulacao_analise_dados**: Manipulação de vetores no Qdrant ([qdrant_manipulacao_analise_dados.md](https://github.com/kurokijrceub/pln/blob/master/qdrant_manipulacao_analise_dados.md))
 
 ### Comunidade
 - 🐛 **Issues**: Reporte bugs e sugestões
