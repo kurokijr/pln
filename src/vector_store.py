@@ -995,6 +995,58 @@ class QdrantVectorStore:
         except Exception as e:
             print(f"❌ Erro ao listar documentos da collection '{collection_name}': {e}")
             raise e
+
+    def scroll_chunk_payloads(
+        self, collection_name: str, max_chunks: int = 2000
+    ) -> List[Dict[str, Any]]:
+        """Lê payloads de chunks sem vetores e sem alterar a collection."""
+        self._ensure_connection()
+        chunks: List[Dict[str, Any]] = []
+        next_offset = None
+        batch_size = 64
+        limit = max(1, int(max_chunks))
+
+        while len(chunks) < limit:
+            points, next_offset = self.client.scroll(
+                collection_name=collection_name,
+                limit=min(batch_size, limit - len(chunks)),
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for point in points:
+                if point.id == 0:
+                    continue
+                payload = point.payload or {}
+                metadata = payload.get("metadata")
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                text = (
+                    payload.get("content")
+                    or payload.get("pageContent")
+                    or payload.get("text")
+                    or ""
+                )
+                if not str(text).strip():
+                    continue
+                file_name = (
+                    payload.get("file_name_safe")
+                    or payload.get("file_name")
+                    or metadata.get("filename")
+                    or ""
+                )
+                chunks.append(
+                    {
+                        "point_id": str(point.id),
+                        "content": str(text),
+                        "document_id": payload.get("document_id"),
+                        "chunk_index": payload.get("chunk_index", 0),
+                        "file_name": str(file_name),
+                    }
+                )
+            if next_offset is None or not points:
+                break
+        return chunks
     
     def delete_collection(self, collection_name: str) -> bool:
         """Deleta uma collection e todos os seus arquivos associados do MinIO."""

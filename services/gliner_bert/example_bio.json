@@ -1,0 +1,17 @@
+{
+  "label_map": {
+    "ORGANIZACAO": "organização",
+    "PESSOA": "pessoa",
+    "MATERIAL": "material"
+  },
+  "sentences": [
+    {
+      "tokens": ["O", "Tribunal", "de", "Contas", "analisou", "a", "extrusão"],
+      "ner_tags": ["O", "B-ORGANIZACAO", "I-ORGANIZACAO", "I-ORGANIZACAO", "O", "O", "B-MATERIAL"]
+    },
+    {
+      "tokens": ["Maria", "Silva", "apresentou", "o", "parecer"],
+      "ner_tags": ["B-PESSOA", "I-PESSOA", "O", "O", "O"]
+    }
+  ]
+}

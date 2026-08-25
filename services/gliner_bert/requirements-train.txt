@@ -1,0 +1,2 @@
+accelerate>=0.27
+gliner[training]>=0.2.8,<1

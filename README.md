@@ -49,6 +49,7 @@ O RAG-Demo é uma plataforma voltada para alunos da disciplina de **Processament
 - **Automation**: n8n para workflows e orquestração avançada
 - **LLMs**: OpenAI GPT-4o-mini e Google Gemini para processamento
 - **Containers**: Docker Compose para orquestração completa
+- **GLiNER/BERTimbau** (opcional): container `gliner-bert` com PyTorch CPU (`GLINER_BERT=true`)
 
 ## 🚀 Instalação e Configuração
 
@@ -74,7 +75,7 @@ Guia pensado para alunos **sem experiência prévia com Docker**. Siga os passos
 | Docker Desktop | Com integração WSL2 |
 | Conta OpenAI + API Key | Obrigatória para embeddings/chat |
 | Git | Instalado no Ubuntu (passo 2) |
-| ~8 GB RAM livres | Recomendado para subir todos os serviços |
+| ~8 GB RAM livres | Recomendado para os serviços padrão; +~4 GB se `GLINER_BERT=true` |
 
 Alunos em **macOS** ou **Linux nativo**: instale [Docker Desktop](https://docs.docker.com/get-docker/) (ou Docker Engine + Compose), pule os passos de WSL e comece em [Passo 4](#passo-4--obter-a-chave-da-openai).
 
@@ -436,13 +437,17 @@ python scripts/test_session_system.py
 - **Preview dinâmico**: Visualização formatada e edição Markdown
 - **Vetorização opcional**: Inserção das Q&As como embeddings
 
-### 4. 💬 Chat RAG Inteligente
+### 4. 🔍 Recuperação (densa, léxica e híbrida)
 
-- **Múltiplas sessões**: Conversas independentes com histórico
-- **Busca por similaridade**: ranking de chunks por cosseno no Qdrant ([docs/busca-por-similaridade.md](docs/busca-por-similaridade.md))
-- **Busca semântica**: Recuperação de contexto relevante
-- **Respostas contextualizadas**: Baseadas em documentos específicos
-- **Interface moderna**: Design conversacional com typing indicators
+- **Busca Semântica**: ranking de chunks por cosseno (vetor denso) no Qdrant ([docs/busca-por-similaridade.md](docs/busca-por-similaridade.md))
+- **Busca Lexical**: ranking BM25 (vetor esparso)
+- **Busca Híbrida**: densa + léxica fundidas com RRF ([docs/busca-hibrida.md](docs/busca-hibrida.md))
+- **Entidades (estudo)**: TF-IDF + NER para rascunho de golden set ([docs/entidades-tfidf-ner.md](docs/entidades-tfidf-ner.md))
+- **Entidades (GLiNER)**: BERTimbau + GLiNER em container opcional (sem torch no rag-demo) ([docs/gliner-bertimbau.md](docs/gliner-bertimbau.md), [gliner_treino_uso.md](gliner_treino_uso.md))
+- **Treinar GLiNER**: JSON BIO na UI; treino CPU ou GPU; checkpoint para os alunos
+- **Chat Multi-Agente**: respostas de LLM com contexto recuperado
+- **Múltiplas sessões**: conversas independentes com histórico no PostgreSQL
+- **Interface moderna**: listagem de trechos com score (cosseno, BM25 ou RRF)
 
 ### 5. 📊 Métricas e Analytics
 
@@ -480,8 +485,17 @@ POST   /api/vectorize-qa             # Vetorizar Q&As geradas
 POST   /api/create-qa-embeddings     # Criar embeddings de Q&A
 ```
 
-### Chat
+### Chat e busca
 ```http
+POST   /api/search                   # dense | lexical | hybrid (RRF)
+POST   /api/entity-study             # TF-IDF + NER spaCy (rascunho de golden set)
+POST   /api/entity-study/export      # Download JSON do rascunho
+GET    /api/gliner-bert/status       # Saúde do container Torch (503 se desligado)
+GET    /api/gliner-models            # Hub + checkpoints em disco
+POST   /api/gliner-reload            # Troca o GLiNER em memória (sem restart)
+POST   /api/gliner-study             # TF-IDF + NER GLiNER/BERTimbau (proxy HTTP)
+POST   /api/gliner-train             # Upload JSON BIO → treino CPU/GPU (job)
+GET    /api/gliner-train/status      # Progresso do treino
 POST   /api/chat                     # Processar mensagem
 GET    /api/sessions                 # Listar sessões
 POST   /api/sessions                 # Criar sessão
@@ -513,7 +527,13 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📄 storage.py              # Gerenciamento MinIO
 │   ├── 📄 chat_rag_service.py     # Serviço de chat RAG
 │   ├── 📄 semantic_search_service.py # Serviço de busca semântica
-│   └── 📄 vector_store.py         # Qdrant + busca por similaridade
+│   ├── 📄 sparse_encoder.py       # Tokenização BM25 / vetor esparso
+│   ├── 📄 ner_backends.py         # NER spaCy + regex PT (gancho GLiNER na tela spaCy)
+│   ├── 📄 entity_study_service.py # Fusão TF-IDF + NER (golden set)
+│   ├── 📄 gliner_bert_client.py   # Cliente HTTP do container Torch (sem torch)
+│   └── 📄 vector_store.py         # Qdrant: denso, léxico e híbrido (RRF)
+├── 📁 services/
+│   └── 📁 gliner_bert/            # FastAPI: inferência + treino BIO (profile gliner / gliner-train)
 ├── 📁 templates/                   # Templates HTML
 │   └── 📄 index.html              # Interface principal (SPA)
 ├── 📁 static/                      # Assets estáticos
@@ -524,15 +544,20 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📁 minio/                  # Arquivos no MinIO
 │   ├── 📁 postgres/               # Dados do PostgreSQL
 │   ├── 📁 qdrant/                 # Vetores no Qdrant
+│   ├── 📁 huggingface/            # Cache dos modelos GLiNER/BERTimbau
+│   ├── 📁 gliner-checkpoints/     # Checkpoints treinados (JSON BIO)
 │   └── 📁 n8n/                    # Workflows n8n
 ├── 📁 config/                      # Configurações auxiliares
 │   └── 📁 pgadmin/                # servers.json do pgAdmin
 ├── 📁 docs/                        # Documentação do sistema
+├── 📁 tests/                       # Testes unitários
 ├── 📄 app.py                       # Aplicação Flask principal
 ├── 📄 docker-compose.yml           # Configuração containers
 ├── 📄 requirements.txt             # Dependências Python
 ├── 📄 setup.sh                     # Script de instalação
-└── 📄 env.example                  # Template de configuração
+├── 📄 env.example                  # Template de configuração
+├── 📄 qdrant_manipulacao_analise_dados.md  # Guia Qdrant (aula)
+└── 📄 gliner_treino_uso.md         # Guia GLiNER: treino BIO e inferência
 ```
 
 ## 🔄 Fluxos de Dados
@@ -552,9 +577,34 @@ Pergunta → Embedding → Busca Qdrant → Contexto → LLM → Resposta → Po
 Documento → Chunking → LLM Generate → Q&A Pairs → Vetorização → Qdrant
 ```
 
-### 4. 🔍 Busca Semântica
+### 4. 🔍 Busca Semântica (densa)
 ```
-Query → Embedding → Similarity Search → Ranking → Results
+Query → Embedding → Cosseno no Qdrant → Ranking
+```
+
+### 4b. 🔤 Busca Lexical (esparsa)
+```
+Query → BM25 esparso → Ranking léxico no Qdrant
+```
+
+### 4c. 🔀 Busca Híbrida
+```
+Query → (densa ∥ léxica) → RRF → Ranking final
+```
+
+### 4d. 🏷️ Entidades (estudo)
+```
+Collection → chunks (payload) → TF-IDF ∥ NER spaCy ∥ regex → rascunho de golden set
+```
+
+### 4e. 🏷️ Entidades (GLiNER)
+```
+Collection → chunks → Flask (sem torch) → gliner-bert (BERTimbau + GLiNER) → rascunho
+```
+
+### 4f. 🏷️ Treinar GLiNER
+```
+JSON BIO → Flask → gliner-bert (encoder BERTimbau, CPU ou GPU) → volumes/gliner-checkpoints
 ```
 
 ### 5. 💾 Persistência de Sessões
@@ -1258,20 +1308,44 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 ## 📞 Suporte
 
 ### Documentação
-- 📖 **Pasta `docs/`**: [docs/CHANGELOG.md](docs/CHANGELOG.md) e [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md)
 - 📖 **README**: instalação, arquitetura e troubleshooting
+- 📖 **QDRANT_manipulacao_analise_dados**: Manipulação de vetores no Qdrant ([qdrant_manipulacao_analise_dados.md](https://github.com/kurokijrceub/pln/blob/master/qdrant_manipulacao_analise_dados.md))
+- 📖 **GLiNER (treino e uso)**: JSON BIO, job de treino, checkpoint e inferência ([gliner_treino_uso.md](gliner_treino_uso.md))
+- 📖 **Entidades (estudo)**: TF-IDF + NER e rascunho de golden set ([docs/entidades-tfidf-ner.md](docs/entidades-tfidf-ner.md))
+- 📖 **Entidades (GLiNER)**: BERTimbau + GLiNER em máquina à parte ([docs/gliner-bertimbau.md](docs/gliner-bertimbau.md))
 
 ### Comunidade
 - 🐛 **Issues**: Reporte bugs e sugestões
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.9
+## 🎯 Versão Beta v3.6.6
 
-**Data da alteração:** 2026-08-24
+**Data da alteração:** 2026-08-25
 
 ### 🆕 Novidades da Versão
 
+- **✅ Top vizinhos**: campo numérico (1–30) para Antes/Depois do TF-IDF nas duas telas de entidades
+- **✅ Top TF-IDF**: colunas Antes → Texto → Depois (top X vizinhos sem stopwords)
+- **✅ Seletor de checkpoint**: Entidades (GLiNER) carrega modelo em disco sem reiniciar (`POST /api/gliner-reload`)
+- **✅ Guia GLiNER**: treino JSON BIO e uso do checkpoint ([gliner_treino_uso.md](gliner_treino_uso.md))
+- **✅ Treinar GLiNER**: JSON BIO na UI; treino **CPU ou GPU**; checkpoint em `volumes/gliner-checkpoints`
+- **✅ Profile** `gliner` basta para treinar; `gliner-train` só acelera com CUDA
+- **✅ Entidades (GLiNER)**: BERTimbau NER + GLiNER em container opcional (`profile gliner`)
+- **✅ Flag** `GLINER_BERT=true` no `.env`; o rag-demo-app **não** instala torch
+- **✅ Menus** Entidades (GLiNER) e Treinar GLiNER sempre no lateral; aviso se o serviço estiver off
+- **✅ API** `POST /api/gliner-study` (mesmo contrato de entity-study + `backend: gliner_bert`)
+- **✅ Documentação** em [docs/gliner-bertimbau.md](docs/gliner-bertimbau.md) e [gliner_treino_uso.md](gliner_treino_uso.md)
+- **✅ Entidades (estudo)**: TF-IDF + spaCy NER + regex para rascunho de golden set (itens 29 e 30)
+- **✅ Menu** Entidades (estudo) após Busca Híbrida
+- **✅ API** `POST /api/entity-study` e export JSON
+- **✅ spaCy 3.7+** `pt_core_news_md` (não usar spaCy 3.0 com Python 3.12)
+- **✅ Busca híbrida**: densa (semântica) + esparsa (léxica/BM25) fundidas com RRF
+- **✅ Menus**: Collections → Upload → Editor → Lexical → Semântica → Híbrida → Entidades → Chat Multi-Agente → Histórico
+- **✅ Collections com dois vetores**: `dense` (cosseno) e `sparse` (BM25/IDF)
+- **✅ Busca Semântica**: explicação na tela (denso, cosseno, limiar e comparação com a léxica)
+- **✅ Backfill BM25** em collections que só tinham vetor denso
+- **✅ Endpoint** `POST /api/search` (`dense` | `lexical` | `hybrid`)
 - **✅ Repositório Git**: código passa a usar https://github.com/kurokijrceub/pln
 - **✅ Busca por similaridade corrigida**: compatível com `qdrant-client` 1.19 (`query_points`)
 - **✅ WSL 2**: instalação alinhada à documentação oficial Microsoft (pt-BR) + correções oficiais
@@ -1283,6 +1357,111 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.6.6)
+
+- [x] Campo **Top vizinhos** nas telas Entidades (estudo) e Entidades (GLiNER)
+
+### Melhorias realizadas (3.6.5)
+
+- [x] Tabela Top TF-IDF com Texto entre Antes e Depois (top 5)
+
+### Melhorias realizadas (3.6.4)
+
+- [x] Seletor de checkpoint na UI e recarregamento sem reiniciar o container
+
+### Melhorias realizadas (3.6.3)
+
+- [x] Guia educacional [gliner_treino_uso.md](gliner_treino_uso.md) (treino BIO, APIs, checkpoint, inferência)
+
+### Melhorias realizadas (3.6.2)
+
+- [x] Menus **Entidades (GLiNER)** e **Treinar GLiNER** sempre no lateral (aviso se o serviço estiver off)
+
+### Melhorias realizadas (3.6.1)
+
+- [x] Treino GLiNER em CPU (CUDA opcional)
+- [x] Menu **Treinar GLiNER** visível com o profile `gliner` (sem exigir GPU)
+
+### TO-DOs (3.6.1)
+
+- [ ] Publicar o checkpoint no Hugging Face Hub
+- [ ] Restaurar/registrar o workflow n8n `agent-proxy` para o chat multi-agente
+- [ ] Recriar docs ausentes referenciados no README (`docs/postgres-chat-memory.md`)
+- [ ] Pin de versão do `qdrant-client` no `requirements.txt`
+- [ ] Pesos RRF configuráveis na interface
+- [ ] Publicar a branch `development` (ou merge em `master`) no remote CEUB
+- [ ] Encadear o rascunho de entidades com `ranx` (Recall@K / MRR)
+
+### Melhorias realizadas (3.6.0)
+
+- [x] Tela **Treinar GLiNER** (JSON BIO → CPU/GPU, encoder BERTimbau)
+- [x] Profile Compose `gliner-train` e checkpoint em `volumes/gliner-checkpoints`
+- [x] Testes da conversão BIO sem torch
+
+### TO-DOs (3.6.0)
+
+- [ ] Publicar o checkpoint no Hugging Face Hub
+- [ ] Restaurar/registrar o workflow n8n `agent-proxy` para o chat multi-agente
+- [ ] Recriar docs ausentes referenciados no README (`docs/postgres-chat-memory.md`)
+- [ ] Pin de versão do `qdrant-client` no `requirements.txt`
+- [ ] Pesos RRF configuráveis na interface
+- [ ] Publicar a branch `development` (ou merge em `master`) no remote CEUB
+- [ ] Encadear o rascunho de entidades com `ranx` (Recall@K / MRR)
+
+### Melhorias realizadas (3.5.0)
+
+- [x] Serviço `gliner-bert` (FastAPI + PyTorch CPU) com profile Compose
+- [x] Proxy Flask e menu condicional **Entidades (GLiNER)**
+- [x] Testes de fusão de spans e cliente HTTP com mock (sem torch)
+- [x] Documentação em [docs/gliner-bertimbau.md](docs/gliner-bertimbau.md) e [docs/CHANGELOG.md](docs/CHANGELOG.md)
+
+### TO-DOs (3.5.0)
+
+- [ ] GPU / CUDA no serviço GLiNER
+- [ ] Restaurar/registrar o workflow n8n `agent-proxy` para o chat multi-agente
+- [ ] Recriar docs ausentes referenciados no README (`docs/postgres-chat-memory.md`)
+- [ ] Pin de versão do `qdrant-client` no `requirements.txt`
+- [ ] Pesos RRF configuráveis na interface
+- [ ] Publicar a branch `development` (ou merge em `master`) no remote CEUB
+- [ ] Encadear o rascunho de entidades com `ranx` (Recall@K / MRR)
+
+### Melhorias realizadas (3.4.2)
+
+- [x] Quadro da tela Entidades (estudo) explica os controles e o cálculo do score
+
+### Melhorias realizadas (3.4.1)
+
+- [x] Tabela Top TF-IDF com top 5 tokens à esquerda e à direita, sem artigos/preposições
+
+### Melhorias realizadas (3.4.0)
+
+- [x] Extração TF-IDF + NER com rascunho de golden set
+- [x] Tela **Entidades (estudo)** e download JSON
+- [x] Documentação em [docs/entidades-tfidf-ner.md](docs/entidades-tfidf-ner.md) e [docs/CHANGELOG.md](docs/CHANGELOG.md)
+
+### Melhorias realizadas (3.3.4)
+
+- [x] Ordem do menu lateral (Collections primeiro; buscas léxica → semântica → híbrida)
+
+### Melhorias realizadas (3.3.3)
+
+- [x] Explicação da Busca Semântica na própria tela (incluindo comparação com a léxica)
+
+### Melhorias realizadas (3.3.2)
+
+- [x] Clique no chunk abre o conteúdo completo
+- [x] Explicação do score BM25 na Busca Lexical
+
+### Melhorias realizadas (3.3.1)
+
+- [x] Named vector esparso no Qdrant: `sparse` (compatível com collections legado `bm25`)
+
+### Melhorias realizadas (3.3.0)
+
+- [x] Menus de busca refletindo densa / léxica / híbrida (RRF)
+- [x] Indexação esparsa BM25 no Qdrant e backfill de collections antigas
+- [x] Documentação em [docs/busca-hibrida.md](docs/busca-hibrida.md) e [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ### Melhorias realizadas (3.2.9)
 
@@ -1361,7 +1540,7 @@ Como esta é uma versão beta, sua contribuição é valiosa:
 
 ---
 
-**RAG-Demo v3.2.9** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
+**RAG-Demo v3.4.2** - Transformando o aprendizado de PLN com tecnologia de ponta! 🚀
 
 > _"A melhor forma de aprender é praticando com ferramentas reais."_
 
