@@ -430,24 +430,34 @@
             
             <!-- Menu de Navegação -->
             <nav class="flex-1 p-4 space-y-2">
-                <button id="upload-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="upload" class="w-5 h-5"></i>
-                    <span>Upload</span>
-                    </button>
-                
-                <button id="collections-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                <button id="collections-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="folder-open" class="w-5 h-5"></i>
                     <span>Collections</span>
-                    </button>
+                </button>
+                
+                <button id="upload-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="upload" class="w-5 h-5"></i>
+                    <span>Upload</span>
+                </button>
                 
                 <button id="editor-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="edit-3" class="w-5 h-5"></i>
                     <span>Editor</span>
-                    </button>
+                </button>
                 
-                                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                <button id="semantic-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="type" class="w-5 h-5"></i>
+                    <span>Busca Lexical</span>
+                </button>
+                
+                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="search" class="w-5 h-5"></i>
-                    <span>Busca por Similaridade</span>
+                    <span>Busca Semântica</span>
+                </button>
+                
+                <button id="hybrid-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="git-merge" class="w-5 h-5"></i>
+                    <span>Busca Híbrida</span>
                 </button>
                 
                 <button id="semantic-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
@@ -455,15 +465,10 @@
                     <span>Chat Multi-Agente</span>
                 </button>
                 
-                <button id="semantic-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="zap" class="w-5 h-5"></i>
-                    <span>Busca Semântica</span>
-                </button>
-                
                 <button id="history-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="clock" class="w-5 h-5"></i>
                     <span>Histórico</span>
-                    </button>
+                </button>
             </nav>
             
             <!-- Status de Conexão -->
@@ -486,8 +491,8 @@
                     </button>
                     
                     <div>
-                        <h2 id="page-title" class="text-xl font-semibold text-gray-900">Upload de Documento</h2>
-                        <p id="page-subtitle" class="text-sm text-gray-600">Faça upload de documentos para processamento</p>
+                        <h2 id="page-title" class="text-xl font-semibold text-gray-900">Collections</h2>
+                        <p id="page-subtitle" class="text-sm text-gray-600">Gerencie suas collections de documentos</p>
                     </div>
                     
                     <!-- Status de Vetorização -->
@@ -506,7 +511,7 @@
             <!-- Conteúdo Principal -->
             <div class="flex-1 overflow-auto p-6">
                 <!-- Tela de Upload -->
-                <div id="upload-content" class="content-section">
+                <div id="upload-content" class="content-section hidden">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="space-y-6">
                             <!-- File Upload -->
@@ -640,7 +645,7 @@
 
 
                 <!-- Dashboard de Collections -->
-                <div id="collections-content" class="content-section hidden">
+                <div id="collections-content" class="content-section">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="mb-6">
                             <h2 class="text-2xl font-bold text-gray-900">Collections</h2>
@@ -915,7 +920,7 @@ DOCUMENTO:
                         <!-- Search Header -->
                         <div class="border-b px-6 py-4">
                             <div class="flex justify-between items-center">
-                                <h2 class="text-xl font-semibold text-gray-900">🔍 Busca por Similaridade</h2>
+                                <h2 class="text-xl font-semibold text-gray-900">🔍 Busca Semântica (densa)</h2>
                             </div>
                             
                             <!-- Collection Selection -->
@@ -940,14 +945,78 @@ DOCUMENTO:
                                     <span>100% (Mais precisos)</span>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    Ajuste o percentual mínimo de similaridade para filtrar resultados mais relevantes
+                                    Vetor denso (embedding OpenAI/Gemini) + similaridade de cosseno. Não gera resposta de LLM.
                                 </p>
+                            </div>
+                            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-950 space-y-3">
+                                <p><strong>O que esta tela faz:</strong> busca <em>densa</em> — compara o <em>significado</em> da consulta com cada chunk, não as palavras exatas. Lista trechos ranqueados. <strong>Não chama LLM.</strong></p>
+                                <div>
+                                    <p class="font-semibold mb-1">Na indexação (upload)</p>
+                                    <p>O documento vira chunks (~1000 caracteres, overlap 200). Cada chunk passa pelo modelo da collection (OpenAI <code>text-embedding-3-small</code> → 1536 dimensões, ou Gemini → 3072) e vira um vetor <strong>denso</strong> gravado no Qdrant (<code>dense</code>), com distância de cosseno.</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Na consulta</p>
+                                    <p>O texto digitado passa pelo <strong>mesmo</strong> modelo e vira outro vetor. O Qdrant mede o <strong>cosseno</strong> entre esse vetor e o de cada chunk. O percentual na lista é <code>score × 100</code>.</p>
+                                    <ul class="list-disc pl-4 mt-1 space-y-0.5">
+                                        <li><strong>100%</strong> — vetores na mesma direção (muito parecidos).</li>
+                                        <li><strong>0%</strong> — sem relação de direção.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Slider de similaridade mínima</p>
+                                    <p>Corta trechos abaixo do corte. Com <strong>70%</strong>, só entram chunks com cosseno ≥ 0,70 — valor alto; lista vazia costuma ser o corte, não a ausência de documento. Teste 0% ou 30–50% para ver mais resultados. A tela devolve no máximo <strong>5</strong> trechos.</p>
+                                </div>
+                                <div class="font-mono text-[11px] bg-white/70 border border-blue-100 rounded p-2 leading-relaxed">
+                                    consulta → embedding (OpenAI/Gemini)<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                                    cosseno no Qdrant (vetor dense)<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                                    filtro do slider → lista de chunks
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Semântica vs léxica</p>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse bg-white rounded border border-blue-100">
+                                            <thead>
+                                                <tr class="bg-blue-100/80">
+                                                    <th class="p-1.5 font-semibold"> </th>
+                                                    <th class="p-1.5 font-semibold">Semântica (esta tela)</th>
+                                                    <th class="p-1.5 font-semibold">Lexical</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Vetor</td>
+                                                    <td class="p-1.5">Denso (1536D ou 3072D)</td>
+                                                    <td class="p-1.5">Esparso (termos)</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Casa</td>
+                                                    <td class="p-1.5">Paráfrase, sinônimo, sentido</td>
+                                                    <td class="p-1.5">Palavra ou código exato</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Score</td>
+                                                    <td class="p-1.5">Cosseno 0–100%</td>
+                                                    <td class="p-1.5">BM25 (ex.: 5,034; sem teto)</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Exemplo</td>
+                                                    <td class="p-1.5">“impressão 3D” ≈ “manufatura aditiva”</td>
+                                                    <td class="p-1.5">precisa dos termos no texto</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p class="mt-2">“Impressão tridimensional” pode achar um chunk sobre <em>additive manufacturing</em> ou EBM mesmo sem essas palavras, se o embedding achar o sentido próximo. Na léxica isso só entra se os tokens coincidirem.</p>
+                                </div>
+                                <p><strong>O que esta tela não faz:</strong> não gera resposta em linguagem natural. Isso fica no Chat Multi-Agente. Clique no chunk da lista para ver o texto completo.</p>
                             </div>
                             
                             <!-- Search Input -->
                             <div class="mt-4">
                                 <div class="flex space-x-4">
-                                    <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua consulta para busca por similaridade...">
+                                    <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua consulta para busca semântica (densa)...">
                                     <button id="send-message-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                                         Enviar
                                     </button>
@@ -958,7 +1027,7 @@ DOCUMENTO:
                         <!-- Similarity Search Results -->
                         <div id="chat-messages" class="p-6 space-y-4">
                             <div class="text-center text-gray-500 text-sm">
-                                Inicie uma busca por similaridade fazendo uma consulta...
+                                Inicie uma busca semântica (densa) fazendo uma consulta...
                             </div>
                         </div>
                     </div>
@@ -1077,64 +1146,86 @@ DOCUMENTO:
                     </div>
                 </div>
 
-                <!-- Busca Semântica -->
+                <!-- Busca Lexical -->
                 <div id="semantic-search-content" class="content-section hidden">
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <!-- Header -->
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
                         <div class="border-b px-6 py-4">
-                            <div class="flex justify-between items-center mb-4">
-                                <h2 class="text-xl font-semibold text-gray-900">⚡ Busca Semântica por Modelo</h2>
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🔤 Busca Lexical (esparsa)</h2>
                             </div>
-                            
-                            <!-- Model Selection -->
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Modelo de IA:</label>
-                                <div id="semantic-search-models" class="flex flex-wrap gap-2">
-                                    <!-- Models will be loaded here -->
-                                    <div class="text-xs text-gray-500">Carregando modelos...</div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="lexical-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            <div class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-950 space-y-2">
+                                <p><strong>O que esta tela faz:</strong> compara as <em>palavras</em> da consulta com as palavras de cada chunk (vetor esparso). Não usa embedding e não chama LLM.</p>
+                                <p><strong>BM25 nesta tela:</strong> cada chunk guarda a frequência dos termos (TF). Na consulta, o Qdrant aplica IDF — termos raros na collection pesam mais. O número à direita (ex.: 5,034) é o <em>score de relevância</em> dessa fórmula, não um percentual.</p>
+                                <ul class="list-disc pl-4 space-y-1">
+                                    <li><strong>Maior score = mais relevante</strong> para os termos digitados.</li>
+                                    <li>Não tem teto 100%: 5,034 é simplesmente mais forte que 2,262.</li>
+                                    <li>Sobe se o termo aparece mais vezes no chunk e/ou se ele é raro nos demais documentos.</li>
+                                </ul>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <input type="text" id="semantic-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite termos, códigos ou nomes para busca léxica...">
+                                    <button id="semantic-search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                                        Buscar
+                                    </button>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">Selecione o modelo de IA para busca e geração de resposta</p>
-                            </div>
-                            
-                            <!-- Similarity Threshold Control -->
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Similaridade Mínima: <span id="semantic-similarity-value" class="text-indigo-600 font-bold">30%</span>
-                                </label>
-                                <input type="range" id="semantic-similarity-threshold" 
-                                       min="10" max="80" value="30" step="5" 
-                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dynamic-slider">
-                                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>10% (Mais permissivo)</span>
-                                    <span>80% (Muito restritivo)</span>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    ⚠️ Busca semântica usa threshold mais alto para evitar respostas não baseadas na base de conhecimento
-                                </p>
-                            </div>
-                            
-                            <!-- Search Input -->
-                            <div class="flex space-x-2">
-                                <input type="text" id="semantic-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua pergunta para busca semântica...">
-                                <button id="semantic-search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Buscar
-                                </button>
-                                <button id="debug-collections-btn" class="bg-gray-500 text-white px-3 py-2 rounded-md hover:bg-gray-600 text-sm">
-                                    Debug
-                                </button>
-                                <button id="test-search-btn" class="bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm">
-                                    Testar
-                                </button>
-                                <button id="test-gemini-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm">
-                                    Test Gemini
-                                </button>
                             </div>
                         </div>
-
-                        <!-- Results -->
-                        <div id="semantic-search-results" class="p-6">
+                        <div id="semantic-search-results" class="p-6 space-y-4">
                             <div class="text-center text-gray-500 text-sm">
-                                Selecione um modelo e faça uma pergunta para obter uma resposta baseada nos documentos...
+                                Inicie uma busca léxica (BM25) fazendo uma consulta...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Busca Híbrida -->
+                <div id="hybrid-search-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🔀 Busca Híbrida (RRF)</h2>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="hybrid-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            <div class="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">
+                                <div class="font-medium mb-2">Consulta → duas vias em paralelo → fusão</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-white rounded border border-blue-100 p-2">
+                                        <div class="font-semibold text-blue-700">Densa</div>
+                                        <div>semântica (cosseno)</div>
+                                    </div>
+                                    <div class="bg-white rounded border border-indigo-100 p-2">
+                                        <div class="font-semibold text-indigo-700">Esparsa</div>
+                                        <div>léxica (BM25)</div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">Os rankings são combinados com <strong>RRF</strong> (Reciprocal Rank Fusion).</div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <input type="text" id="hybrid-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite a consulta para busca híbrida...">
+                                    <button id="hybrid-search-btn" class="bg-slate-800 text-white px-4 py-2 rounded-md hover:bg-slate-900">
+                                        Buscar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="hybrid-search-results" class="p-6 space-y-4">
+                            <div class="text-center text-gray-500 text-sm">
+                                Inicie uma busca híbrida (densa + léxica + RRF)...
                             </div>
                         </div>
                     </div>
@@ -1214,9 +1305,28 @@ DOCUMENTO:
         </div>
     </div>
 
-
-
-    <!-- JavaScript -->
+    <!-- Modal de conteúdo completo do chunk -->
+    <div id="chunk-content-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+                <div class="px-6 py-4 border-b flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900" id="chunk-modal-title">Chunk completo</h3>
+                        <p class="text-xs text-gray-500 mt-1" id="chunk-modal-meta"></p>
+                    </div>
+                    <button type="button" id="chunk-modal-close-x" class="text-gray-400 hover:text-gray-700 text-2xl leading-none" aria-label="Fechar">&times;</button>
+                </div>
+                <div class="px-6 py-4 overflow-y-auto flex-1">
+                    <pre id="chunk-modal-body" class="whitespace-pre-wrap text-sm text-gray-800 font-sans leading-relaxed"></pre>
+                </div>
+                <div class="px-6 py-4 border-t flex justify-end">
+                    <button type="button" id="chunk-modal-close-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         // Socket.IO connection
         const socket = io();
@@ -1416,16 +1526,20 @@ DOCUMENTO:
                     subtitle: 'Crie e edite perguntas e respostas'
                 },
                 'chat': {
-                                    title: 'Busca por Similaridade',
-                subtitle: 'Busque documentos por similaridade de conteúdo'
+                    title: 'Busca Semântica',
+                    subtitle: 'Busca densa: embedding + similaridade de cosseno'
                 },
                 'semantic': {
                     title: 'Chat Multi-Agente',
                     subtitle: 'Obtenha respostas de múltiplos modelos de IA'
                 },
                 'semantic-search': {
-                    title: 'Busca Semântica',
-                    subtitle: 'Busca inteligente por modelo de IA com retorno de chunks'
+                    title: 'Busca Lexical',
+                    subtitle: 'Busca esparsa BM25: correspondência de termos'
+                },
+                'hybrid-search': {
+                    title: 'Busca Híbrida',
+                    subtitle: 'Densa + léxica combinadas com Reciprocal Rank Fusion (RRF)'
                 },
                 'history': {
                     title: 'Histórico',
@@ -2697,27 +2811,180 @@ DOCUMENTO:
             const message = chatInput.value.trim();
             if (!message || isProcessing) return;
             
-            // Limpar resultados anteriores
             clearSearchResults();
-            
-            // Add user message
             addChatMessage('user', message);
-            
-            // Clear input
             chatInput.value = '';
             
-            // Send via WebSocket
             isProcessing = true;
             updateSendButton();
             
-            // Obter o threshold de similaridade (0.0 a 1.0)
             const similarityThreshold = parseFloat(document.getElementById('similarity-threshold').value) / 100;
+            const collectionName = document.getElementById('chat-collection-select').value;
             
-            socket.emit('chat_message', {
-                message: message,
-                session_id: null, // Busca por similaridade não precisa de sessão
-                collection_name: document.getElementById('chat-collection-select').value,
-                similarity_threshold: similarityThreshold
+            try {
+                const result = await runRetrievalSearch({
+                    query: message,
+                    mode: 'dense',
+                    collectionName,
+                    similarityThreshold,
+                    topK: 5
+                });
+                chatMessages.innerHTML = '';
+                renderRetrievalResults(chatMessages, result.sources || [], {
+                    search_mode: 'dense',
+                    similarity_threshold: similarityThreshold
+                });
+            } catch (error) {
+                addChatMessage('error', `Erro: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateSendButton();
+            }
+        }
+
+        async function runRetrievalSearch({ query, mode, collectionName, similarityThreshold = 0, topK = 10 }) {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    mode,
+                    collection_name: collectionName || '',
+                    similarity_threshold: similarityThreshold,
+                    top_k: topK
+                })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Falha na busca');
+            }
+            return result;
+        }
+
+        function escapeHtml(text) {
+            if (text == null) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function closeChunkModal() {
+            const modal = document.getElementById('chunk-content-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function openChunkModal(source, mode) {
+            if (!source) return;
+            const modal = document.getElementById('chunk-content-modal');
+            const title = document.getElementById('chunk-modal-title');
+            const meta = document.getElementById('chunk-modal-meta');
+            const body = document.getElementById('chunk-modal-body');
+            const fileName = source.file_name || 'Documento desconhecido';
+            const collectionName = source.source_collection || source.knowledge_source || 'Collection desconhecida';
+            const chunkNumber = source.chunk_number || source.chunk_index || '-';
+            let scoreText = '';
+            if (mode === 'lexical') {
+                const lex = (source.lexical_score != null ? source.lexical_score : source.score || 0);
+                scoreText = `Score BM25: ${Number(lex).toFixed(3)} (maior = mais relevante; não é %)`;
+            } else if (mode === 'hybrid') {
+                const rrf = source.rrf_score != null ? source.rrf_score : source.score || 0;
+                scoreText = `Score RRF: ${Number(rrf).toFixed(4)}`;
+            } else if (source.similarity_percentage != null || source.score != null) {
+                const pct = (source.similarity_percentage || source.score * 100).toFixed(1);
+                scoreText = `Similaridade de cosseno: ${pct}%`;
+            }
+            title.textContent = fileName;
+            meta.textContent = `${collectionName} · chunk #${chunkNumber}${scoreText ? ' · ' + scoreText : ''}`;
+            body.textContent = source.content || 'Conteúdo não disponível';
+            modal.classList.remove('hidden');
+        }
+
+        function renderRetrievalResults(container, sources, options = {}) {
+            const mode = options.search_mode || 'dense';
+            const threshold = options.similarity_threshold || 0;
+            const titles = {
+                dense: 'Resultados da Busca Semântica (densa)',
+                lexical: 'Resultados da Busca Lexical (BM25)',
+                hybrid: 'Resultados da Busca Híbrida (RRF)'
+            };
+            const descriptions = {
+                dense: 'O percentual é similaridade de cosseno (0–100%) entre o embedding da consulta e o de cada chunk. O slider corta valores abaixo do mínimo.',
+                lexical: 'O número ao lado de cada trecho é o <strong>score BM25</strong>: relevância léxica (TF × IDF no Qdrant). Não é percentual. Quanto maior, melhor o casamento de termos.',
+                hybrid: 'Rankings denso e léxico fundidos com Reciprocal Rank Fusion (RRF). Trechos que aparecem nas duas listas sobem no ranking.'
+            };
+
+            let html = `
+                <div class="w-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">📊 ${titles[mode] || 'Resultados'}</h3>
+                        ${mode === 'dense' ? `<div class="text-sm text-gray-600">Similaridade mínima: <span class="font-medium text-blue-600">${(threshold * 100).toFixed(0)}%</span></div>` : ''}
+                    </div>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <p>${descriptions[mode] || ''}</p>
+                    </div>
+            `;
+
+            if (!sources || sources.length === 0) {
+                html += `
+                    <div class="text-center py-8 text-gray-500">
+                        <div class="text-2xl mb-2">🔍</div>
+                        <div>Nenhum trecho encontrado para esta consulta.</div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="space-y-4">`;
+                sources.forEach((source, index) => {
+                    const fileName = escapeHtml(source.file_name || 'Documento desconhecido');
+                    const content = source.content || 'Conteúdo não disponível';
+                    const preview = content.length > 300 ? content.substring(0, 300) + '...' : content;
+                    const collectionName = escapeHtml(source.source_collection || source.knowledge_source || 'Collection desconhecida');
+                    const chunkNumber = source.chunk_number || source.chunk_index || (index + 1);
+                    let scoreLabel = '';
+                    if (mode === 'dense' && (source.similarity_percentage != null || source.score != null)) {
+                        const pct = (source.similarity_percentage || source.score * 100).toFixed(1);
+                        scoreLabel = `<span class="font-medium text-blue-600">${pct}%</span> <span class="text-gray-500">cosseno</span>`;
+                    } else if (mode === 'lexical') {
+                        const lex = (source.lexical_score != null ? source.lexical_score : source.score || 0).toFixed(3);
+                        scoreLabel = `<span class="font-medium text-indigo-600" title="Score BM25: relevância léxica (TF × IDF). Não é percentual. Maior = mais relevante.">${lex}</span> <span class="text-gray-500">score BM25</span>`;
+                    } else {
+                        const rrf = (source.rrf_score != null ? source.rrf_score : source.score || 0).toFixed(4);
+                        const denseBit = source.dense_score != null ? ` · densa ${(source.dense_score * 100).toFixed(1)}%` : '';
+                        const lexBit = source.lexical_score != null ? ` · léxica ${Number(source.lexical_score).toFixed(2)}` : '';
+                        scoreLabel = `<span class="font-medium text-slate-800">${rrf}</span> <span class="text-gray-500">RRF${denseBit}${lexBit}</span>`;
+                    }
+
+                    html += `
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center space-x-3 flex-wrap gap-1">
+                                    <div class="font-medium text-gray-900">📄 ${fileName}</div>
+                                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">📁 ${collectionName}</div>
+                                    <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">#${chunkNumber}</div>
+                                </div>
+                                <div class="text-sm whitespace-nowrap ml-2">${scoreLabel}</div>
+                            </div>
+                            <button type="button" data-chunk-index="${index}" class="w-full text-left text-sm text-gray-700 bg-gray-50 p-3 rounded border-l-4 ${mode === 'hybrid' ? 'border-slate-700' : mode === 'lexical' ? 'border-indigo-500' : 'border-blue-500'} hover:bg-indigo-50 hover:border-indigo-600 cursor-pointer">
+                                <div class="flex items-center justify-between mb-1">
+                                    <div class="font-medium">Chunk encontrado:</div>
+                                    <div class="text-xs text-indigo-700">Clique para ver o conteúdo completo</div>
+                                </div>
+                                <div class="text-gray-600">${escapeHtml(preview)}</div>
+                            </button>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+            container.querySelectorAll('[data-chunk-index]').forEach((el) => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.getAttribute('data-chunk-index'), 10);
+                    openChunkModal(sources[idx], mode);
+                });
             });
         }
         
@@ -4085,13 +4352,15 @@ DOCUMENTO:
             const selects = [
                 document.getElementById('upload-collection-select'),
                 document.getElementById('editor-collection-select'),
-                document.getElementById('chat-collection-select')
+                document.getElementById('chat-collection-select'),
+                document.getElementById('lexical-collection-select'),
+                document.getElementById('hybrid-collection-select')
             ];
             
             selects.forEach(select => {
                 if (select) {
                     console.log(`🔧 Atualizando collection select: ${select.id}`);
-                    if (select.id === 'chat-collection-select') {
+                    if (select.id === 'chat-collection-select' || select.id === 'lexical-collection-select' || select.id === 'hybrid-collection-select') {
                         select.innerHTML = '<option value="">Todas as collections</option>';
                     } else {
                         select.innerHTML = '<option value="">Selecione uma collection...</option>';
@@ -4609,6 +4878,20 @@ DOCUMENTO:
         const cancelCollectionBtn = document.getElementById('cancel-collection-btn');
         if (cancelCollectionBtn) cancelCollectionBtn.addEventListener('click', hideCollectionModal);
         
+        const chunkModal = document.getElementById('chunk-content-modal');
+        const closeChunkX = document.getElementById('chunk-modal-close-x');
+        const closeChunkBtn = document.getElementById('chunk-modal-close-btn');
+        if (closeChunkX) closeChunkX.addEventListener('click', closeChunkModal);
+        if (closeChunkBtn) closeChunkBtn.addEventListener('click', closeChunkModal);
+        if (chunkModal) {
+            chunkModal.addEventListener('click', (e) => {
+                if (e.target === chunkModal) closeChunkModal();
+            });
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeChunkModal();
+        });
+        
         const createCollectionBtn = document.getElementById('create-collection-btn');
         if (createCollectionBtn) createCollectionBtn.addEventListener('click', createCollection);
         
@@ -5087,47 +5370,104 @@ DOCUMENTO:
             `;
         }
         
-        // ============= BUSCA SEMÂNTICA POR MODELO =============
+        // ============= BUSCA LÉXICA E HÍBRIDA =============
         
         function setupSemanticSearch() {
-            console.log('📝 Configurando busca semântica por modelo');
+            console.log('📝 Configurando busca léxica e híbrida');
             
-            // Carregar modelos de embedding
-            loadSemanticSearchModels();
-            
-            // Event listeners
             const searchBtn = document.getElementById('semantic-search-btn');
             const searchInput = document.getElementById('semantic-search-input');
-            const debugBtn = document.getElementById('debug-collections-btn');
-            const testBtn = document.getElementById('test-search-btn');
-            const testGeminiBtn = document.getElementById('test-gemini-btn');
-            
             if (searchBtn) {
-                searchBtn.addEventListener('click', performSemanticSearch);
+                searchBtn.addEventListener('click', performLexicalSearch);
             }
-            
             if (searchInput) {
                 searchInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        performSemanticSearch();
+                        performLexicalSearch();
                     }
                 });
             }
-            
-            if (debugBtn) {
-                debugBtn.addEventListener('click', showDebugInfo);
+
+            const hybridBtn = document.getElementById('hybrid-search-btn');
+            const hybridInput = document.getElementById('hybrid-search-input');
+            if (hybridBtn) {
+                hybridBtn.addEventListener('click', performHybridSearch);
             }
-            
-            if (testBtn) {
-                testBtn.addEventListener('click', testSemanticSearchWithExample);
+            if (hybridInput) {
+                hybridInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        performHybridSearch();
+                    }
+                });
             }
-            
-            if (testGeminiBtn) {
-                testGeminiBtn.addEventListener('click', testGeminiModels);
+        }
+
+        async function performPanelSearch({ mode, inputId, collectionId, resultsId, buttonId, topK }) {
+            const searchInput = document.getElementById(inputId);
+            const searchBtn = document.getElementById(buttonId);
+            const resultsContainer = document.getElementById(resultsId);
+            const collectionSelect = document.getElementById(collectionId);
+            const query = (searchInput?.value || '').trim();
+
+            if (!query) {
+                showToast('Digite uma consulta para buscar', 'warning');
+                return;
             }
-            
-            // Configurar controle de similaridade para busca semântica
-            setupSemanticSimilarityControl();
+
+            if (searchBtn) {
+                searchBtn.disabled = true;
+                searchBtn.textContent = 'Buscando...';
+            }
+            if (resultsContainer) {
+                resultsContainer.innerHTML = '<div class="text-center text-gray-500">Processando busca...</div>';
+            }
+
+            try {
+                const result = await runRetrievalSearch({
+                    query,
+                    mode,
+                    collectionName: collectionSelect ? collectionSelect.value : '',
+                    similarityThreshold: 0,
+                    topK
+                });
+                renderRetrievalResults(resultsContainer, result.sources || [], { search_mode: mode });
+            } catch (error) {
+                console.error(`❌ Erro na busca ${mode}:`, error);
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = `<div class="text-red-600">Erro: ${error.message}</div>`;
+                }
+            } finally {
+                if (searchBtn) {
+                    searchBtn.disabled = false;
+                    searchBtn.textContent = 'Buscar';
+                }
+            }
+        }
+
+        async function performLexicalSearch() {
+            await performPanelSearch({
+                mode: 'lexical',
+                inputId: 'semantic-search-input',
+                collectionId: 'lexical-collection-select',
+                resultsId: 'semantic-search-results',
+                buttonId: 'semantic-search-btn',
+                topK: 10
+            });
+        }
+
+        async function performHybridSearch() {
+            await performPanelSearch({
+                mode: 'hybrid',
+                inputId: 'hybrid-search-input',
+                collectionId: 'hybrid-collection-select',
+                resultsId: 'hybrid-search-results',
+                buttonId: 'hybrid-search-btn',
+                topK: 10
+            });
+        }
+
+        async function performSemanticSearch() {
+            await performLexicalSearch();
         }
         
         async function loadSemanticSearchModels() {
@@ -5351,60 +5691,6 @@ DOCUMENTO:
                 console.error('❌ Erro no teste:', error);
                 resultsContainer.innerHTML = `<div class="text-red-600">❌ Erro de conexão no teste: ${error.message}</div>`;
                 showToast('❌ Erro de conexão no teste', 'error');
-            }
-        }
-        
-        async function performSemanticSearch() {
-            const searchInput = document.getElementById('semantic-search-input');
-            const searchBtn = document.getElementById('semantic-search-btn');
-            const resultsContainer = document.getElementById('semantic-search-results');
-            
-            const query = searchInput.value.trim();
-            const selectedModel = document.querySelector('input[name="semantic-model"]:checked');
-            
-            if (!query) {
-                showToast('Digite uma pergunta para buscar', 'warning');
-                return;
-            }
-            
-            if (!selectedModel) {
-                showToast('Selecione um modelo de IA', 'warning');
-                return;
-            }
-            
-            // Loading state
-            searchBtn.disabled = true;
-            searchBtn.textContent = 'Buscando...';
-            resultsContainer.innerHTML = '<div class="text-center text-gray-500">Processando busca semântica...</div>';
-            
-            try {
-                const response = await fetch('/api/semantic-search-by-model', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        query: query,
-                        model: selectedModel.value,
-                        similarity_threshold: getSemanticSimilarityThreshold()
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displaySemanticSearchResults(result);
-                } else {
-                    resultsContainer.innerHTML = `<div class="text-red-600">Erro: ${result.error}</div>`;
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro na busca semântica:', error);
-                resultsContainer.innerHTML = `<div class="text-red-600">Erro de conexão: ${error.message}</div>`;
-            } finally {
-                // Reset button
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Buscar';
             }
         }
         

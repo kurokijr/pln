@@ -17,15 +17,17 @@ class MultiAgentChatService:
         self.use_qdrant = True
     
     def query_knowledge_sources(self, query: str, source_names: List[str] = None, 
-                               top_k: int = 5, similarity_threshold: float = 0.0) -> List[Dict[str, Any]]:
+                               top_k: int = 5, similarity_threshold: float = 0.0,
+                               mode: str = "dense") -> List[Dict[str, Any]]:
         """
-        Consulta múltiplas fontes de conhecimento para chat multi-agente.
-        
+        Consulta múltiplas fontes de conhecimento.
+
         Args:
             query: Consulta do usuário
             source_names: Lista de fontes de conhecimento para consultar
-            top_k: Número máximo de resultados por fonte
-            similarity_threshold: Threshold de similaridade (0.0 a 1.0, onde 0.0 = 0% e 1.0 = 100%)
+            top_k: Número máximo de resultados no total
+            similarity_threshold: Threshold de similaridade (busca densa)
+            mode: dense | lexical | hybrid
         """
         try:
             if not self.use_qdrant:
@@ -39,45 +41,33 @@ class MultiAgentChatService:
             ]
 
             if selected_sources:
-                # Consultar nas fontes especificadas
-                for source_name in selected_sources:
-                    try:
-                        results = self.vector_store.search_similar(
-                            source_name, 
-                            query, 
-                            top_k, 
-                            similarity_threshold=similarity_threshold
-                        )
-                        for result in results:
-                            result["knowledge_source"] = source_name
-                            result["source_collection"] = source_name
-                        all_results.extend(results)
-                    except Exception as e:
-                        print(f"Erro ao consultar fonte de conhecimento {source_name}: {e}")
-                        continue
+                sources_to_query = selected_sources
             else:
-                # Consultar em todas as fontes disponíveis
                 sources = self.vector_store.list_collections()
-                
-                for source_info in sources:
-                    if not source_info.get("exists_in_qdrant", True):
-                        continue
-                    try:
-                        results = self.vector_store.search_similar(
-                            source_info["name"],
-                            query,
-                            top_k,
-                            similarity_threshold=similarity_threshold,
-                        )
-                        for result in results:
-                            result["knowledge_source"] = source_info["name"]
-                            result["source_collection"] = source_info["name"]
-                        all_results.extend(results)
-                    except Exception as e:
-                        print(f"Erro ao consultar fonte de conhecimento {source_info['name']}: {e}")
-                        continue
+                sources_to_query = [
+                    source_info["name"]
+                    for source_info in sources
+                    if source_info.get("exists_in_qdrant", True)
+                ]
+
+            per_source_k = max(top_k, 5)
+            for source_name in sources_to_query:
+                try:
+                    results = self.vector_store.search_by_mode(
+                        collection_name=source_name,
+                        query=query,
+                        mode=mode,
+                        top_k=per_source_k,
+                        similarity_threshold=similarity_threshold,
+                    )
+                    for result in results:
+                        result["knowledge_source"] = source_name
+                        result["source_collection"] = source_name
+                    all_results.extend(results)
+                except Exception as e:
+                    print(f"Erro ao consultar fonte de conhecimento {source_name}: {e}")
+                    continue
             
-            # Ordenar por score e retornar os melhores
             all_results.sort(key=lambda x: x.get('score', 0), reverse=True)
             return all_results[:top_k]
             

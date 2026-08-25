@@ -11,13 +11,33 @@ from datetime import datetime
 
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
+    SparseVector,
+    SparseVectorParams,
+)
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 from src.config import get_config
 from src.debug_utils import charset_debugger, ascii_fallback, emergency_fallback
+from src.sparse_encoder import text_to_sparse_vector
 
 config = get_config()
+
+DENSE_VECTOR_NAME = "dense"
+SPARSE_VECTOR_NAME = "sparse"
+LEGACY_SPARSE_VECTOR_NAMES = ("bm25",)
+RRF_K = 60
+
+try:
+    from qdrant_client.models import Modifier
+except ImportError:
+    Modifier = None
 
 
 def sanitize_text_simple(text: str) -> str:
@@ -305,6 +325,168 @@ class QdrantVectorStore:
         except Exception as e:
             print(f"⚠️ Reconectando ao Qdrant: {e}")
             self._connect()
+
+    def _collection_vector_params(self, collection_name: str) -> Any:
+        """Retorna a configuração de vetores densos da collection."""
+        info = self.client.get_collection(collection_name)
+        return info.config.params.vectors
+
+    def _dense_vector_name(self, collection_name: str) -> Optional[str]:
+        """Nome do vetor denso (None se a collection usa o vetor unnamed legado)."""
+        params = self._collection_vector_params(collection_name)
+        if hasattr(params, "size"):
+            return None
+        names = list(params.keys()) if hasattr(params, "keys") else []
+        if DENSE_VECTOR_NAME in names:
+            return DENSE_VECTOR_NAME
+        return names[0] if names else None
+
+    def _sparse_vector_name(self, collection_name: str) -> Optional[str]:
+        """Nome do vetor esparso na collection (`sparse`, ou `bm25` em collections antigas)."""
+        info = self.client.get_collection(collection_name)
+        sparse = getattr(info.config.params, "sparse_vectors", None)
+        if not sparse:
+            return None
+        try:
+            names = list(sparse.keys())
+        except Exception:
+            return SPARSE_VECTOR_NAME
+        if SPARSE_VECTOR_NAME in names:
+            return SPARSE_VECTOR_NAME
+        for legacy_name in LEGACY_SPARSE_VECTOR_NAMES:
+            if legacy_name in names:
+                return legacy_name
+        return names[0] if names else None
+
+    def _has_sparse_config(self, collection_name: str) -> bool:
+        """Indica se a collection tem vetor esparso (sparse ou bm25 legado)."""
+        return self._sparse_vector_name(collection_name) is not None
+
+    def _sparse_params(self) -> SparseVectorParams:
+        if Modifier is not None:
+            return SparseVectorParams(modifier=Modifier.IDF)
+        return SparseVectorParams()
+
+    def ensure_sparse_config(self, collection_name: str) -> bool:
+        """Garante sparse BM25 na collection. True se o schema já permite busca léxica."""
+        self._ensure_connection()
+        if self._has_sparse_config(collection_name):
+            return True
+        params = {SPARSE_VECTOR_NAME: self._sparse_params()}
+        try:
+            self.client.update_collection(
+                collection_name=collection_name,
+                sparse_vectors_config=params,
+            )
+            print(f"✅ Vetor esparso '{SPARSE_VECTOR_NAME}' adicionado à collection '{collection_name}'")
+            return True
+        except TypeError:
+            try:
+                self.client.update_collection(
+                    collection_name=collection_name,
+                    sparse_vectors=params,
+                )
+                return True
+            except Exception as e:
+                print(f"⚠️ Não foi possível adicionar vetor esparso em '{collection_name}': {e}")
+                return False
+        except Exception as e:
+            print(f"⚠️ Não foi possível adicionar vetor esparso em '{collection_name}': {e}")
+            return False
+
+    def _extract_dense_from_point(self, point: Any, collection_name: str) -> Optional[List[float]]:
+        """Obtém o vetor denso de um ponto (named ou unnamed)."""
+        vector = getattr(point, "vector", None)
+        if vector is None:
+            return None
+        if isinstance(vector, dict):
+            dense_name = self._dense_vector_name(collection_name)
+            if dense_name and dense_name in vector:
+                return vector[dense_name]
+            if "" in vector:
+                return vector[""]
+            for value in vector.values():
+                if isinstance(value, list):
+                    return value
+            return None
+        if isinstance(vector, list):
+            return vector
+        return None
+
+    def _compose_point_vector(
+        self, collection_name: str, dense: List[float], text: str
+    ) -> Any:
+        """Monta o campo vector com denso (named ou legado) e BM25 se a collection tiver sparse."""
+        sparse = text_to_sparse_vector(text)
+        dense_name = self._dense_vector_name(collection_name)
+        has_sparse = self._has_sparse_config(collection_name)
+
+        if dense_name:
+            composed = {dense_name: dense}
+            if has_sparse:
+                sparse_name = self._sparse_vector_name(collection_name) or SPARSE_VECTOR_NAME
+                composed[sparse_name] = sparse
+            return composed
+
+        if has_sparse:
+            sparse_name = self._sparse_vector_name(collection_name) or SPARSE_VECTOR_NAME
+            return {"": dense, sparse_name: sparse}
+        return dense
+
+    def _backfill_sparse_vectors(self, collection_name: str) -> int:
+        """Gera vetores BM25 para pontos que ainda não os têm."""
+        if not self.ensure_sparse_config(collection_name):
+            return 0
+
+        updated = 0
+        next_offset = None
+        while True:
+            points, next_offset = self.client.scroll(
+                collection_name=collection_name,
+                limit=64,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=True,
+            )
+            batch = []
+            for point in points:
+                vector = getattr(point, "vector", None)
+                sparse_name = self._sparse_vector_name(collection_name) or SPARSE_VECTOR_NAME
+                if isinstance(vector, dict) and sparse_name in vector:
+                    sparse_vec = vector.get(sparse_name)
+                    indices = getattr(sparse_vec, "indices", None)
+                    if indices is None and isinstance(sparse_vec, dict):
+                        indices = sparse_vec.get("indices")
+                    if indices:
+                        continue
+
+                dense = self._extract_dense_from_point(point, collection_name)
+                if not dense:
+                    continue
+                payload = point.payload or {}
+                text = (
+                    payload.get("content")
+                    or payload.get("pageContent")
+                    or payload.get("text")
+                    or payload.get("name")
+                    or ""
+                )
+                batch.append(
+                    PointStruct(
+                        id=point.id,
+                        vector=self._compose_point_vector(collection_name, dense, text),
+                        payload=payload,
+                    )
+                )
+            if batch:
+                self.client.upsert(collection_name=collection_name, points=batch)
+                updated += len(batch)
+            if next_offset is None:
+                break
+        if updated:
+            print(f"✅ Backfill BM25 em '{collection_name}': {updated} pontos atualizados")
+        return updated
+
     
     def create_collection(self, collection_name: str, embedding_model: str, 
                          description: str = "") -> str:
@@ -319,19 +501,36 @@ class QdrantVectorStore:
             model_config = config.EMBEDDING_MODELS[embedding_model]
             dimension = model_config["dimension"]
             
-            # Criar a collection
-            self.client.create_collection(
-                collection_name=collection_name,
-                vectors_config=VectorParams(
-                    size=dimension,
-                    distance=Distance.COSINE
+            sparse_params = self._sparse_params()
+            try:
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config={
+                        DENSE_VECTOR_NAME: VectorParams(
+                            size=dimension,
+                            distance=Distance.COSINE,
+                        )
+                    },
+                    sparse_vectors_config={
+                        SPARSE_VECTOR_NAME: sparse_params
+                    },
                 )
-            )
+            except Exception as sparse_error:
+                print(f"⚠️ Collection híbrida falhou ({sparse_error}); criando só vetor denso")
+                self.client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(
+                        size=dimension,
+                        distance=Distance.COSINE
+                    )
+                )
             
             # Criar ponto de metadata para a collection
             metadata_point = PointStruct(
                 id=0,  # ID fixo para metadata
-                vector=[0.0] * dimension,  # Vetor zero para metadata
+                vector=self._compose_point_vector(
+                    collection_name, [0.0] * dimension, ""
+                ),
                 payload={
                     "name": collection_name,
                     "embedding_model": embedding_model,
@@ -522,6 +721,8 @@ class QdrantVectorStore:
                 charset_debugger.log_debug("DIMENSION_ERROR", f"Erro ao sanitizar dimensão: {dim_error}")
                 current_dimension = 1536  # Fallback seguro
                 print(f"📊 Usando dimensões fallback: {current_dimension}D")
+
+            self.ensure_sparse_config(collection_name)
             
             # Inicializar o modelo de embedding
             embedding_manager = EmbeddingManager(embedding_model)
@@ -616,7 +817,9 @@ class QdrantVectorStore:
                     charset_debugger.log_debug("INSERT_POINT_CREATE", f"Criando PointStruct para documento {i} com ID único {unique_id}")
                     point = PointStruct(
                         id=unique_id,  # Usar ID único em vez de i
-                        vector=embedding,
+                        vector=self._compose_point_vector(
+                            collection_name, embedding, doc.page_content
+                        ),
                         payload=safe_payload
                     )
                     points.append(point)
@@ -643,7 +846,12 @@ class QdrantVectorStore:
                     
                     # Verificar vetor
                     if hasattr(point, 'vector') and point.vector:
-                        charset_debugger.log_debug("INSERT_QDRANT_POINT_VECTOR", f"Ponto {i+1} vetor: {len(point.vector)} dimensões")
+                        vector_desc = (
+                            f"{len(point.vector)} campos"
+                            if isinstance(point.vector, dict)
+                            else f"{len(point.vector)} dimensões"
+                        )
+                        charset_debugger.log_debug("INSERT_QDRANT_POINT_VECTOR", f"Ponto {i+1} vetor: {vector_desc}")
                     else:
                         charset_debugger.log_debug("INSERT_QDRANT_POINT_VECTOR_FAIL", f"Ponto {i+1} sem vetor válido")
                 
@@ -720,74 +928,99 @@ class QdrantVectorStore:
             print(f"❌ Erro ao inserir documentos na collection '{collection_name}': {e}")
             raise e
 
+    def _metadata_filter(self, collection_name: str) -> Filter:
+        """Exclui o ponto de metadata (id 0 / payload name=collection)."""
+        return Filter(
+            must_not=[
+                FieldCondition(
+                    key="name",
+                    match=MatchValue(value=collection_name)
+                )
+            ]
+        )
+
     def _query_similar_points(
         self,
         collection_name: str,
-        query_embedding: List[float],
+        query_embedding: Any,
         top_k: int,
         query_filter: Filter = None,
         score_threshold: float = None,
+        using: str = None,
     ) -> List[Any]:
         """Consulta pontos similares compatível com qdrant-client 1.9+ e 1.19+."""
+        kwargs = {
+            "collection_name": collection_name,
+            "limit": top_k,
+            "query_filter": query_filter,
+            "score_threshold": score_threshold,
+            "with_payload": True,
+        }
+        if using:
+            kwargs["using"] = using
+
         if hasattr(self.client, "query_points"):
-            response = self.client.query_points(
-                collection_name=collection_name,
-                query=query_embedding,
-                limit=top_k,
-                query_filter=query_filter,
-                score_threshold=score_threshold,
-                with_payload=True,
-            )
+            response = self.client.query_points(query=query_embedding, **kwargs)
             return list(getattr(response, "points", []) or [])
 
-        return list(
-            self.client.search(
-                collection_name=collection_name,
-                query_vector=query_embedding,
-                limit=top_k,
-                query_filter=query_filter,
-                score_threshold=score_threshold,
-            )
+        search_kwargs = {
+            "collection_name": collection_name,
+            "query_vector": query_embedding if using is None else (using, query_embedding),
+            "limit": top_k,
+            "query_filter": query_filter,
+            "score_threshold": score_threshold,
+        }
+        return list(self.client.search(**search_kwargs))
+
+    def _format_search_point(
+        self,
+        point: Any,
+        mode: str,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Normaliza um ponto do Qdrant para a interface de busca."""
+        payload = getattr(point, "payload", None) or {}
+        chunk_text = payload.get(
+            "content",
+            payload.get("pageContent", payload.get("text", "Conteúdo não disponível")),
         )
-    
+        if chunk_text == "Conteúdo não disponível":
+            if hasattr(point, "pageContent") and point.pageContent:
+                chunk_text = point.pageContent
+            elif hasattr(point, "text") and point.text:
+                chunk_text = point.text
+
+        score = float(getattr(point, "score", 0) or 0)
+        result = {
+            "content": chunk_text,
+            "file_name": payload.get("file_name_safe", "Documento desconhecido"),
+            "chunk_id": payload.get("chunk_id", "unknown"),
+            "minio_path": payload.get("minio_path", ""),
+            "chunk_index": payload.get("chunk_index", 0),
+            "chunk_size": len(chunk_text) if chunk_text else 0,
+            "score": score,
+            "id": point.id,
+            "search_mode": mode,
+        }
+        if extra:
+            result.update(extra)
+        return result
+
     def search_similar(self, collection_name: str, query: str, top_k: int = 5,  
                       embedding_model: str = None, similarity_threshold: float = 0.0) -> List[Dict[str, Any]]:
-        """
-        Busca documentos similares em uma collection com threshold de similaridade.
-        
-        Args:
-            collection_name: Nome da collection
-            query: Query de busca
-            top_k: Número máximo de resultados
-            embedding_model: Modelo de embedding (opcional)
-            similarity_threshold: Threshold de similaridade (0.0 a 1.0, onde 0.0 = 0% e 1.0 = 100%)
-        """
+        """Busca densa (semântica) por similaridade de cosseno."""
         self._ensure_connection()
         
         try:
-            # Buscar metadata da collection para obter o modelo de embedding
             if not embedding_model:
                 metadata = self._get_collection_metadata(collection_name)
                 if not metadata:
                     raise ValueError(f"Collection '{collection_name}' não encontrada ou sem metadata")
                 embedding_model = metadata.get("embedding_model")
             
-            # Inicializar o modelo de embedding
             embedding_manager = EmbeddingManager(embedding_model)
-            
-            # Gerar embedding para a query
             query_embedding = embedding_manager.get_embedding(query)
-            
-            # Buscar documentos similares (qdrant-client >= 1.12 usa query_points;
-            # client.search foi removido no 1.19)
-            query_filter = Filter(
-                must_not=[
-                    FieldCondition(
-                        key="name",
-                        match=MatchValue(value=collection_name)
-                    )
-                ]
-            )
+            query_filter = self._metadata_filter(collection_name)
             score_threshold = similarity_threshold if similarity_threshold > 0 else None
             search_result = self._query_similar_points(
                 collection_name=collection_name,
@@ -795,49 +1028,158 @@ class QdrantVectorStore:
                 top_k=top_k,
                 query_filter=query_filter,
                 score_threshold=score_threshold,
+                using=self._dense_vector_name(collection_name),
             )
             
-            # Formatar resultados ZERO-CHARSET: recuperar conteúdo do MinIO
             results = []
             for point in search_result:
-                # Converter score para percentual (0-100%)
                 similarity_percentage = point.score * 100
-                
-                # Aplicar threshold de similaridade
                 if similarity_percentage >= (similarity_threshold * 100):
-                    # Obter dados completos dos metadados
-                    chunk_id = point.payload.get("chunk_id", "unknown")
-                    minio_path = point.payload.get("minio_path", "")
-                    file_name = point.payload.get("file_name_safe", "Documento desconhecido")
-                    chunk_text = point.payload.get("content", point.payload.get("pageContent", point.payload.get("text", "Conteúdo não disponível")))
-                    
-                    # Se não tiver conteúdo nos metadados, tentar atributos do ponto (compatibilidade)
-                    if chunk_text == "Conteúdo não disponível":
-                        if hasattr(point, 'pageContent') and point.pageContent:
-                            chunk_text = point.pageContent
-                        elif hasattr(point, 'text') and point.text:
-                            chunk_text = point.text
-                    
-                    results.append({
-                        "content": chunk_text,
-                        "file_name": file_name,
-                        "chunk_id": chunk_id,
-                        "minio_path": minio_path,
-                        "chunk_index": point.payload.get("chunk_index", 0),
-                        "chunk_size": len(chunk_text) if chunk_text else 0,
-                        "score": point.score,
-                        "similarity_percentage": similarity_percentage,
-                        "id": point.id
-                    })
+                    results.append(
+                        self._format_search_point(
+                            point,
+                            "dense",
+                            {
+                                "similarity_percentage": similarity_percentage,
+                                "dense_score": point.score,
+                            },
+                        )
+                    )
             
-            print(f"🔍 BUSCA COM CONTEÚDO COMPLETO com threshold {similarity_threshold * 100:.1f}%: {len(results)} resultados de {len(search_result)} encontrados")
-            print(f"    ✅ Resultados incluem texto real e nome do documento!")
+            print(
+                f"🔍 BUSCA DENSA com threshold {similarity_threshold * 100:.1f}%: "
+                f"{len(results)} resultados de {len(search_result)} encontrados"
+            )
             return results
             
         except Exception as e:
             print(f"❌ Erro ao buscar na collection '{collection_name}': {e}")
-            # Se falhar, é problema de busca, não de charset!
             raise e
+
+    def search_lexical(
+        self, collection_name: str, query: str, top_k: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Busca léxica (esparsa) via BM25 no Qdrant."""
+        self._ensure_connection()
+        if not self.ensure_sparse_config(collection_name):
+            raise ValueError(
+                f"A collection '{collection_name}' não suporta busca léxica. "
+                "Recrie a collection para indexar vetores esparsos BM25."
+            )
+        self._backfill_sparse_vectors(collection_name)
+
+        sparse_query = text_to_sparse_vector(query)
+        search_result = self._query_similar_points(
+            collection_name=collection_name,
+            query_embedding=sparse_query,
+            top_k=top_k,
+            query_filter=self._metadata_filter(collection_name),
+            using=self._sparse_vector_name(collection_name) or SPARSE_VECTOR_NAME,
+        )
+        results = [
+            self._format_search_point(
+                point,
+                "lexical",
+                {
+                    "lexical_score": float(point.score or 0),
+                    "similarity_percentage": None,
+                },
+            )
+            for point in search_result
+        ]
+        print(f"🔍 BUSCA LÉXICA: {len(results)} resultados em '{collection_name}'")
+        return results
+
+    def search_hybrid(
+        self,
+        collection_name: str,
+        query: str,
+        top_k: int = 10,
+        embedding_model: str = None,
+        similarity_threshold: float = 0.0,
+    ) -> List[Dict[str, Any]]:
+        """Busca híbrida: densa + léxica fundidas com Reciprocal Rank Fusion (RRF)."""
+        prefetch_k = max(top_k * 4, 20)
+        dense_results = self.search_similar(
+            collection_name=collection_name,
+            query=query,
+            top_k=prefetch_k,
+            embedding_model=embedding_model,
+            similarity_threshold=similarity_threshold,
+        )
+        lexical_results = self.search_lexical(
+            collection_name=collection_name,
+            query=query,
+            top_k=prefetch_k,
+        )
+        fused = self._reciprocal_rank_fusion(dense_results, lexical_results)
+        print(
+            f"🔍 BUSCA HÍBRIDA RRF em '{collection_name}': "
+            f"{len(fused[:top_k])} resultados (densa={len(dense_results)}, "
+            f"léxica={len(lexical_results)})"
+        )
+        return fused[:top_k]
+
+    def _reciprocal_rank_fusion(
+        self,
+        dense_results: List[Dict[str, Any]],
+        lexical_results: List[Dict[str, Any]],
+        k: int = RRF_K,
+    ) -> List[Dict[str, Any]]:
+        """Funde rankings densos e léxicos com RRF."""
+        rrf_scores: Dict[Any, float] = {}
+        merged: Dict[Any, Dict[str, Any]] = {}
+
+        for rank, item in enumerate(dense_results, start=1):
+            point_id = item.get("id")
+            rrf_scores[point_id] = rrf_scores.get(point_id, 0.0) + 1.0 / (k + rank)
+            merged[point_id] = {**item}
+
+        for rank, item in enumerate(lexical_results, start=1):
+            point_id = item.get("id")
+            rrf_scores[point_id] = rrf_scores.get(point_id, 0.0) + 1.0 / (k + rank)
+            if point_id in merged:
+                merged[point_id]["lexical_score"] = item.get("lexical_score", item.get("score"))
+            else:
+                merged[point_id] = {**item}
+
+        ranked = []
+        for point_id, rrf_score in sorted(rrf_scores.items(), key=lambda pair: pair[1], reverse=True):
+            result = merged[point_id]
+            result["search_mode"] = "hybrid"
+            result["rrf_score"] = rrf_score
+            result["score"] = rrf_score
+            ranked.append(result)
+        return ranked
+
+    def search_by_mode(
+        self,
+        collection_name: str,
+        query: str,
+        mode: str = "dense",
+        top_k: int = 10,
+        embedding_model: str = None,
+        similarity_threshold: float = 0.0,
+    ) -> List[Dict[str, Any]]:
+        """Executa busca densa, léxica ou híbrida em uma collection."""
+        normalized = (mode or "dense").strip().lower()
+        if normalized in ("lexical", "sparse", "bm25"):
+            return self.search_lexical(collection_name, query, top_k=top_k)
+        if normalized in ("hybrid", "hibrida", "híbrida"):
+            return self.search_hybrid(
+                collection_name,
+                query,
+                top_k=top_k,
+                embedding_model=embedding_model,
+                similarity_threshold=similarity_threshold,
+            )
+        return self.search_similar(
+            collection_name,
+            query,
+            top_k=top_k,
+            embedding_model=embedding_model,
+            similarity_threshold=similarity_threshold,
+        )
     
     def list_collections(self) -> List[Dict[str, Any]]:
         """Lista todas as collections disponíveis com contagem real de documentos."""
@@ -1075,7 +1417,9 @@ class QdrantVectorStore:
                 # Atualizar o ponto de metadata
                 updated_point = PointStruct(
                     id=0,
-                    vector=[0.0] * dimension,  # Vetor zero com dimensão correta
+                    vector=self._compose_point_vector(
+                        collection_name, [0.0] * dimension, ""
+                    ),
                     payload={
                         **metadata,
                         "document_count": new_count
@@ -1113,7 +1457,9 @@ class QdrantVectorStore:
                 
                 updated_point = PointStruct(
                     id=0,
-                    vector=[0.0] * dimension,
+                    vector=self._compose_point_vector(
+                        collection_name, [0.0] * dimension, ""
+                    ),
                     payload={
                         **metadata,
                         "document_count": real_count

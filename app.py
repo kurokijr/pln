@@ -154,6 +154,80 @@ def handle_chat_message(data):
         emit('chat_response', {'error': str(e)})
 
 
+def _run_document_search(query: str, collection_name, mode: str,
+                         similarity_threshold: float, top_k: int):
+    """Executa busca densa, léxica ou híbrida em uma ou todas as collections."""
+    collection_names = collection_name
+    if isinstance(collection_names, str):
+        collection_names = [collection_names] if collection_names.strip() else []
+    elif collection_names is None:
+        collection_names = []
+
+    results = chat_manager.chat_service.multi_agent_service.query_knowledge_sources(
+        query=query,
+        source_names=collection_names,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        mode=mode,
+    )
+    for item in results:
+        if "id" in item:
+            item["id"] = str(item["id"])
+    return results
+
+
+@app.route('/api/search', methods=['POST'])
+def search_documents():
+    """Busca de documentos: dense (semântica), lexical ou hybrid (RRF)."""
+    try:
+        data = request.get_json() or {}
+        query = (data.get('query') or data.get('message') or '').strip()
+        mode = (data.get('mode') or 'dense').strip().lower()
+        collection_name = data.get('collection_name') or data.get('collection_names')
+        similarity_threshold = data.get('similarity_threshold', 0.0)
+        top_k = int(data.get('top_k', 10))
+
+        if not query:
+            return jsonify({'success': False, 'error': 'Consulta é obrigatória'}), 400
+
+        if mode not in ('dense', 'lexical', 'hybrid', 'sparse', 'bm25', 'hibrida', 'híbrida'):
+            return jsonify({'success': False, 'error': f'Modo de busca inválido: {mode}'}), 400
+
+        if not isinstance(similarity_threshold, (int, float)) or similarity_threshold < 0 or similarity_threshold > 1:
+            similarity_threshold = 0.0
+
+        top_k = max(1, min(top_k, 50))
+        sources = _run_document_search(
+            query=query,
+            collection_name=collection_name,
+            mode=mode,
+            similarity_threshold=similarity_threshold,
+            top_k=top_k,
+        )
+
+        mode_label = {
+            'dense': 'semântica (densa)',
+            'lexical': 'léxica (esparsa)',
+            'sparse': 'léxica (esparsa)',
+            'bm25': 'léxica (esparsa)',
+            'hybrid': 'híbrida (RRF)',
+            'hibrida': 'híbrida (RRF)',
+            'híbrida': 'híbrida (RRF)',
+        }.get(mode, mode)
+
+        return jsonify({
+            'success': True,
+            'mode': mode,
+            'query': query,
+            'sources': sources,
+            'similarity_threshold': similarity_threshold,
+            'response': f'Encontrados {len(sources)} trechos na busca {mode_label}.',
+        })
+    except Exception as e:
+        print(f"❌ Erro em /api/search: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def allowed_file(filename: str) -> bool:
     """Verifica se o arquivo é permitido."""
     return '.' in filename and \

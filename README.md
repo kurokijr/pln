@@ -436,13 +436,14 @@ python scripts/test_session_system.py
 - **Preview dinâmico**: Visualização formatada e edição Markdown
 - **Vetorização opcional**: Inserção das Q&As como embeddings
 
-### 4. 💬 Chat RAG Inteligente
+### 4. 🔍 Recuperação (densa, léxica e híbrida)
 
-- **Múltiplas sessões**: Conversas independentes com histórico
-- **Busca por similaridade**: ranking de chunks por cosseno no Qdrant ([docs/busca-por-similaridade.md](docs/busca-por-similaridade.md))
-- **Busca semântica**: Recuperação de contexto relevante
-- **Respostas contextualizadas**: Baseadas em documentos específicos
-- **Interface moderna**: Design conversacional com typing indicators
+- **Busca Semântica**: ranking de chunks por cosseno (vetor denso) no Qdrant ([docs/busca-por-similaridade.md](docs/busca-por-similaridade.md))
+- **Busca Lexical**: ranking BM25 (vetor esparso)
+- **Busca Híbrida**: densa + léxica fundidas com RRF ([docs/busca-hibrida.md](docs/busca-hibrida.md))
+- **Chat Multi-Agente**: respostas de LLM com contexto recuperado
+- **Múltiplas sessões**: conversas independentes com histórico no PostgreSQL
+- **Interface moderna**: listagem de trechos com score (cosseno, BM25 ou RRF)
 
 ### 5. 📊 Métricas e Analytics
 
@@ -480,8 +481,9 @@ POST   /api/vectorize-qa             # Vetorizar Q&As geradas
 POST   /api/create-qa-embeddings     # Criar embeddings de Q&A
 ```
 
-### Chat
+### Chat e busca
 ```http
+POST   /api/search                   # dense | lexical | hybrid (RRF)
 POST   /api/chat                     # Processar mensagem
 GET    /api/sessions                 # Listar sessões
 POST   /api/sessions                 # Criar sessão
@@ -513,7 +515,8 @@ GET    http://localhost:5678/api     # API n8n
 │   ├── 📄 storage.py              # Gerenciamento MinIO
 │   ├── 📄 chat_rag_service.py     # Serviço de chat RAG
 │   ├── 📄 semantic_search_service.py # Serviço de busca semântica
-│   └── 📄 vector_store.py         # Qdrant + busca por similaridade
+│   ├── 📄 sparse_encoder.py       # Tokenização BM25 / vetor esparso
+│   ├── 📄 vector_store.py         # Qdrant: denso, léxico e híbrido (RRF)
 ├── 📁 templates/                   # Templates HTML
 │   └── 📄 index.html              # Interface principal (SPA)
 ├── 📁 static/                      # Assets estáticos
@@ -552,9 +555,19 @@ Pergunta → Embedding → Busca Qdrant → Contexto → LLM → Resposta → Po
 Documento → Chunking → LLM Generate → Q&A Pairs → Vetorização → Qdrant
 ```
 
-### 4. 🔍 Busca Semântica
+### 4. 🔍 Busca Semântica (densa)
 ```
-Query → Embedding → Similarity Search → Ranking → Results
+Query → Embedding → Cosseno no Qdrant → Ranking
+```
+
+### 4b. 🔤 Busca Lexical (esparsa)
+```
+Query → BM25 esparso → Ranking léxico no Qdrant
+```
+
+### 4c. 🔀 Busca Híbrida
+```
+Query → (densa ∥ léxica) → RRF → Ranking final
 ```
 
 ### 5. 💾 Persistência de Sessões
@@ -1258,7 +1271,7 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 ## 📞 Suporte
 
 ### Documentação
-- 📖 **Pasta `docs/`**: [docs/CHANGELOG.md](docs/CHANGELOG.md) e [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md)
+- 📖 **Pasta `docs/`**: [docs/CHANGELOG.md](docs/CHANGELOG.md), [docs/busca-hibrida.md](docs/busca-hibrida.md) e [docs/busca-por-similaridade.md](docs/busca-por-similaridade.md)
 - 📖 **README**: instalação, arquitetura e troubleshooting
 
 ### Comunidade
@@ -1266,12 +1279,18 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - 💬 **Discussions**: Tire dúvidas e compartilhe conhecimento
 - 📧 **Email**: Contato direto com desenvolvedores
 
-## 🎯 Versão Beta v3.2.9
+## 🎯 Versão Beta v3.3.4
 
-**Data da alteração:** 2026-08-24
+**Data da alteração:** 2026-08-25
 
 ### 🆕 Novidades da Versão
 
+- **✅ Busca híbrida**: densa (semântica) + esparsa (léxica/BM25) fundidas com RRF
+- **✅ Menus**: Collections → Upload → Editor → Lexical → Semântica → Híbrida → Chat Multi-Agente → Histórico
+- **✅ Collections com dois vetores**: `dense` (cosseno) e `sparse` (BM25/IDF)
+- **✅ Busca Semântica**: explicação na tela (denso, cosseno, limiar e comparação com a léxica)
+- **✅ Backfill BM25** em collections que só tinham vetor denso
+- **✅ Endpoint** `POST /api/search` (`dense` | `lexical` | `hybrid`)
 - **✅ Repositório Git**: código passa a usar https://github.com/kurokijrceub/pln
 - **✅ Busca por similaridade corrigida**: compatível com `qdrant-client` 1.19 (`query_points`)
 - **✅ WSL 2**: instalação alinhada à documentação oficial Microsoft (pt-BR) + correções oficiais
@@ -1283,6 +1302,29 @@ Este projeto está sob a **MIT License** - veja [LICENSE](LICENSE) para detalhes
 - **✅ Verificações Automáticas**: Script de setup inteligente com detecção de ambiente
 - **✅ Interface Aprimorada**: Design responsivo e experiência de usuário melhorada
 - **✅ PostgreSQL**: Histórico de sessões e memória do chat (n8n)
+
+### Melhorias realizadas (3.3.4)
+
+- [x] Ordem do menu lateral (Collections primeiro; buscas léxica → semântica → híbrida)
+
+### Melhorias realizadas (3.3.3)
+
+- [x] Explicação da Busca Semântica na própria tela (incluindo comparação com a léxica)
+
+### Melhorias realizadas (3.3.2)
+
+- [x] Clique no chunk abre o conteúdo completo
+- [x] Explicação do score BM25 na Busca Lexical
+
+### Melhorias realizadas (3.3.1)
+
+- [x] Named vector esparso no Qdrant: `sparse` (compatível com collections legado `bm25`)
+
+### Melhorias realizadas (3.3.0)
+
+- [x] Menus de busca refletindo densa / léxica / híbrida (RRF)
+- [x] Indexação esparsa BM25 no Qdrant e backfill de collections antigas
+- [x] Documentação em [docs/busca-hibrida.md](docs/busca-hibrida.md) e [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ### Melhorias realizadas (3.2.9)
 
