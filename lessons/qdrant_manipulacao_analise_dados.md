@@ -147,6 +147,22 @@ https://qdrant.tech/documentation/concepts/vectors/
 
 ---
 
+### Tabela de comparação e análise
+
+| Característica               | Dense                                    | Sparse                       |
+| ---------------------------- | ---------------------------------------- | ---------------------------- |
+| Representação                | Todos/quase todos os valores preenchidos | Maioria dos valores = 0      |
+| Dimensão                     | Fixa, ex. 384, 768, 1024, 1536           | Não precisa ter tamanho fixo |
+| Busca típica                 | Semântica                                | Lexical / termos             |
+| Modelos                      | BGE, E5, OpenAI embeddings etc.          | BM25, SPLADE, miniCOIL etc.  |
+| Encontra sinônimos/conceitos | ✅ Muito bom                              | ⚠️ Depende do modelo         |
+| Termos exatos                | ⚠️ Pode perder importância               | ✅ Muito bom                  |
+| IDs, siglas, códigos         | ⚠️                                       | ✅                            |
+| Índice Qdrant                | Normalmente HNSW                         | Sparse inverted index        |
+| Métrica                      | Cosine, Dot, Euclidean, Manhattan        | Dot Product                  |
+| Busca aproximada             | Pode usar HNSW                           | Busca sparse é exata         |
+
+
 # 5. Adicionar ou alterar campos no payload
 
 Não é necessário recriar a collection nem recalcular os embeddings.
