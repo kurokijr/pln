@@ -36,6 +36,10 @@ psycopg2-binary==2.9.9
 requests==2.31.0
 Werkzeug==3.0.1
 
+# Estudo TF-IDF + NER (itens 29 e 30)
+scikit-learn>=1.4,<2
+spacy>=3.7.6,<3.9
+
 # Desenvolvimento e testes
 pytest==7.4.3
 pytest-cov==4.1.0

@@ -240,6 +240,14 @@ function updatePageHeader(navId) {
             title: 'Chat',
             subtitle: 'Converse com seus documentos'
         },
+        'entity-study': {
+            title: 'Entidades (estudo)',
+            subtitle: 'TF-IDF + NER: rascunho de golden set e grupos de estudo'
+        },
+        'gliner-study': {
+            title: 'Entidades (GLiNER)',
+            subtitle: 'BERTimbau + GLiNER na máquina Torch; TF-IDF no rag-demo'
+        },
         history: {
             title: 'Histórico',
             subtitle: 'Veja o histórico de conversas'

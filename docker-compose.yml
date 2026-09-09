@@ -17,6 +17,10 @@ services:
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - MODEL_QA_GENERATOR=${MODEL_QA_GENERATOR}
+      - GLINER_BERT=${GLINER_BERT:-false}
+      - GLINER_BERT_URL=${GLINER_BERT_URL:-http://gliner-bert:8080}
+      - GLINER_BERT_TIMEOUT=${GLINER_BERT_TIMEOUT:-120}
+      - GLINER_LABELS=${GLINER_LABELS:-pessoa,organização,local,material,processo,norma,instituição}
       # Configurações do PostgreSQL
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -30,6 +34,80 @@ services:
       - minio
       - n8n
       - postgres
+    networks:
+      - rag-network
+
+  # GLiNER + BERTimbau NER (Torch CPU). Só sobe com --profile gliner
+  gliner-bert:
+    profiles: ["gliner"]
+    build: ./services/gliner_bert
+    container_name: gliner-bert
+    ports:
+      - "8080:8080"
+    environment:
+      - BERTIMBAU_NER_MODEL=${BERTIMBAU_NER_MODEL:-pierreguillou/ner-bert-base-cased-pt-lenerbr}
+      - GLINER_MODEL=${GLINER_MODEL:-urchade/gliner_multi-v2.1}
+      - GLINER_LABELS=${GLINER_LABELS:-pessoa,organização,local,material,processo,norma,instituição}
+      - GLINER_THRESHOLD=${GLINER_THRESHOLD:-0.4}
+      - GLINER_TRAINED_ONLY=${GLINER_TRAINED_ONLY:-false}
+      - GLINER_CHECKPOINT_ROOT=/models/checkpoints
+      - HF_HOME=/models
+    volumes:
+      - ./volumes/huggingface:/models
+      - ./volumes/gliner-checkpoints:/models/checkpoints
+    mem_limit: 4g
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)\"",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 180s
+    networks:
+      - rag-network
+
+  # GLiNER treino GPU (profile gliner-train). Mesmo hostname da rede: gliner-bert
+  gliner-bert-gpu:
+    profiles: ["gliner-train"]
+    build:
+      context: ./services/gliner_bert
+      dockerfile: Dockerfile.gpu
+    container_name: gliner-bert
+    ports:
+      - "8080:8080"
+    environment:
+      - BERTIMBAU_NER_MODEL=${BERTIMBAU_NER_MODEL:-pierreguillou/ner-bert-base-cased-pt-lenerbr}
+      - GLINER_MODEL=${GLINER_MODEL:-urchade/gliner_multi-v2.1}
+      - GLINER_ENCODER=${GLINER_ENCODER:-neuralmind/bert-base-portuguese-cased}
+      - GLINER_LABELS=${GLINER_LABELS:-pessoa,organização,local,material,processo,norma,instituição}
+      - GLINER_THRESHOLD=${GLINER_THRESHOLD:-0.4}
+      - GLINER_TRAINED_ONLY=${GLINER_TRAINED_ONLY:-false}
+      - GLINER_CHECKPOINT_ROOT=/models/checkpoints
+      - HF_HOME=/models
+    volumes:
+      - ./volumes/huggingface:/models
+      - ./volumes/gliner-checkpoints:/models/checkpoints
+    mem_limit: 8g
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)\"",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 180s
     networks:
       - rag-network
 

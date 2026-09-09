@@ -259,7 +259,13 @@ fi
 # Rebuild se solicitado
 if [ "$REBUILD_MODE" = true ]; then
     log_info "Rebuilding containers..."
-    docker-compose build --no-cache
+    if grep -qiE '^[[:space:]]*GLINER_TRAIN[[:space:]]*=[[:space:]]*(true|1|yes)[[:space:]]*$' .env 2>/dev/null; then
+        docker compose --profile gliner-train build --no-cache
+    elif grep -qiE '^[[:space:]]*GLINER_BERT[[:space:]]*=[[:space:]]*(true|1|yes)[[:space:]]*$' .env 2>/dev/null; then
+        docker compose --profile gliner build --no-cache
+    else
+        docker compose build --no-cache
+    fi
     log_success "Rebuild concluído"
 fi
 
@@ -380,6 +386,8 @@ create_directory_with_permissions "volumes/minio" 1000 1000
 create_directory_with_permissions "volumes/qdrant" 1000 1000
 create_directory_with_permissions "volumes/n8n" 1000 1000
 create_directory_with_permissions "volumes/postgres" 70 70
+create_directory_with_permissions "volumes/huggingface" 1000 1000
+create_directory_with_permissions "volumes/gliner-checkpoints" 1000 1000
 create_directory_with_permissions "static/css"
 create_directory_with_permissions "static/js"
 create_directory_with_permissions "static/images"
@@ -434,7 +442,7 @@ fi
 
 # Verificar se todos os diretórios foram criados
 log_info "Verificando diretórios criados..."
-required_dirs=("uploads" "volumes/minio" "volumes/qdrant" "volumes/n8n" "volumes/postgres" "static/css" "static/js" "static/images" "src" "templates" "scripts" "docs")
+required_dirs=("uploads" "volumes/minio" "volumes/qdrant" "volumes/n8n" "volumes/postgres" "volumes/huggingface" "volumes/gliner-checkpoints" "static/css" "static/js" "static/images" "src" "templates" "scripts" "docs")
 
 for dir in "${required_dirs[@]}"; do
     if [ -d "$dir" ]; then
@@ -622,6 +630,31 @@ fi
 
 log_success "Arquivos do projeto verificados"
 
+# GLiNER + BERTimbau: profile opcional (não sobe no compose padrão)
+gliner_bert_enabled() {
+    [ -f .env ] || return 1
+    grep -qiE '^[[:space:]]*GLINER_BERT[[:space:]]*=[[:space:]]*(true|1|yes)[[:space:]]*$' .env
+}
+
+gliner_train_enabled() {
+    [ -f .env ] || return 1
+    grep -qiE '^[[:space:]]*GLINER_TRAIN[[:space:]]*=[[:space:]]*(true|1|yes)[[:space:]]*$' .env
+}
+
+COMPOSE_PROFILE_ARGS=()
+GLINER_COMPOSE_SERVICE=""
+if gliner_train_enabled; then
+    COMPOSE_PROFILE_ARGS=(--profile gliner-train)
+    GLINER_COMPOSE_SERVICE="gliner-bert-gpu"
+    log_info "GLiNER/BERTimbau: profile gliner-train ativo (GPU, JSON BIO)"
+elif gliner_bert_enabled; then
+    COMPOSE_PROFILE_ARGS=(--profile gliner)
+    GLINER_COMPOSE_SERVICE="gliner-bert"
+    log_info "GLiNER/BERTimbau: profile gliner ativo (GLINER_BERT=true)"
+else
+    log_info "GLiNER/BERTimbau: omitido (GLINER_BERT=true para inferência; GLINER_TRAIN=true para GPU)"
+fi
+
 # Preparar docker-compose baseado no modo
 COMPOSE_FILE="docker-compose.yml"
 
@@ -653,10 +686,14 @@ fi
 log_info "Iniciando serviços Docker..."
 
 if [ "$DEV_MODE" = true ]; then
-    docker-compose up -d qdrant minio postgres n8n rag-demo-app
+    if [ -n "$GLINER_COMPOSE_SERVICE" ]; then
+        docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d qdrant minio postgres n8n rag-demo-app "$GLINER_COMPOSE_SERVICE"
+    else
+        docker compose up -d qdrant minio postgres n8n rag-demo-app
+    fi
     log_info "Serviços iniciados em modo desenvolvimento (incluindo PostgreSQL e n8n)"
 else
-    docker-compose up -d
+    docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d
     log_info "Todos os serviços iniciados"
 fi
 

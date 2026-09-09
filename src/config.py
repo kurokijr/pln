@@ -68,14 +68,32 @@ class Config:
     # Processamento de documentos
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
+
+    # Estudo TF-IDF + NER (itens 29 e 30)
+    NER_BACKEND = os.getenv("NER_BACKEND", "spacy")
+    SPACY_MODEL = os.getenv("SPACY_MODEL", "pt_core_news_md")
+    ENTITY_STUDY_MAX_CHUNKS = int(os.getenv("ENTITY_STUDY_MAX_CHUNKS", "2000"))
+
+    GLINER_BERT = os.getenv("GLINER_BERT", "false").strip().lower() in {"1", "true", "yes", "on"}
+    GLINER_BERT_URL = os.getenv("GLINER_BERT_URL", "http://gliner-bert:8080").rstrip("/")
+    GLINER_BERT_TIMEOUT = int(os.getenv("GLINER_BERT_TIMEOUT", "120"))
+    GLINER_LABELS = [
+        item.strip()
+        for item in os.getenv(
+            "GLINER_LABELS",
+            "pessoa,organização,local,material,processo,norma,instituição",
+        ).split(",")
+        if item.strip()
+    ]
+    GLINER_STUDY_MAX_CHUNKS = int(os.getenv("GLINER_STUDY_MAX_CHUNKS", "200"))
     
     # Arquivos permitidos
     ALLOWED_EXTENSIONS = {
-        'txt', 'pdf', 'doc', 'docx', 'md', 'rtf'
+        'txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'json'
     }
     
     # Configurações de upload
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
+    MAX_CONTENT_LENGTH = 20 * 1024 * 1024  # 20MB (treino GLiNER JSON BIO)
 
 
 def get_config() -> Config:

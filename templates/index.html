@@ -430,24 +430,49 @@
             
             <!-- Menu de Navegação -->
             <nav class="flex-1 p-4 space-y-2">
-                <button id="upload-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="upload" class="w-5 h-5"></i>
-                    <span>Upload</span>
-                    </button>
-                
-                <button id="collections-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                <button id="collections-nav" class="sidebar-item active w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="folder-open" class="w-5 h-5"></i>
                     <span>Collections</span>
-                    </button>
+                </button>
+                
+                <button id="upload-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="upload" class="w-5 h-5"></i>
+                    <span>Upload</span>
+                </button>
                 
                 <button id="editor-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="edit-3" class="w-5 h-5"></i>
                     <span>Editor</span>
-                    </button>
+                </button>
                 
-                                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                <button id="semantic-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="type" class="w-5 h-5"></i>
+                    <span>Busca Lexical</span>
+                </button>
+                
+                <button id="chat-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="search" class="w-5 h-5"></i>
-                    <span>Busca por Similaridade</span>
+                    <span>Busca Semântica</span>
+                </button>
+                
+                <button id="hybrid-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="git-merge" class="w-5 h-5"></i>
+                    <span>Busca Híbrida</span>
+                </button>
+                
+                <button id="entity-study-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="tags" class="w-5 h-5"></i>
+                    <span>Entidades (estudo)</span>
+                </button>
+                
+                <button id="gliner-study-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    <span>Entidades (GLiNER)</span>
+                </button>
+                
+                <button id="gliner-train-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
+                    <i data-lucide="cpu" class="w-5 h-5"></i>
+                    <span>Treinar GLiNER</span>
                 </button>
                 
                 <button id="semantic-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
@@ -455,15 +480,10 @@
                     <span>Chat Multi-Agente</span>
                 </button>
                 
-                <button id="semantic-search-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
-                    <i data-lucide="zap" class="w-5 h-5"></i>
-                    <span>Busca Semântica</span>
-                </button>
-                
                 <button id="history-nav" class="sidebar-item w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left">
                     <i data-lucide="clock" class="w-5 h-5"></i>
                     <span>Histórico</span>
-                    </button>
+                </button>
             </nav>
             
             <!-- Status de Conexão -->
@@ -486,8 +506,8 @@
                     </button>
                     
                     <div>
-                        <h2 id="page-title" class="text-xl font-semibold text-gray-900">Upload de Documento</h2>
-                        <p id="page-subtitle" class="text-sm text-gray-600">Faça upload de documentos para processamento</p>
+                        <h2 id="page-title" class="text-xl font-semibold text-gray-900">Collections</h2>
+                        <p id="page-subtitle" class="text-sm text-gray-600">Gerencie suas collections de documentos</p>
                     </div>
                     
                     <!-- Status de Vetorização -->
@@ -506,7 +526,7 @@
             <!-- Conteúdo Principal -->
             <div class="flex-1 overflow-auto p-6">
                 <!-- Tela de Upload -->
-                <div id="upload-content" class="content-section">
+                <div id="upload-content" class="content-section hidden">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="space-y-6">
                             <!-- File Upload -->
@@ -640,7 +660,7 @@
 
 
                 <!-- Dashboard de Collections -->
-                <div id="collections-content" class="content-section hidden">
+                <div id="collections-content" class="content-section">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="mb-6">
                             <h2 class="text-2xl font-bold text-gray-900">Collections</h2>
@@ -915,7 +935,7 @@ DOCUMENTO:
                         <!-- Search Header -->
                         <div class="border-b px-6 py-4">
                             <div class="flex justify-between items-center">
-                                <h2 class="text-xl font-semibold text-gray-900">🔍 Busca por Similaridade</h2>
+                                <h2 class="text-xl font-semibold text-gray-900">🔍 Busca Semântica (densa)</h2>
                             </div>
                             
                             <!-- Collection Selection -->
@@ -940,14 +960,78 @@ DOCUMENTO:
                                     <span>100% (Mais precisos)</span>
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">
-                                    Ajuste o percentual mínimo de similaridade para filtrar resultados mais relevantes
+                                    Vetor denso (embedding OpenAI/Gemini) + similaridade de cosseno. Não gera resposta de LLM.
                                 </p>
+                            </div>
+                            <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-950 space-y-3">
+                                <p><strong>O que esta tela faz:</strong> busca <em>densa</em> — compara o <em>significado</em> da consulta com cada chunk, não as palavras exatas. Lista trechos ranqueados. <strong>Não chama LLM.</strong></p>
+                                <div>
+                                    <p class="font-semibold mb-1">Na indexação (upload)</p>
+                                    <p>O documento vira chunks (~1000 caracteres, overlap 200). Cada chunk passa pelo modelo da collection (OpenAI <code>text-embedding-3-small</code> → 1536 dimensões, ou Gemini → 3072) e vira um vetor <strong>denso</strong> gravado no Qdrant (<code>dense</code>), com distância de cosseno.</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Na consulta</p>
+                                    <p>O texto digitado passa pelo <strong>mesmo</strong> modelo e vira outro vetor. O Qdrant mede o <strong>cosseno</strong> entre esse vetor e o de cada chunk. O percentual na lista é <code>score × 100</code>.</p>
+                                    <ul class="list-disc pl-4 mt-1 space-y-0.5">
+                                        <li><strong>100%</strong> — vetores na mesma direção (muito parecidos).</li>
+                                        <li><strong>0%</strong> — sem relação de direção.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Slider de similaridade mínima</p>
+                                    <p>Corta trechos abaixo do corte. Com <strong>70%</strong>, só entram chunks com cosseno ≥ 0,70 — valor alto; lista vazia costuma ser o corte, não a ausência de documento. Teste 0% ou 30–50% para ver mais resultados. A tela devolve no máximo <strong>5</strong> trechos.</p>
+                                </div>
+                                <div class="font-mono text-[11px] bg-white/70 border border-blue-100 rounded p-2 leading-relaxed">
+                                    consulta → embedding (OpenAI/Gemini)<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                                    cosseno no Qdrant (vetor dense)<br>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                                    filtro do slider → lista de chunks
+                                </div>
+                                <div>
+                                    <p class="font-semibold mb-1">Semântica vs léxica</p>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse bg-white rounded border border-blue-100">
+                                            <thead>
+                                                <tr class="bg-blue-100/80">
+                                                    <th class="p-1.5 font-semibold"> </th>
+                                                    <th class="p-1.5 font-semibold">Semântica (esta tela)</th>
+                                                    <th class="p-1.5 font-semibold">Lexical</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Vetor</td>
+                                                    <td class="p-1.5">Denso (1536D ou 3072D)</td>
+                                                    <td class="p-1.5">Esparso (termos)</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Casa</td>
+                                                    <td class="p-1.5">Paráfrase, sinônimo, sentido</td>
+                                                    <td class="p-1.5">Palavra ou código exato</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Score</td>
+                                                    <td class="p-1.5">Cosseno 0–100%</td>
+                                                    <td class="p-1.5">BM25 (ex.: 5,034; sem teto)</td>
+                                                </tr>
+                                                <tr class="border-t border-blue-100">
+                                                    <td class="p-1.5 font-medium">Exemplo</td>
+                                                    <td class="p-1.5">“impressão 3D” ≈ “manufatura aditiva”</td>
+                                                    <td class="p-1.5">precisa dos termos no texto</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p class="mt-2">“Impressão tridimensional” pode achar um chunk sobre <em>additive manufacturing</em> ou EBM mesmo sem essas palavras, se o embedding achar o sentido próximo. Na léxica isso só entra se os tokens coincidirem.</p>
+                                </div>
+                                <p><strong>O que esta tela não faz:</strong> não gera resposta em linguagem natural. Isso fica no Chat Multi-Agente. Clique no chunk da lista para ver o texto completo.</p>
                             </div>
                             
                             <!-- Search Input -->
                             <div class="mt-4">
                                 <div class="flex space-x-4">
-                                    <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua consulta para busca por similaridade...">
+                                    <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua consulta para busca semântica (densa)...">
                                     <button id="send-message-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
                                         Enviar
                                     </button>
@@ -958,7 +1042,7 @@ DOCUMENTO:
                         <!-- Similarity Search Results -->
                         <div id="chat-messages" class="p-6 space-y-4">
                             <div class="text-center text-gray-500 text-sm">
-                                Inicie uma busca por similaridade fazendo uma consulta...
+                                Inicie uma busca semântica (densa) fazendo uma consulta...
                             </div>
                         </div>
                     </div>
@@ -1077,65 +1161,296 @@ DOCUMENTO:
                     </div>
                 </div>
 
-                <!-- Busca Semântica -->
+                <!-- Busca Lexical -->
                 <div id="semantic-search-content" class="content-section hidden">
-                    <div class="bg-white rounded-lg shadow overflow-hidden">
-                        <!-- Header -->
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
                         <div class="border-b px-6 py-4">
-                            <div class="flex justify-between items-center mb-4">
-                                <h2 class="text-xl font-semibold text-gray-900">⚡ Busca Semântica por Modelo</h2>
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🔤 Busca Lexical (esparsa)</h2>
                             </div>
-                            
-                            <!-- Model Selection -->
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Modelo de IA:</label>
-                                <div id="semantic-search-models" class="flex flex-wrap gap-2">
-                                    <!-- Models will be loaded here -->
-                                    <div class="text-xs text-gray-500">Carregando modelos...</div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="lexical-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            <div class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-950 space-y-2">
+                                <p><strong>O que esta tela faz:</strong> compara as <em>palavras</em> da consulta com as palavras de cada chunk (vetor esparso). Não usa embedding e não chama LLM.</p>
+                                <p><strong>BM25 nesta tela:</strong> cada chunk guarda a frequência dos termos (TF). Na consulta, o Qdrant aplica IDF — termos raros na collection pesam mais. O número à direita (ex.: 5,034) é o <em>score de relevância</em> dessa fórmula, não um percentual.</p>
+                                <ul class="list-disc pl-4 space-y-1">
+                                    <li><strong>Maior score = mais relevante</strong> para os termos digitados.</li>
+                                    <li>Não tem teto 100%: 5,034 é simplesmente mais forte que 2,262.</li>
+                                    <li>Sobe se o termo aparece mais vezes no chunk e/ou se ele é raro nos demais documentos.</li>
+                                </ul>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <input type="text" id="semantic-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite termos, códigos ou nomes para busca léxica...">
+                                    <button id="semantic-search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                                        Buscar
+                                    </button>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">Selecione o modelo de IA para busca e geração de resposta</p>
-                            </div>
-                            
-                            <!-- Similarity Threshold Control -->
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Similaridade Mínima: <span id="semantic-similarity-value" class="text-indigo-600 font-bold">30%</span>
-                                </label>
-                                <input type="range" id="semantic-similarity-threshold" 
-                                       min="10" max="80" value="30" step="5" 
-                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dynamic-slider">
-                                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                                    <span>10% (Mais permissivo)</span>
-                                    <span>80% (Muito restritivo)</span>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    ⚠️ Busca semântica usa threshold mais alto para evitar respostas não baseadas na base de conhecimento
-                                </p>
-                            </div>
-                            
-                            <!-- Search Input -->
-                            <div class="flex space-x-2">
-                                <input type="text" id="semantic-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite sua pergunta para busca semântica...">
-                                <button id="semantic-search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Buscar
-                                </button>
-                                <button id="debug-collections-btn" class="bg-gray-500 text-white px-3 py-2 rounded-md hover:bg-gray-600 text-sm">
-                                    Debug
-                                </button>
-                                <button id="test-search-btn" class="bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm">
-                                    Testar
-                                </button>
-                                <button id="test-gemini-btn" class="bg-purple-500 text-white px-3 py-2 rounded-md hover:bg-purple-600 text-sm">
-                                    Test Gemini
-                                </button>
                             </div>
                         </div>
-
-                        <!-- Results -->
-                        <div id="semantic-search-results" class="p-6">
+                        <div id="semantic-search-results" class="p-6 space-y-4">
                             <div class="text-center text-gray-500 text-sm">
-                                Selecione um modelo e faça uma pergunta para obter uma resposta baseada nos documentos...
+                                Inicie uma busca léxica (BM25) fazendo uma consulta...
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Busca Híbrida -->
+                <div id="hybrid-search-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🔀 Busca Híbrida (RRF)</h2>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="hybrid-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Todas as collections</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Filtrar por collection</p>
+                            </div>
+                            <div class="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">
+                                <div class="font-medium mb-2">Consulta → duas vias em paralelo → fusão</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-white rounded border border-blue-100 p-2">
+                                        <div class="font-semibold text-blue-700">Densa</div>
+                                        <div>semântica (cosseno)</div>
+                                    </div>
+                                    <div class="bg-white rounded border border-indigo-100 p-2">
+                                        <div class="font-semibold text-indigo-700">Esparsa</div>
+                                        <div>léxica (BM25)</div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">Os rankings são combinados com <strong>RRF</strong> (Reciprocal Rank Fusion).</div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex space-x-4">
+                                    <input type="text" id="hybrid-search-input" class="flex-1 border border-gray-300 rounded-md px-3 py-2" placeholder="Digite a consulta para busca híbrida...">
+                                    <button id="hybrid-search-btn" class="bg-slate-800 text-white px-4 py-2 rounded-md hover:bg-slate-900">
+                                        Buscar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="hybrid-search-results" class="p-6 space-y-4">
+                            <div class="text-center text-gray-500 text-sm">
+                                Inicie uma busca híbrida (densa + léxica + RRF)...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entidades (estudo TF-IDF + NER) -->
+                <div id="entity-study-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">🏷️ Entidades (estudo)</h2>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="entity-study-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Selecione uma collection...</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">O TF-IDF é calculado dentro desta collection</p>
+                            </div>
+                            <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-950 space-y-3">
+                                <div>
+                                    <p class="font-semibold">O que esta tela configura</p>
+                                    <p class="mt-1">Não é uma busca. É um estudo sobre <em>uma</em> collection: lê o texto dos chunks no Qdrant, extrai termos e entidades e monta um rascunho para o golden set. Não altera a collection, não grava payload e não chama LLM.</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Os três controles acima/abaixo</p>
+                                    <ul class="list-disc pl-4 mt-1 space-y-1">
+                                        <li><strong>Collection:</strong> universo do estudo. O TF-IDF (o quanto um termo é distintivo) é calculado só entre os chunks desta collection — não mistura com outras.</li>
+                                        <li><strong>Máx. chunks:</strong> quantos trechos serão lidos (teto 2000). Menos = mais rápido; mais = cobertura melhor. Chunks além do limite são ignorados.</li>
+                                        <li><strong>Top N:</strong> quantos candidatos entram nas tabelas e no JSON (5 a 200). Não muda a extração, só o tamanho da lista final.</li>
+                                        <li><strong>Top vizinhos:</strong> quantos tokens imediatos listar à esquerda e à direita de cada termo TF-IDF (1 a 30; padrão 5).</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Três camadas combinadas</p>
+                                    <ul class="list-disc pl-4 mt-1 space-y-1">
+                                        <li><strong>TF-IDF:</strong> termos que pesam neste documento e são raros nos outros (ex.: <em>extrusão</em>, <em>lâminas</em>). A coluna Antes/Depois mostra vizinhos imediatos, sem artigos e preposições.</li>
+                                        <li><strong>NER (spaCy 3.7+ <code>pt_core_news_md</code>):</strong> pessoas (PER), organizações (ORG), lugares (LOC) e outros (MISC). Não use spaCy 3.0 — incompatível com Python 3.12.</li>
+                                        <li><strong>Regex:</strong> o que o spaCy de notícias não pega — leis, pregões, CNPJ, processos, siglas (<em>PC 1/2018</em>).</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Score = TF-IDF × IDF × peso do tipo</p>
+                                    <p class="mt-1">Multiplicação, não soma. Termo raro e típico do chunk sobe; código e sigla pesam mais que nome próprio, que pesa mais que termo só TF-IDF (código 3,0 → sigla 2,8 → PER/ORG 2,5 → local 2,0 → MISC 1,5 → TF-IDF 1,0).</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Para o golden set (item 29)</p>
+                                    <p class="mt-1">O JSON é um <em>rascunho</em> de consultas, não o gabarito. Cada item traz categoria (<em>nome próprio</em>, <em>sigla</em>, <em>código</em>, <em>frase exata</em>, <em>lexical</em>) e <code>candidate_points</code> (chunks onde o termo apareceu). Você confirma quais Points são relevantes antes de calcular Recall@K / MRR. O botão <strong>Baixar JSON</strong> exporta esse rascunho.</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold">Para o estudo visual (item 30)</p>
+                                    <p class="mt-1">Entidades que atravessam vários documentos viram sugestão de <em>study_group</em> (assunto). Use isso para colorir/agrupar uma collection temporária de comparação — esta tela não escreve isso nas collections de produção.</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-3 items-end">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Máx. chunks</label>
+                                    <input type="number" id="entity-study-max-chunks" value="2000" min="1" max="2000" class="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    <p class="text-[11px] text-gray-500 mt-1">Quantos trechos ler</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Top N</label>
+                                    <input type="number" id="entity-study-top-n" value="50" min="5" max="200" class="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    <p class="text-[11px] text-gray-500 mt-1">Tamanho da lista</p>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Top vizinhos</label>
+                                    <input type="number" id="entity-study-neighbor-top" value="5" min="1" max="30" class="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    <p class="text-[11px] text-gray-500 mt-1">Antes / depois</p>
+                                </div>
+                                <button id="entity-study-btn" class="bg-amber-700 text-white px-4 py-2 rounded-md hover:bg-amber-800">
+                                    Executar estudo
+                                </button>
+                                <button id="entity-study-export-btn" class="bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 disabled:opacity-50" disabled>
+                                    Baixar JSON
+                                </button>
+                            </div>
+                            <p id="entity-study-status" class="mt-3 text-xs text-gray-500">Escolha uma collection e execute o estudo.</p>
+                        </div>
+                        <div id="entity-study-results" class="p-6 space-y-6">
+                            <div class="text-center text-gray-500 text-sm">
+                                Nenhum estudo executado ainda.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entidades (GLiNER + BERTimbau) -->
+                <div id="gliner-study-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <div class="border-b px-6 py-4">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-xl font-semibold text-gray-900">Entidades (GLiNER + BERTimbau)</h2>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Modelo GLiNER:</label>
+                                <div class="flex flex-wrap gap-2 items-end">
+                                    <select id="gliner-study-model-select" class="flex-1 min-w-[16rem] border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                        <option value="hub">Padrão Hub (GLiNER multi + BERTimbau NER)</option>
+                                    </select>
+                                    <button id="gliner-study-model-btn" type="button" class="bg-white border border-violet-300 text-violet-800 px-3 py-2 rounded-md text-sm hover:bg-violet-50 disabled:opacity-50">
+                                        Carregar
+                                    </button>
+                                </div>
+                                <p id="gliner-study-model-hint" class="text-xs text-gray-500 mt-1">Checkpoints em volumes/gliner-checkpoints. Carregar troca o modelo em memória, sem reiniciar o container.</p>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Collection:</label>
+                                <select id="gliner-study-collection-select" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                    <option value="">Selecione uma collection...</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">O TF-IDF continua nesta collection; o NER roda na máquina Torch</p>
+                            </div>
+                            <div id="gliner-study-offline" class="mt-4 hidden bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-950 space-y-1">
+                                <p><strong>Serviço GLiNER desligado.</strong> Os menus ficam visíveis; a extração só roda com o container <code>gliner-bert</code>.</p>
+                                <p>No <code>.env</code>: <code>GLINER_BERT=true</code>. Depois: <code>docker compose --profile gliner up -d --build rag-demo-app gliner-bert</code></p>
+                            </div>
+                            <div class="mt-4 bg-violet-50 border border-violet-200 rounded-lg p-3 text-xs text-violet-950 space-y-2">
+                                <p><strong>Máquina à parte.</strong> O rag-demo não instala torch: envia os textos ao container <code>gliner-bert</code> e recebe spans.</p>
+                                <ul class="list-disc pl-4 space-y-1">
+                                    <li><strong>BERTimbau NER:</strong> tipos clássicos em PT-BR (pessoa, organização, lugar, legislação).</li>
+                                    <li><strong>GLiNER:</strong> rótulos abertos na inferência (material, processo, norma, instituição) sem retreinar.</li>
+                                    <li><strong>Modelo em disco:</strong> após treinar, escolha o checkpoint nesta tela e clique em Carregar.</li>
+                                    <li><strong>Máx. chunks padrão 200:</strong> CPU Torch é lento; aumente só se necessário.</li>
+                                </ul>
+                                <p>O JSON continua um rascunho de golden set (item 29). Regex de códigos fica no rag-demo.</p>
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-3 items-end">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Máx. chunks</label>
+                                    <input type="number" id="gliner-study-max-chunks" value="200" min="1" max="2000" class="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Top N</label>
+                                    <input type="number" id="gliner-study-top-n" value="50" min="5" max="200" class="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Top vizinhos</label>
+                                    <input type="number" id="gliner-study-neighbor-top" value="5" min="1" max="30" class="w-24 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                </div>
+                                <button id="gliner-study-btn" class="bg-violet-700 text-white px-4 py-2 rounded-md hover:bg-violet-800">
+                                    Executar GLiNER
+                                </button>
+                                <button id="gliner-study-export-btn" class="bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 disabled:opacity-50" disabled>
+                                    Baixar JSON
+                                </button>
+                            </div>
+                            <p id="gliner-study-status" class="mt-3 text-xs text-gray-500">Serviço Torch disponível. Escolha uma collection.</p>
+                        </div>
+                        <div id="gliner-study-results" class="p-6 space-y-6">
+                            <div class="text-center text-gray-500 text-sm">Nenhum estudo GLiNER executado ainda.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Treinar GLiNER (JSON BIO, CPU ou GPU) -->
+                <div id="gliner-train-content" class="content-section hidden">
+                    <div class="bg-white rounded-lg shadow flex flex-col min-h-[600px]">
+                        <div class="border-b px-6 py-4">
+                            <h2 class="text-xl font-semibold text-gray-900">Treinar GLiNER (BIO → BERTimbau)</h2>
+                            <div id="gliner-train-offline" class="mt-4 hidden bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-950 space-y-1">
+                                <p><strong>Serviço GLiNER desligado.</strong> Suba <code>docker compose --profile gliner up -d --build gliner-bert</code> com <code>GLINER_BERT=true</code>.</p>
+                            </div>
+                            <div class="mt-4 bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-sky-950 space-y-2">
+                                <p><strong>Treino no container Torch.</strong> O rag-demo não instala torch: envia o JSON BIO ao <code>gliner-bert</code>. Roda em <strong>CPU</strong> (mais lento) ou GPU se houver CUDA. O encoder é o BERTimbau; a cabeça GLiNER é treinada do zero.</p>
+                                <ul class="list-disc pl-4 space-y-1">
+                                    <li>Formato: <code>tokens</code> + <code>ner_tags</code> IOB2 (<code>O</code>, <code>B-ROTULO</code>, <code>I-ROTULO</code>).</li>
+                                    <li>O checkpoint vai para <code>volumes/gliner-checkpoints/&lt;nome&gt;/</code>.</li>
+                                    <li>Depois do treino, use <strong>Usar na extração</strong> (ou o seletor em Entidades GLiNER) — não precisa editar o .env.</li>
+                                </ul>
+                            </div>
+                            <div class="mt-4 space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Arquivo JSON BIO</label>
+                                    <input type="file" id="gliner-train-file" accept=".json,application/json" class="block w-full text-sm text-gray-700">
+                                </div>
+                                <div class="flex flex-wrap gap-3 items-end">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Máx. passos</label>
+                                        <input type="number" id="gliner-train-max-steps" value="200" min="1" max="20000" class="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Nome do checkpoint</label>
+                                        <input type="text" id="gliner-train-output-name" value="gliner-bertimbau-pt" class="w-56 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    </div>
+                                    <button id="gliner-train-btn" class="bg-sky-700 text-white px-4 py-2 rounded-md hover:bg-sky-800">
+                                        Iniciar treino
+                                    </button>
+                                    <button id="gliner-train-use-btn" type="button" class="hidden bg-violet-700 text-white px-4 py-2 rounded-md hover:bg-violet-800">
+                                        Usar na extração
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div id="gliner-train-bar" class="h-full bg-sky-600 w-0 transition-all duration-300"></div>
+                                </div>
+                                <p id="gliner-train-status" class="mt-2 text-xs text-gray-500">Envie um JSON BIO para treinar (CPU ou GPU).</p>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-xs font-medium text-gray-600 mb-2">Exemplo mínimo</p>
+                            <pre class="text-xs bg-gray-50 border border-gray-200 rounded-md p-3 overflow-x-auto">{
+  "sentences": [
+    {
+      "tokens": ["O", "Tribunal", "de", "Contas", "analisou"],
+      "ner_tags": ["O", "B-ORGANIZACAO", "I-ORGANIZACAO", "I-ORGANIZACAO", "O"]
+    }
+  ]
+}</pre>
                         </div>
                     </div>
                 </div>
@@ -1214,9 +1529,28 @@ DOCUMENTO:
         </div>
     </div>
 
-
-
-    <!-- JavaScript -->
+    <!-- Modal de conteúdo completo do chunk -->
+    <div id="chunk-content-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+                <div class="px-6 py-4 border-b flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900" id="chunk-modal-title">Chunk completo</h3>
+                        <p class="text-xs text-gray-500 mt-1" id="chunk-modal-meta"></p>
+                    </div>
+                    <button type="button" id="chunk-modal-close-x" class="text-gray-400 hover:text-gray-700 text-2xl leading-none" aria-label="Fechar">&times;</button>
+                </div>
+                <div class="px-6 py-4 overflow-y-auto flex-1">
+                    <pre id="chunk-modal-body" class="whitespace-pre-wrap text-sm text-gray-800 font-sans leading-relaxed"></pre>
+                </div>
+                <div class="px-6 py-4 border-t flex justify-end">
+                    <button type="button" id="chunk-modal-close-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         // Socket.IO connection
         const socket = io();
@@ -1240,6 +1574,17 @@ DOCUMENTO:
         });
         
         // Listener global para qa_progress
+        socket.on('entity_study_progress', (data) => {
+            const status = document.getElementById('entity-study-status');
+            if (status && data && data.message) {
+                status.textContent = data.message;
+            }
+            const glinerStatus = document.getElementById('gliner-study-status');
+            if (glinerStatus && data && data.message) {
+                glinerStatus.textContent = data.message;
+            }
+        });
+
         socket.on('qa_progress', (data) => {
             // Distinguir entre geração e vetorização baseado no step
             if (data.step === 'vectorizing') {
@@ -1276,7 +1621,7 @@ DOCUMENTO:
                 addChatMessage('error', `Erro: ${data.error}`);
             } else {
                 addChatMessage('assistant', data.response, {
-                    sources: data.sources,
+                    sources: data.sources || [],
                     similarity_threshold: data.similarity_threshold
                 });
             }
@@ -1336,6 +1681,13 @@ DOCUMENTO:
                     updatePageHeader(contentId);
                 }
                 
+                if (contentId === 'gliner-study' && typeof refreshGlinerModelSelect === 'function') {
+                    refreshGlinerModelSelect();
+                }
+                if (contentId === 'gliner-train' && typeof pollGlinerTrainStatus === 'function') {
+                    pollGlinerTrainStatus();
+                }
+
                 console.log('✅ showContent executada com sucesso');
             } catch (error) {
                 console.error('❌ Erro em showContent:', error);
@@ -1416,16 +1768,32 @@ DOCUMENTO:
                     subtitle: 'Crie e edite perguntas e respostas'
                 },
                 'chat': {
-                                    title: 'Busca por Similaridade',
-                subtitle: 'Busque documentos por similaridade de conteúdo'
+                    title: 'Busca Semântica',
+                    subtitle: 'Busca densa: embedding + similaridade de cosseno'
                 },
                 'semantic': {
                     title: 'Chat Multi-Agente',
                     subtitle: 'Obtenha respostas de múltiplos modelos de IA'
                 },
                 'semantic-search': {
-                    title: 'Busca Semântica',
-                    subtitle: 'Busca inteligente por modelo de IA com retorno de chunks'
+                    title: 'Busca Lexical',
+                    subtitle: 'Busca esparsa BM25: correspondência de termos'
+                },
+                'hybrid-search': {
+                    title: 'Busca Híbrida',
+                    subtitle: 'Densa + léxica combinadas com Reciprocal Rank Fusion (RRF)'
+                },
+                'entity-study': {
+                    title: 'Entidades (estudo)',
+                    subtitle: 'TF-IDF + NER: rascunho de golden set e grupos de estudo'
+                },
+                'gliner-study': {
+                    title: 'Entidades (GLiNER)',
+                    subtitle: 'BERTimbau + GLiNER na máquina Torch; TF-IDF no rag-demo'
+                },
+                'gliner-train': {
+                    title: 'Treinar GLiNER',
+                    subtitle: 'JSON BIO → encoder BERTimbau (CPU ou GPU); checkpoint em volumes/gliner-checkpoints'
                 },
                 'history': {
                     title: 'Histórico',
@@ -1491,14 +1859,6 @@ DOCUMENTO:
         
         socket.on('disconnect', () => {
             statusIndicator.innerHTML = '<div class="w-2 h-2 bg-red-500 rounded-full"></div><span class="text-sm text-gray-600">Desconectado</span>';
-        });
-        
-        socket.on('chat_response', (data) => {
-            addChatMessage('assistant', data.response, data);
-            isProcessing = false;
-            updateSendButton();
-            
-
         });
         
         socket.on('chat_error', (data) => {
@@ -2705,27 +3065,180 @@ DOCUMENTO:
             const message = chatInput.value.trim();
             if (!message || isProcessing) return;
             
-            // Limpar resultados anteriores
             clearSearchResults();
-            
-            // Add user message
             addChatMessage('user', message);
-            
-            // Clear input
             chatInput.value = '';
             
-            // Send via WebSocket
             isProcessing = true;
             updateSendButton();
             
-            // Obter o threshold de similaridade (0.0 a 1.0)
             const similarityThreshold = parseFloat(document.getElementById('similarity-threshold').value) / 100;
+            const collectionName = document.getElementById('chat-collection-select').value;
             
-            socket.emit('chat_message', {
-                message: message,
-                session_id: null, // Busca por similaridade não precisa de sessão
-                collection_name: document.getElementById('chat-collection-select').value,
-                similarity_threshold: similarityThreshold
+            try {
+                const result = await runRetrievalSearch({
+                    query: message,
+                    mode: 'dense',
+                    collectionName,
+                    similarityThreshold,
+                    topK: 5
+                });
+                chatMessages.innerHTML = '';
+                renderRetrievalResults(chatMessages, result.sources || [], {
+                    search_mode: 'dense',
+                    similarity_threshold: similarityThreshold
+                });
+            } catch (error) {
+                addChatMessage('error', `Erro: ${error.message}`);
+            } finally {
+                isProcessing = false;
+                updateSendButton();
+            }
+        }
+
+        async function runRetrievalSearch({ query, mode, collectionName, similarityThreshold = 0, topK = 10 }) {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    mode,
+                    collection_name: collectionName || '',
+                    similarity_threshold: similarityThreshold,
+                    top_k: topK
+                })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Falha na busca');
+            }
+            return result;
+        }
+
+        function escapeHtml(text) {
+            if (text == null) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function closeChunkModal() {
+            const modal = document.getElementById('chunk-content-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function openChunkModal(source, mode) {
+            if (!source) return;
+            const modal = document.getElementById('chunk-content-modal');
+            const title = document.getElementById('chunk-modal-title');
+            const meta = document.getElementById('chunk-modal-meta');
+            const body = document.getElementById('chunk-modal-body');
+            const fileName = source.file_name || 'Documento desconhecido';
+            const collectionName = source.source_collection || source.knowledge_source || 'Collection desconhecida';
+            const chunkNumber = source.chunk_number || source.chunk_index || '-';
+            let scoreText = '';
+            if (mode === 'lexical') {
+                const lex = (source.lexical_score != null ? source.lexical_score : source.score || 0);
+                scoreText = `Score BM25: ${Number(lex).toFixed(3)} (maior = mais relevante; não é %)`;
+            } else if (mode === 'hybrid') {
+                const rrf = source.rrf_score != null ? source.rrf_score : source.score || 0;
+                scoreText = `Score RRF: ${Number(rrf).toFixed(4)}`;
+            } else if (source.similarity_percentage != null || source.score != null) {
+                const pct = (source.similarity_percentage || source.score * 100).toFixed(1);
+                scoreText = `Similaridade de cosseno: ${pct}%`;
+            }
+            title.textContent = fileName;
+            meta.textContent = `${collectionName} · chunk #${chunkNumber}${scoreText ? ' · ' + scoreText : ''}`;
+            body.textContent = source.content || 'Conteúdo não disponível';
+            modal.classList.remove('hidden');
+        }
+
+        function renderRetrievalResults(container, sources, options = {}) {
+            const mode = options.search_mode || 'dense';
+            const threshold = options.similarity_threshold || 0;
+            const titles = {
+                dense: 'Resultados da Busca Semântica (densa)',
+                lexical: 'Resultados da Busca Lexical (BM25)',
+                hybrid: 'Resultados da Busca Híbrida (RRF)'
+            };
+            const descriptions = {
+                dense: 'O percentual é similaridade de cosseno (0–100%) entre o embedding da consulta e o de cada chunk. O slider corta valores abaixo do mínimo.',
+                lexical: 'O número ao lado de cada trecho é o <strong>score BM25</strong>: relevância léxica (TF × IDF no Qdrant). Não é percentual. Quanto maior, melhor o casamento de termos.',
+                hybrid: 'Rankings denso e léxico fundidos com Reciprocal Rank Fusion (RRF). Trechos que aparecem nas duas listas sobem no ranking.'
+            };
+
+            let html = `
+                <div class="w-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">📊 ${titles[mode] || 'Resultados'}</h3>
+                        ${mode === 'dense' ? `<div class="text-sm text-gray-600">Similaridade mínima: <span class="font-medium text-blue-600">${(threshold * 100).toFixed(0)}%</span></div>` : ''}
+                    </div>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <p>${descriptions[mode] || ''}</p>
+                    </div>
+            `;
+
+            if (!sources || sources.length === 0) {
+                html += `
+                    <div class="text-center py-8 text-gray-500">
+                        <div class="text-2xl mb-2">🔍</div>
+                        <div>Nenhum trecho encontrado para esta consulta.</div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="space-y-4">`;
+                sources.forEach((source, index) => {
+                    const fileName = escapeHtml(source.file_name || 'Documento desconhecido');
+                    const content = source.content || 'Conteúdo não disponível';
+                    const preview = content.length > 300 ? content.substring(0, 300) + '...' : content;
+                    const collectionName = escapeHtml(source.source_collection || source.knowledge_source || 'Collection desconhecida');
+                    const chunkNumber = source.chunk_number || source.chunk_index || (index + 1);
+                    let scoreLabel = '';
+                    if (mode === 'dense' && (source.similarity_percentage != null || source.score != null)) {
+                        const pct = (source.similarity_percentage || source.score * 100).toFixed(1);
+                        scoreLabel = `<span class="font-medium text-blue-600">${pct}%</span> <span class="text-gray-500">cosseno</span>`;
+                    } else if (mode === 'lexical') {
+                        const lex = (source.lexical_score != null ? source.lexical_score : source.score || 0).toFixed(3);
+                        scoreLabel = `<span class="font-medium text-indigo-600" title="Score BM25: relevância léxica (TF × IDF). Não é percentual. Maior = mais relevante.">${lex}</span> <span class="text-gray-500">score BM25</span>`;
+                    } else {
+                        const rrf = (source.rrf_score != null ? source.rrf_score : source.score || 0).toFixed(4);
+                        const denseBit = source.dense_score != null ? ` · densa ${(source.dense_score * 100).toFixed(1)}%` : '';
+                        const lexBit = source.lexical_score != null ? ` · léxica ${Number(source.lexical_score).toFixed(2)}` : '';
+                        scoreLabel = `<span class="font-medium text-slate-800">${rrf}</span> <span class="text-gray-500">RRF${denseBit}${lexBit}</span>`;
+                    }
+
+                    html += `
+                        <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center space-x-3 flex-wrap gap-1">
+                                    <div class="font-medium text-gray-900">📄 ${fileName}</div>
+                                    <div class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">📁 ${collectionName}</div>
+                                    <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">#${chunkNumber}</div>
+                                </div>
+                                <div class="text-sm whitespace-nowrap ml-2">${scoreLabel}</div>
+                            </div>
+                            <button type="button" data-chunk-index="${index}" class="w-full text-left text-sm text-gray-700 bg-gray-50 p-3 rounded border-l-4 ${mode === 'hybrid' ? 'border-slate-700' : mode === 'lexical' ? 'border-indigo-500' : 'border-blue-500'} hover:bg-indigo-50 hover:border-indigo-600 cursor-pointer">
+                                <div class="flex items-center justify-between mb-1">
+                                    <div class="font-medium">Chunk encontrado:</div>
+                                    <div class="text-xs text-indigo-700">Clique para ver o conteúdo completo</div>
+                                </div>
+                                <div class="text-gray-600">${escapeHtml(preview)}</div>
+                            </button>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+            container.querySelectorAll('[data-chunk-index]').forEach((el) => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.getAttribute('data-chunk-index'), 10);
+                    openChunkModal(sources[idx], mode);
+                });
             });
         }
         
@@ -3201,7 +3714,7 @@ DOCUMENTO:
                         const similarityPercent = (source.similarity_percentage || source.score * 100).toFixed(1);
                         const fileName = source.file_name || 'Documento desconhecido';
                         const content = source.content || 'Conteúdo não disponível';
-                        const collectionName = source.source_collection || 'Collection desconhecida';
+                        const collectionName = source.source_collection || source.knowledge_source || 'Collection desconhecida';
                         const chunkNumber = source.chunk_number || (index + 1);
                         
                         resultsContent += `
@@ -4093,13 +4606,21 @@ DOCUMENTO:
             const selects = [
                 document.getElementById('upload-collection-select'),
                 document.getElementById('editor-collection-select'),
-                document.getElementById('chat-collection-select')
+                document.getElementById('chat-collection-select'),
+                document.getElementById('lexical-collection-select'),
+                document.getElementById('hybrid-collection-select'),
+                document.getElementById('entity-study-collection-select'),
+                document.getElementById('gliner-study-collection-select')
             ];
             
             selects.forEach(select => {
                 if (select) {
                     console.log(`🔧 Atualizando collection select: ${select.id}`);
-                    select.innerHTML = '<option value="">Selecione uma collection...</option>';
+                    if (select.id === 'chat-collection-select' || select.id === 'lexical-collection-select' || select.id === 'hybrid-collection-select') {
+                        select.innerHTML = '<option value="">Todas as collections</option>';
+                    } else {
+                        select.innerHTML = '<option value="">Selecione uma collection...</option>';
+                    }
                     
                     if (collections && collections.length > 0) {
                         collections.forEach(collection => {
@@ -4613,6 +5134,20 @@ DOCUMENTO:
         const cancelCollectionBtn = document.getElementById('cancel-collection-btn');
         if (cancelCollectionBtn) cancelCollectionBtn.addEventListener('click', hideCollectionModal);
         
+        const chunkModal = document.getElementById('chunk-content-modal');
+        const closeChunkX = document.getElementById('chunk-modal-close-x');
+        const closeChunkBtn = document.getElementById('chunk-modal-close-btn');
+        if (closeChunkX) closeChunkX.addEventListener('click', closeChunkModal);
+        if (closeChunkBtn) closeChunkBtn.addEventListener('click', closeChunkModal);
+        if (chunkModal) {
+            chunkModal.addEventListener('click', (e) => {
+                if (e.target === chunkModal) closeChunkModal();
+            });
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeChunkModal();
+        });
+        
         const createCollectionBtn = document.getElementById('create-collection-btn');
         if (createCollectionBtn) createCollectionBtn.addEventListener('click', createCollection);
         
@@ -4688,6 +5223,9 @@ DOCUMENTO:
                 setupNewQAFeatures();
                 setupSimilarityControl();
                 setupSemanticSearch();
+                setupEntityStudy();
+                setupGlinerStudy();
+                setupGlinerTrain();
             } catch (error) {
                 console.error('❌ Erro em outras funções:', error);
             }
@@ -5091,47 +5629,711 @@ DOCUMENTO:
             `;
         }
         
-        // ============= BUSCA SEMÂNTICA POR MODELO =============
+        // ============= BUSCA LÉXICA E HÍBRIDA =============
         
         function setupSemanticSearch() {
-            console.log('📝 Configurando busca semântica por modelo');
+            console.log('📝 Configurando busca léxica e híbrida');
             
-            // Carregar modelos de embedding
-            loadSemanticSearchModels();
-            
-            // Event listeners
             const searchBtn = document.getElementById('semantic-search-btn');
             const searchInput = document.getElementById('semantic-search-input');
-            const debugBtn = document.getElementById('debug-collections-btn');
-            const testBtn = document.getElementById('test-search-btn');
-            const testGeminiBtn = document.getElementById('test-gemini-btn');
-            
             if (searchBtn) {
-                searchBtn.addEventListener('click', performSemanticSearch);
+                searchBtn.addEventListener('click', performLexicalSearch);
             }
-            
             if (searchInput) {
                 searchInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        performSemanticSearch();
+                        performLexicalSearch();
                     }
                 });
             }
-            
-            if (debugBtn) {
-                debugBtn.addEventListener('click', showDebugInfo);
+
+            const hybridBtn = document.getElementById('hybrid-search-btn');
+            const hybridInput = document.getElementById('hybrid-search-input');
+            if (hybridBtn) {
+                hybridBtn.addEventListener('click', performHybridSearch);
             }
-            
-            if (testBtn) {
-                testBtn.addEventListener('click', testSemanticSearchWithExample);
+            if (hybridInput) {
+                hybridInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        performHybridSearch();
+                    }
+                });
             }
-            
-            if (testGeminiBtn) {
-                testGeminiBtn.addEventListener('click', testGeminiModels);
+        }
+
+        async function performPanelSearch({ mode, inputId, collectionId, resultsId, buttonId, topK }) {
+            const searchInput = document.getElementById(inputId);
+            const searchBtn = document.getElementById(buttonId);
+            const resultsContainer = document.getElementById(resultsId);
+            const collectionSelect = document.getElementById(collectionId);
+            const query = (searchInput?.value || '').trim();
+
+            if (!query) {
+                showToast('Digite uma consulta para buscar', 'warning');
+                return;
             }
-            
-            // Configurar controle de similaridade para busca semântica
-            setupSemanticSimilarityControl();
+
+            if (searchBtn) {
+                searchBtn.disabled = true;
+                searchBtn.textContent = 'Buscando...';
+            }
+            if (resultsContainer) {
+                resultsContainer.innerHTML = '<div class="text-center text-gray-500">Processando busca...</div>';
+            }
+
+            try {
+                const result = await runRetrievalSearch({
+                    query,
+                    mode,
+                    collectionName: collectionSelect ? collectionSelect.value : '',
+                    similarityThreshold: 0,
+                    topK
+                });
+                renderRetrievalResults(resultsContainer, result.sources || [], { search_mode: mode });
+            } catch (error) {
+                console.error(`❌ Erro na busca ${mode}:`, error);
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = `<div class="text-red-600">Erro: ${error.message}</div>`;
+                }
+            } finally {
+                if (searchBtn) {
+                    searchBtn.disabled = false;
+                    searchBtn.textContent = 'Buscar';
+                }
+            }
+        }
+
+        async function performLexicalSearch() {
+            await performPanelSearch({
+                mode: 'lexical',
+                inputId: 'semantic-search-input',
+                collectionId: 'lexical-collection-select',
+                resultsId: 'semantic-search-results',
+                buttonId: 'semantic-search-btn',
+                topK: 10
+            });
+        }
+
+        async function performHybridSearch() {
+            await performPanelSearch({
+                mode: 'hybrid',
+                inputId: 'hybrid-search-input',
+                collectionId: 'hybrid-collection-select',
+                resultsId: 'hybrid-search-results',
+                buttonId: 'hybrid-search-btn',
+                topK: 10
+            });
+        }
+
+        let lastEntityStudyResult = null;
+
+        function setupEntityStudy() {
+            const runBtn = document.getElementById('entity-study-btn');
+            const exportBtn = document.getElementById('entity-study-export-btn');
+            if (runBtn) runBtn.addEventListener('click', runEntityStudy);
+            if (exportBtn) exportBtn.addEventListener('click', downloadGoldenSetDraft);
+        }
+
+        let lastGlinerStudyResult = null;
+        let glinerCurrentModelId = 'hub';
+        let glinerLastTrainOutputName = '';
+
+        function glinerModelLabel(payload) {
+            const hub = payload && payload.hub ? payload.hub : {};
+            return hub.label || 'Padrão Hub (GLiNER multi + BERTimbau NER)';
+        }
+
+        function updateGlinerModelHint(payload) {
+            const hint = document.getElementById('gliner-study-model-hint');
+            const status = document.getElementById('gliner-study-status');
+            if (!payload) return;
+            const current = payload.current_id || 'hub';
+            const trained = payload.trained_only ? 'só o checkpoint' : 'Hub + BERTimbau NER';
+            const text = current === 'hub'
+                ? `Em uso: ${glinerModelLabel(payload)}`
+                : `Em uso: ${current} (${trained})`;
+            if (hint) hint.textContent = `${text}. Pasta: volumes/gliner-checkpoints.`;
+            if (status && payload.available !== false) {
+                status.textContent = `${text}. Escolha uma collection.`;
+            }
+        }
+
+        function fillGlinerModelSelect(payload) {
+            const select = document.getElementById('gliner-study-model-select');
+            if (!select) return;
+            const current = (payload && payload.current_id) || 'hub';
+            glinerCurrentModelId = current;
+            const hubLabel = glinerModelLabel(payload || {});
+            const checkpoints = (payload && payload.checkpoints) || [];
+            const options = [`<option value="hub">${escapeHtml(hubLabel)}</option>`];
+            checkpoints.forEach((item) => {
+                const id = item.id || item.name;
+                options.push(`<option value="${escapeHtml(id)}">${escapeHtml(id)} (disco)</option>`);
+            });
+            select.innerHTML = options.join('');
+            select.value = current;
+            if (![...select.options].some((opt) => opt.value === current)) {
+                select.value = 'hub';
+            }
+            updateGlinerModelHint(payload);
+            const loadBtn = document.getElementById('gliner-study-model-btn');
+            if (loadBtn) loadBtn.disabled = select.value === glinerCurrentModelId;
+        }
+
+        async function refreshGlinerModelSelect() {
+            const select = document.getElementById('gliner-study-model-select');
+            const loadBtn = document.getElementById('gliner-study-model-btn');
+            try {
+                const response = await fetch('/api/gliner-models');
+                const data = await response.json();
+                if (!response.ok && !data.checkpoints) {
+                    throw new Error(data.error || 'Serviço indisponível');
+                }
+                fillGlinerModelSelect(data);
+            } catch (_error) {
+                if (select) {
+                    select.innerHTML = '<option value="hub">Padrão Hub (serviço indisponível)</option>';
+                }
+                if (loadBtn) loadBtn.disabled = true;
+            }
+        }
+
+        async function loadGlinerModel(modelId, { toastOnSuccess = true } = {}) {
+            const id = (modelId || 'hub').trim() || 'hub';
+            const loadBtn = document.getElementById('gliner-study-model-btn');
+            const useBtn = document.getElementById('gliner-train-use-btn');
+            const status = document.getElementById('gliner-study-status');
+            if (loadBtn) {
+                loadBtn.disabled = true;
+                loadBtn.textContent = 'Carregando...';
+            }
+            if (useBtn) useBtn.disabled = true;
+            if (status) status.textContent = 'Carregando modelo no container Torch...';
+            try {
+                const response = await fetch('/api/gliner-reload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || data.detail || 'Falha ao carregar o modelo');
+                }
+                fillGlinerModelSelect(data);
+                if (toastOnSuccess) {
+                    const label = id === 'hub' ? 'modelo Hub' : id;
+                    showToast(`GLiNER em uso: ${label}`, 'success');
+                }
+                return data;
+            } catch (error) {
+                showToast(error.message || 'Falha ao carregar o modelo', 'error');
+                if (status) status.textContent = error.message || String(error);
+                throw error;
+            } finally {
+                if (loadBtn) loadBtn.textContent = 'Carregar';
+                const select = document.getElementById('gliner-study-model-select');
+                if (loadBtn) loadBtn.disabled = select && select.value === glinerCurrentModelId;
+                if (useBtn) useBtn.disabled = false;
+            }
+        }
+
+        async function setupGlinerStudy() {
+            const nav = document.getElementById('gliner-study-nav');
+            const runBtn = document.getElementById('gliner-study-btn');
+            const exportBtn = document.getElementById('gliner-study-export-btn');
+            const offline = document.getElementById('gliner-study-offline');
+            const loadBtn = document.getElementById('gliner-study-model-btn');
+            const select = document.getElementById('gliner-study-model-select');
+            if (nav) nav.classList.remove('hidden');
+            if (runBtn) runBtn.addEventListener('click', runGlinerStudy);
+            if (exportBtn) exportBtn.addEventListener('click', downloadGlinerGoldenSetDraft);
+            if (loadBtn) loadBtn.addEventListener('click', () => {
+                const id = select?.value || 'hub';
+                loadGlinerModel(id).catch(() => {});
+            });
+            if (select) {
+                select.addEventListener('change', () => {
+                    if (loadBtn) loadBtn.disabled = select.value === glinerCurrentModelId;
+                });
+            }
+            let online = false;
+            try {
+                const response = await fetch('/api/gliner-bert/status');
+                const data = await response.json();
+                online = Boolean(data && data.available === true);
+            } catch (_error) {
+                online = false;
+            }
+            if (offline) {
+                if (online) offline.classList.add('hidden');
+                else offline.classList.remove('hidden');
+            }
+            if (runBtn) runBtn.disabled = !online;
+            if (loadBtn) loadBtn.disabled = !online;
+            if (online) await refreshGlinerModelSelect();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        let glinerTrainPoll = null;
+
+        async function setupGlinerTrain() {
+            const nav = document.getElementById('gliner-train-nav');
+            const runBtn = document.getElementById('gliner-train-btn');
+            const useBtn = document.getElementById('gliner-train-use-btn');
+            const offline = document.getElementById('gliner-train-offline');
+            if (nav) nav.classList.remove('hidden');
+            if (runBtn) runBtn.addEventListener('click', startGlinerTrain);
+            if (useBtn) useBtn.addEventListener('click', useTrainedGlinerOnStudy);
+            let online = false;
+            try {
+                const response = await fetch('/api/gliner-bert/status');
+                const data = await response.json();
+                online = Boolean(data && (data.train_available === true || data.available === true));
+            } catch (_error) {
+                online = false;
+            }
+            if (offline) {
+                if (online) offline.classList.add('hidden');
+                else offline.classList.remove('hidden');
+            }
+            if (runBtn) runBtn.disabled = !online;
+            if (online) pollGlinerTrainStatus();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function checkpointNameFromOutputDir(outputDir) {
+            if (!outputDir) return '';
+            const parts = String(outputDir).replace(/\\/g, '/').split('/').filter(Boolean);
+            return parts.length ? parts[parts.length - 1] : '';
+        }
+
+        function setGlinerTrainUseVisible(visible) {
+            const useBtn = document.getElementById('gliner-train-use-btn');
+            if (!useBtn) return;
+            if (visible) useBtn.classList.remove('hidden');
+            else useBtn.classList.add('hidden');
+        }
+
+        async function useTrainedGlinerOnStudy() {
+            const name = glinerLastTrainOutputName
+                || (document.getElementById('gliner-train-output-name')?.value || '').trim();
+            if (!name) {
+                showToast('Não há checkpoint para carregar.', 'warning');
+                return;
+            }
+            const useBtn = document.getElementById('gliner-train-use-btn');
+            if (useBtn) {
+                useBtn.disabled = true;
+                useBtn.textContent = 'Carregando...';
+            }
+            try {
+                await loadGlinerModel(name);
+                setGlinerTrainProgress(100, `Checkpoint ${name} carregado na extração.`);
+            } catch (_error) {
+                /* toast já emitido em loadGlinerModel */
+            } finally {
+                if (useBtn) {
+                    useBtn.disabled = false;
+                    useBtn.textContent = 'Usar na extração';
+                }
+            }
+        }
+
+        function setGlinerTrainProgress(percent, message) {
+            const bar = document.getElementById('gliner-train-bar');
+            const status = document.getElementById('gliner-train-status');
+            if (bar) bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+            if (status) status.textContent = message || '';
+        }
+
+        async function pollGlinerTrainStatus() {
+            try {
+                const response = await fetch('/api/gliner-train/status');
+                const data = await response.json();
+                const state = data.state || 'idle';
+                const maxSteps = parseInt(data.max_steps || '0', 10);
+                const step = parseInt(data.step || '0', 10);
+                let percent = 0;
+                if (state === 'running') {
+                    percent = maxSteps ? Math.min(95, Math.round((step / maxSteps) * 100) || 8) : 8;
+                } else if (state === 'done') {
+                    percent = 100;
+                } else if (state === 'error') {
+                    percent = 0;
+                }
+                setGlinerTrainProgress(percent, data.message || state);
+                if (state === 'done') {
+                    glinerLastTrainOutputName = checkpointNameFromOutputDir(data.output_dir)
+                        || (document.getElementById('gliner-train-output-name')?.value || '').trim();
+                    setGlinerTrainUseVisible(true);
+                    refreshGlinerModelSelect();
+                } else if (state === 'running') {
+                    setGlinerTrainUseVisible(false);
+                }
+                if (state === 'running') {
+                    if (!glinerTrainPoll) {
+                        glinerTrainPoll = setInterval(pollGlinerTrainStatus, 2500);
+                    }
+                } else if (glinerTrainPoll) {
+                    clearInterval(glinerTrainPoll);
+                    glinerTrainPoll = null;
+                }
+            } catch (_error) {
+                setGlinerTrainProgress(0, 'Não foi possível ler o status do treino.');
+            }
+        }
+
+        async function startGlinerTrain() {
+            const fileInput = document.getElementById('gliner-train-file');
+            const runBtn = document.getElementById('gliner-train-btn');
+            const file = fileInput?.files?.[0];
+            if (!file) {
+                showToast('Selecione um arquivo JSON BIO', 'warning');
+                return;
+            }
+            const maxSteps = parseInt(document.getElementById('gliner-train-max-steps')?.value || '200', 10);
+            const outputName = (document.getElementById('gliner-train-output-name')?.value || 'gliner-bertimbau-pt').trim();
+            const form = new FormData();
+            form.append('file', file);
+            form.append('max_steps', String(maxSteps));
+            form.append('output_name', outputName);
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Enviando...';
+            }
+            setGlinerTrainProgress(5, 'Enviando JSON BIO ao serviço GPU...');
+            try {
+                const response = await fetch('/api/gliner-train', { method: 'POST', body: form });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || data.detail || 'Falha ao iniciar o treino');
+                }
+                setGlinerTrainProgress(8, data.message || 'Treino iniciado');
+                showToast('Treino iniciado na GPU', 'success');
+                pollGlinerTrainStatus();
+            } catch (error) {
+                setGlinerTrainProgress(0, error.message || String(error));
+                showToast(error.message || 'Falha no treino', 'error');
+            } finally {
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Iniciar treino';
+                }
+            }
+        }
+
+        function renderStudyResultTables(data) {
+            const entities = data.entities || {};
+            return [
+                renderGoldenSetTable(data.golden_set_draft),
+                renderStudyGroups(data.study_groups),
+                '<div class="grid md:grid-cols-2 gap-6">',
+                renderEntityTable('PER', entities.PER),
+                renderEntityTable('ORG', entities.ORG),
+                renderEntityTable('LOC', entities.LOC),
+                renderEntityTable('Instituição', entities.INSTITUICAO),
+                renderEntityTable('Material', entities.MATERIAL),
+                renderEntityTable('Processo', entities.PROCESSO),
+                renderEntityTable('Norma', entities.NORMA),
+                renderEntityTable('MISC', entities.MISC),
+                renderEntityTable('Códigos', entities.CODIGO),
+                renderEntityTable('Siglas', entities.SIGLA),
+                renderTfidfTable(data.tfidf_terms, data.neighbor_top),
+                '</div>'
+            ].join('');
+        }
+
+        function renderEntityTable(title, rows) {
+            if (!rows || rows.length === 0) {
+                return `<div><h3 class="font-semibold text-gray-800 mb-2">${escapeHtml(title)}</h3><p class="text-sm text-gray-500">Nenhum item.</p></div>`;
+            }
+            const body = rows.map((row) => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-1 pr-3 text-sm">${escapeHtml(row.text)}</td>
+                    <td class="py-1 pr-3 text-xs text-gray-500">${escapeHtml(row.category || row.label)}</td>
+                    <td class="py-1 pr-3 text-sm tabular-nums">${escapeHtml(row.score)}</td>
+                    <td class="py-1 text-xs text-gray-500">${escapeHtml(row.df)}</td>
+                </tr>
+            `).join('');
+            return `
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">${escapeHtml(title)}</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left">
+                            <thead>
+                                <tr class="text-xs text-gray-500 uppercase">
+                                    <th class="py-1 pr-3">Texto</th>
+                                    <th class="py-1 pr-3">Categoria</th>
+                                    <th class="py-1 pr-3">Score</th>
+                                    <th class="py-1">DF</th>
+                                </tr>
+                            </thead>
+                            <tbody>${body}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        function formatNeighborList(tokens) {
+            if (!tokens || tokens.length === 0) {
+                return '<span class="text-gray-400">—</span>';
+            }
+            return tokens.map((token) => `<span class="inline-block bg-gray-100 text-gray-800 rounded px-1.5 py-0.5 mr-1 mb-0.5">${escapeHtml(token)}</span>`).join('');
+        }
+
+        function renderTfidfTable(rows, neighborTop) {
+            const top = Math.max(1, Math.min(30, parseInt(neighborTop, 10) || 5));
+            if (!rows || rows.length === 0) {
+                return `<div class="md:col-span-2"><h3 class="font-semibold text-gray-800 mb-2">Top TF-IDF (sem NER)</h3><p class="text-sm text-gray-500">Nenhum item.</p></div>`;
+            }
+            const body = rows.map((row) => `
+                <tr class="border-b border-gray-100 align-top">
+                    <td class="py-2 pr-3 text-xs text-right">${formatNeighborList(row.before)}</td>
+                    <td class="py-2 px-2 text-sm font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(row.text)}</td>
+                    <td class="py-2 pr-3 text-xs">${formatNeighborList(row.after)}</td>
+                    <td class="py-2 pr-3 text-xs text-gray-500">${escapeHtml(row.category || row.label)}</td>
+                    <td class="py-2 pr-3 text-sm tabular-nums">${escapeHtml(row.score)}</td>
+                    <td class="py-2 text-xs text-gray-500">${escapeHtml(row.df)}</td>
+                </tr>
+            `).join('');
+            return `
+                <div class="md:col-span-2">
+                    <h3 class="font-semibold text-gray-800 mb-2">Top TF-IDF (sem NER)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Leia como contexto: Antes (top ${top}) → Texto → Depois (top ${top}). São os tokens imediatos mais frequentes, sem artigos, preposições e outras stopwords simples. Ajuda a ver se o termo faz parte de uma entidade maior.</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left">
+                            <thead>
+                                <tr class="text-xs text-gray-500 uppercase">
+                                    <th class="py-1 pr-3 text-right">Antes (top ${top})</th>
+                                    <th class="py-1 px-2">Texto</th>
+                                    <th class="py-1 pr-3">Depois (top ${top})</th>
+                                    <th class="py-1 pr-3">Categoria</th>
+                                    <th class="py-1 pr-3">Score</th>
+                                    <th class="py-1">DF</th>
+                                </tr>
+                            </thead>
+                            <tbody>${body}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        function renderGoldenSetTable(draft) {
+            if (!draft || draft.length === 0) {
+                return '<p class="text-sm text-gray-500">Nenhum candidato gerado.</p>';
+            }
+            const body = draft.map((item) => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-1 pr-3 text-xs font-mono">${escapeHtml(item.query_id)}</td>
+                    <td class="py-1 pr-3 text-sm">${escapeHtml(item.query)}</td>
+                    <td class="py-1 pr-3 text-xs">${escapeHtml(item.category)}</td>
+                    <td class="py-1 pr-3 text-xs text-gray-500">${escapeHtml(item.source)}</td>
+                    <td class="py-1 text-sm tabular-nums">${escapeHtml(item.score)}</td>
+                </tr>
+            `).join('');
+            return `
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Rascunho do golden set (item 29)</h3>
+                    <p class="text-xs text-gray-500 mb-2">Confirme os Points relevantes antes de calcular Recall@K / MRR. Isto não é o golden set final.</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left">
+                            <thead>
+                                <tr class="text-xs text-gray-500 uppercase">
+                                    <th class="py-1 pr-3">ID</th>
+                                    <th class="py-1 pr-3">Consulta candidata</th>
+                                    <th class="py-1 pr-3">Categoria</th>
+                                    <th class="py-1 pr-3">Fonte</th>
+                                    <th class="py-1">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>${body}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        function renderStudyGroups(groups) {
+            if (!groups || groups.length === 0) {
+                return '<p class="text-sm text-gray-500">Nenhum study_group sugerido.</p>';
+            }
+            const items = groups.map((group) => `
+                <li class="text-sm">
+                    <span class="font-medium">${escapeHtml(group.study_group)}</span>
+                    <span class="text-xs text-gray-500">
+                        (${escapeHtml(group.label)} · ${escapeHtml(group.document_count)} docs · ${escapeHtml(group.chunk_count)} chunks)
+                    </span>
+                </li>
+            `).join('');
+            return `
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Sugestões de study_group (item 30)</h3>
+                    <ul class="list-disc pl-5 space-y-1">${items}</ul>
+                </div>`;
+        }
+
+        async function runEntityStudy() {
+            const collectionSelect = document.getElementById('entity-study-collection-select');
+            const runBtn = document.getElementById('entity-study-btn');
+            const exportBtn = document.getElementById('entity-study-export-btn');
+            const results = document.getElementById('entity-study-results');
+            const status = document.getElementById('entity-study-status');
+            const collectionName = (collectionSelect?.value || '').trim();
+            const maxChunks = parseInt(document.getElementById('entity-study-max-chunks')?.value || '2000', 10);
+            const topN = parseInt(document.getElementById('entity-study-top-n')?.value || '50', 10);
+            const neighborTop = parseInt(document.getElementById('entity-study-neighbor-top')?.value || '5', 10);
+
+            if (!collectionName) {
+                showToast('Selecione uma collection', 'warning');
+                return;
+            }
+
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Analisando...';
+            }
+            if (exportBtn) exportBtn.disabled = true;
+            if (status) status.textContent = 'Lendo chunks e extraindo entidades...';
+            if (results) {
+                results.innerHTML = '<div class="text-center text-gray-500 text-sm">Processando TF-IDF + NER...</div>';
+            }
+
+            try {
+                const response = await fetch('/api/entity-study', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        collection_name: collectionName,
+                        max_chunks: maxChunks,
+                        top_n: topN,
+                        neighbor_top: neighborTop
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Falha no estudo de entidades');
+                }
+                lastEntityStudyResult = data;
+                if (exportBtn) exportBtn.disabled = false;
+                if (status) {
+                    status.textContent = `${data.chunks_analyzed} chunks · backend ${data.backend} · ${data.golden_set_draft.length} candidatos`;
+                }
+                results.innerHTML = renderStudyResultTables(data);
+            } catch (error) {
+                console.error('❌ Erro no estudo de entidades:', error);
+                lastEntityStudyResult = null;
+                if (results) {
+                    results.innerHTML = `<div class="text-red-600 text-sm">Erro: ${escapeHtml(error.message)}</div>`;
+                }
+                if (status) status.textContent = error.message;
+                showToast(error.message, 'error');
+            } finally {
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Executar estudo';
+                }
+            }
+        }
+
+        function downloadGoldenSetDraft() {
+            if (!lastEntityStudyResult || !lastEntityStudyResult.golden_set_draft) {
+                showToast('Execute o estudo antes de exportar', 'warning');
+                return;
+            }
+            const blob = new Blob(
+                [JSON.stringify(lastEntityStudyResult.golden_set_draft, null, 2)],
+                { type: 'application/json;charset=utf-8' }
+            );
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `golden_set_draft_${lastEntityStudyResult.collection_name || 'collection'}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function runGlinerStudy() {
+            const collectionSelect = document.getElementById('gliner-study-collection-select');
+            const runBtn = document.getElementById('gliner-study-btn');
+            const exportBtn = document.getElementById('gliner-study-export-btn');
+            const results = document.getElementById('gliner-study-results');
+            const status = document.getElementById('gliner-study-status');
+            const collectionName = (collectionSelect?.value || '').trim();
+            const maxChunks = parseInt(document.getElementById('gliner-study-max-chunks')?.value || '200', 10);
+            const topN = parseInt(document.getElementById('gliner-study-top-n')?.value || '50', 10);
+            const neighborTop = parseInt(document.getElementById('gliner-study-neighbor-top')?.value || '5', 10);
+
+            if (!collectionName) {
+                showToast('Selecione uma collection', 'warning');
+                return;
+            }
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.textContent = 'Analisando...';
+            }
+            if (exportBtn) exportBtn.disabled = true;
+            if (status) status.textContent = 'Enviando textos ao serviço GLiNER/BERTimbau...';
+            if (results) {
+                results.innerHTML = '<div class="text-center text-gray-500 text-sm">Processando na máquina Torch...</div>';
+            }
+            try {
+                const response = await fetch('/api/gliner-study', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        collection_name: collectionName,
+                        max_chunks: maxChunks,
+                        top_n: topN,
+                        neighbor_top: neighborTop
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Falha no estudo GLiNER');
+                }
+                lastGlinerStudyResult = data;
+                if (exportBtn) exportBtn.disabled = false;
+                if (status) {
+                    status.textContent = `${data.chunks_analyzed} chunks · backend ${data.backend} · ${data.golden_set_draft.length} candidatos`;
+                }
+                results.innerHTML = renderStudyResultTables(data);
+            } catch (error) {
+                lastGlinerStudyResult = null;
+                if (results) {
+                    results.innerHTML = `<div class="text-red-600 text-sm">Erro: ${escapeHtml(error.message)}</div>`;
+                }
+                if (status) status.textContent = error.message;
+                showToast(error.message, 'error');
+            } finally {
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.textContent = 'Executar GLiNER';
+                }
+            }
+        }
+
+        function downloadGlinerGoldenSetDraft() {
+            if (!lastGlinerStudyResult || !lastGlinerStudyResult.golden_set_draft) {
+                showToast('Execute o estudo GLiNER antes de exportar', 'warning');
+                return;
+            }
+            const blob = new Blob(
+                [JSON.stringify(lastGlinerStudyResult.golden_set_draft, null, 2)],
+                { type: 'application/json;charset=utf-8' }
+            );
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `golden_set_gliner_${lastGlinerStudyResult.collection_name || 'collection'}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function performSemanticSearch() {
+            await performLexicalSearch();
         }
         
         async function loadSemanticSearchModels() {
@@ -5355,60 +6557,6 @@ DOCUMENTO:
                 console.error('❌ Erro no teste:', error);
                 resultsContainer.innerHTML = `<div class="text-red-600">❌ Erro de conexão no teste: ${error.message}</div>`;
                 showToast('❌ Erro de conexão no teste', 'error');
-            }
-        }
-        
-        async function performSemanticSearch() {
-            const searchInput = document.getElementById('semantic-search-input');
-            const searchBtn = document.getElementById('semantic-search-btn');
-            const resultsContainer = document.getElementById('semantic-search-results');
-            
-            const query = searchInput.value.trim();
-            const selectedModel = document.querySelector('input[name="semantic-model"]:checked');
-            
-            if (!query) {
-                showToast('Digite uma pergunta para buscar', 'warning');
-                return;
-            }
-            
-            if (!selectedModel) {
-                showToast('Selecione um modelo de IA', 'warning');
-                return;
-            }
-            
-            // Loading state
-            searchBtn.disabled = true;
-            searchBtn.textContent = 'Buscando...';
-            resultsContainer.innerHTML = '<div class="text-center text-gray-500">Processando busca semântica...</div>';
-            
-            try {
-                const response = await fetch('/api/semantic-search-by-model', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        query: query,
-                        model: selectedModel.value,
-                        similarity_threshold: getSemanticSimilarityThreshold()
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displaySemanticSearchResults(result);
-                } else {
-                    resultsContainer.innerHTML = `<div class="text-red-600">Erro: ${result.error}</div>`;
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro na busca semântica:', error);
-                resultsContainer.innerHTML = `<div class="text-red-600">Erro de conexão: ${error.message}</div>`;
-            } finally {
-                // Reset button
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Buscar';
             }
         }
         
